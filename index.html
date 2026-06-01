@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="DriveConnect: Consulta tu instructor de manejo asignado y coordina tus clases prácticas directamente.">
+  <title>DriveConnect - Academia de Conducción</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* =====================================================================
+       DESIGN SYSTEM
+    ===================================================================== */
+    :root {
+      --bg-primary: #0a0f1d;
+      --bg-secondary: #13192e;
+      --bg-card: rgba(30, 41, 59, 0.45);
+      --border-color: rgba(255,255,255,0.08);
+      --border-hover: rgba(255,255,255,0.15);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --brand: #3b82f6;
+      --brand-glow: rgba(59,130,246,0.3);
+      --brand-light: #60a5fa;
+      --success: #10b981;
+      --success-glow: rgba(16,185,129,0.2);
+      --warning: #f59e0b;
+      --warning-glow: rgba(245,158,11,0.2);
+      --danger: #f43f5e;
+      --danger-glow: rgba(244,63,94,0.25);
+      --font-title: 'Outfit', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --glass: 0 8px 32px rgba(0,0,0,0.37);
+      --blur: blur(12px);
+      --r-sm: 8px; --r-md: 16px; --r-lg: 24px;
+      --t-fast: all 0.2s cubic-bezier(0.4,0,0.2,1);
+      --t-norm: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:var(--font-body);background:var(--bg-primary);color:var(--text-primary);
+      min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden;line-height:1.5;
+      background-image:radial-gradient(circle at 10% 20%,rgba(59,130,246,.08) 0%,transparent 40%),
+        radial-gradient(circle at 90% 80%,rgba(244,63,94,.05) 0%,transparent 40%);
+      background-attachment:fixed;
+    }
+    ::-webkit-scrollbar{width:8px}
+    ::-webkit-scrollbar-track{background:var(--bg-primary)}
+    ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
+
+    /* HEADER */
+    header{
+      backdrop-filter:var(--blur);background:rgba(10,15,29,.7);border-bottom:1px solid var(--border-color);
+      position:sticky;top:0;z-index:100;padding:1rem 2rem;
+      display:flex;justify-content:space-between;align-items:center;
+    }
+    .logo-container{display:flex;align-items:center;gap:.75rem;text-decoration:none;cursor:pointer}
+    .logo-icon{
+      background:linear-gradient(135deg,var(--brand),var(--brand-light));width:40px;height:40px;
+      border-radius:12px;display:flex;align-items:center;justify-content:center;
+      color:white;font-weight:800;font-size:1.25rem;box-shadow:0 4px 14px var(--brand-glow);
+      font-family:var(--font-title);
+    }
+    .logo-text{font-family:var(--font-title);font-size:1.4rem;font-weight:700;letter-spacing:-.5px}
+    .logo-text span{background:linear-gradient(135deg,var(--brand-light),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .role-badge{
+      display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.05);
+      border:1px solid var(--border-color);padding:.4rem .9rem;border-radius:9999px;
+      font-size:.82rem;font-weight:500;cursor:pointer;transition:var(--t-fast);
+    }
+    .role-badge:hover{background:rgba(255,255,255,.1);border-color:var(--border-hover)}
+    .role-dot{width:8px;height:8px;border-radius:50%;background:var(--brand)}
+    .role-dot.admin{background:var(--warning)}
+    .role-dot.instructor{background:var(--success)}
+
+    main{flex:1;padding:2rem;max-width:1280px;margin:0 auto;width:100%}
+    footer{text-align:center;padding:1.5rem 2rem;color:var(--text-muted);font-size:.82rem;border-top:1px solid var(--border-color)}
+
+    /* VIEWS */
+    .view-section{display:none;animation:fadeIn .4s cubic-bezier(.16,1,.3,1) forwards}
+    .view-section.active{display:block}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(15px)}to{opacity:1;transform:translateY(0)}}
+
+    /* GLASS PANEL */
+    .glass-panel{
+      background:var(--bg-card);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+      border:1px solid var(--border-color);border-radius:var(--r-md);box-shadow:var(--glass);
+      padding:2rem;transition:var(--t-norm);
+    }
+    .glass-panel:hover{border-color:var(--border-hover);box-shadow:0 12px 40px rgba(0,0,0,.45)}
+
+    /* LOGIN */
+    .auth-container{max-width:500px;margin:3rem auto;text-align:center}
+    .auth-header{margin-bottom:2rem}
+    .auth-header h1{font-family:var(--font-title);font-size:2rem;font-weight:800;margin-bottom:.5rem;letter-spacing:-.5px}
+    .auth-header p{color:var(--text-secondary);font-size:.9rem}
+    .tab-switcher{
+      display:flex;background:rgba(0,0,0,.2);padding:.3rem;border-radius:9999px;
+      margin-bottom:1.75rem;border:1px solid var(--border-color);
+    }
+    .tab-btn{
+      flex:1;background:transparent;border:none;color:var(--text-secondary);
+      padding:.65rem 1rem;font-size:.88rem;font-weight:600;border-radius:9999px;cursor:pointer;transition:var(--t-fast);
+    }
+    .tab-btn.active{background:var(--brand);color:white;box-shadow:0 4px 12px var(--brand-glow)}
+    .form-group{margin-bottom:1.25rem;text-align:left}
+    .form-group label{
+      display:block;font-size:.78rem;font-weight:500;color:var(--text-secondary);
+      margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.5px;
+    }
+    .doc-type-row{display:flex;gap:.5rem;margin-bottom:.5rem}
+    .doc-type-btn{
+      flex:1;background:rgba(0,0,0,.2);border:1px solid var(--border-color);color:var(--text-secondary);
+      padding:.45rem .5rem;font-size:.75rem;font-weight:600;border-radius:var(--r-sm);cursor:pointer;
+      transition:var(--t-fast);text-align:center;
+    }
+    .doc-type-btn.active{background:rgba(59,130,246,.15);border-color:var(--brand);color:var(--brand-light)}
+    .input-wrapper{position:relative}
+    .input-icon{position:absolute;left:1rem;top:50%;transform:translateY(-50%);color:var(--text-muted)}
+    .form-input{
+      width:100%;background:rgba(15,23,42,.6);border:1px solid var(--border-color);
+      padding:.8rem 1rem .8rem 2.75rem;border-radius:var(--r-sm);color:white;
+      font-family:var(--font-body);font-size:.95rem;transition:var(--t-fast);
+    }
+    .form-input:focus{outline:none;border-color:var(--brand-light);box-shadow:0 0 0 3px var(--brand-glow);background:rgba(15,23,42,.8)}
+    .btn-primary{
+      width:100%;background:linear-gradient(135deg,var(--brand),var(--brand-light));color:white;
+      border:none;padding:.9rem;border-radius:var(--r-sm);font-size:.95rem;font-weight:700;
+      font-family:var(--font-title);cursor:pointer;transition:var(--t-fast);
+      box-shadow:0 4px 14px var(--brand-glow);display:flex;align-items:center;justify-content:center;gap:.5rem;
+    }
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px var(--brand-glow);filter:brightness(1.1)}
+    .btn-primary:active{transform:translateY(0)}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .error-msg{
+      background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.3);color:var(--danger);
+      padding:.75rem 1rem;border-radius:var(--r-sm);font-size:.85rem;margin-top:.75rem;text-align:left;display:none;
+    }
+    .loading-msg{
+      background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--brand-light);
+      padding:.75rem 1rem;border-radius:var(--r-sm);font-size:.85rem;margin-top:.75rem;display:none;
+    }
+    .config-hint{
+      margin-top:2rem;padding:1rem;background:rgba(245,158,11,.05);border:1px dashed rgba(245,158,11,.2);
+      border-radius:var(--r-sm);font-size:.78rem;color:var(--text-muted);text-align:left;
+    }
+    .config-hint a{color:var(--warning);text-decoration:none}
+    .config-hint a:hover{text-decoration:underline}
+
+    /* ALERT BANNER */
+    .alert-card{
+      border-radius:var(--r-md);padding:1.25rem 1.5rem;display:flex;align-items:center;gap:1.25rem;
+      margin-bottom:2rem;border-left:6px solid transparent;position:relative;overflow:hidden;
+    }
+    .alert-card.danger{background:linear-gradient(90deg,rgba(244,63,94,.15),rgba(244,63,94,.05));border-left-color:var(--danger);border:1px solid rgba(244,63,94,.25);border-left:6px solid var(--danger);animation:pulseBg 3s infinite ease-in-out}
+    .alert-card.warning{background:linear-gradient(90deg,rgba(245,158,11,.15),rgba(245,158,11,.05));border:1px solid rgba(245,158,11,.25);border-left:6px solid var(--warning)}
+    .alert-card.success{background:linear-gradient(90deg,rgba(16,185,129,.15),rgba(16,185,129,.05));border:1px solid rgba(16,185,129,.25);border-left:6px solid var(--success)}
+    .alert-icon{font-size:2rem;z-index:1}
+    .alert-content{flex:1;z-index:1}
+    .alert-title{font-family:var(--font-title);font-size:1.1rem;font-weight:700;margin-bottom:.2rem}
+    .alert-desc{color:var(--text-secondary);font-size:.86rem}
+    .alert-counter{font-family:var(--font-title);font-size:1.75rem;font-weight:800;text-align:right;z-index:1;min-width:70px}
+    .alert-counter span{font-size:.7rem;display:block;font-weight:500;color:var(--text-secondary);text-transform:uppercase}
+    @keyframes pulseBg{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
+
+    /* STUDENT GRID */
+    .student-grid{display:grid;grid-template-columns:1fr;gap:2rem}
+    @media(min-width:1024px){.student-grid{grid-template-columns:1.5fr 1fr}}
+
+    /* TIMELINE */
+    .timeline-section{margin-bottom:2rem}
+    .timeline-section-title{font-family:var(--font-title);font-size:1.1rem;font-weight:700;margin-bottom:1.25rem}
+    .timeline-container{position:relative;display:flex;flex-direction:column;gap:1.25rem}
+    .timeline-line{position:absolute;left:15px;top:0;bottom:0;width:2px;background:var(--border-color);z-index:0}
+    .timeline-step{display:flex;gap:1rem;align-items:flex-start;position:relative;z-index:1}
+    .timeline-marker{
+      width:32px;height:32px;border-radius:50%;background:var(--bg-secondary);border:2px solid var(--text-muted);
+      display:flex;align-items:center;justify-content:center;color:var(--text-muted);
+      font-size:.78rem;font-weight:700;transition:var(--t-norm);flex-shrink:0;
+    }
+    .timeline-step.completed .timeline-marker{background:rgba(16,185,129,.15);border-color:var(--success);color:var(--success);box-shadow:0 0 10px var(--success-glow)}
+    .timeline-step.active .timeline-marker{background:var(--brand-glow);border-color:var(--brand);color:white;box-shadow:0 0 12px var(--brand-glow);animation:pulseBorder 2s infinite}
+    @keyframes pulseBorder{0%{box-shadow:0 0 0 0 rgba(59,130,246,.4)}70%{box-shadow:0 0 0 8px rgba(59,130,246,0)}100%{box-shadow:0 0 0 0 rgba(59,130,246,0)}}
+    .timeline-content{flex:1;background:rgba(255,255,255,.02);border:1px solid var(--border-color);padding:.9rem 1.1rem;border-radius:var(--r-sm);transition:var(--t-norm)}
+    .timeline-step.active .timeline-content{background:rgba(59,130,246,.04);border-color:rgba(59,130,246,.25)}
+    .timeline-step.completed .timeline-content{opacity:.8}
+    .timeline-title{font-size:.9rem;font-weight:600;margin-bottom:.2rem}
+    .timeline-step.active .timeline-title{color:white;font-weight:700}
+    .timeline-step.completed .timeline-title{color:var(--text-secondary)}
+    .timeline-desc{font-size:.82rem;color:var(--text-muted)}
+    .timeline-step.active .timeline-desc{color:var(--text-secondary)}
+    .timeline-date{font-size:.72rem;color:var(--text-muted);margin-top:.3rem}
+
+    /* INSTRUCTOR CARD */
+    .instructor-card{position:relative;overflow:hidden;display:flex;flex-direction:column}
+    .instructor-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--brand),var(--brand-light))}
+    .instructor-card-header{display:flex;align-items:center;gap:1.25rem;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border-color)}
+    .instructor-photo{width:75px;height:75px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.1);box-shadow:0 4px 10px rgba(0,0,0,.3)}
+    .instructor-meta h3{font-family:var(--font-title);font-size:1.15rem;font-weight:700;margin-bottom:.2rem}
+    .instructor-badge{display:inline-block;background:rgba(59,130,246,.15);color:var(--brand-light);padding:.15rem .6rem;border-radius:9999px;font-size:.72rem;font-weight:600}
+    .instructor-rating{display:flex;align-items:center;gap:.25rem;color:var(--warning);font-size:.82rem;margin-top:.2rem}
+    .info-list{display:flex;flex-direction:column;gap:.9rem;margin-bottom:1.5rem;flex:1}
+    .info-item{display:flex;align-items:flex-start;gap:.85rem}
+    .info-icon{background:rgba(255,255,255,.03);border:1px solid var(--border-color);width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1rem}
+    .info-text span{display:block;font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.3px}
+    .info-text p{font-size:.86rem;color:var(--text-primary)}
+    .action-buttons{display:flex;flex-direction:column;gap:.65rem}
+    .btn-whatsapp{
+      background:#25d366;color:white;border:none;padding:.85rem 1.25rem;border-radius:var(--r-sm);
+      font-weight:700;font-family:var(--font-title);cursor:pointer;display:flex;align-items:center;
+      justify-content:center;gap:.5rem;transition:var(--t-fast);box-shadow:0 4px 14px rgba(37,211,102,.3);
+      text-decoration:none;font-size:.9rem;
+    }
+    .btn-whatsapp:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(37,211,102,.4);filter:brightness(1.05)}
+    .secondary-actions{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+    .btn-sec{
+      background:rgba(255,255,255,.03);border:1px solid var(--border-color);color:var(--text-primary);
+      padding:.65rem 1rem;border-radius:var(--r-sm);font-weight:600;font-size:.82rem;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;gap:.5rem;transition:var(--t-fast);text-decoration:none;
+    }
+    .btn-sec:hover{background:rgba(255,255,255,.08);border-color:var(--border-hover)}
+    .btn-success-action{
+      background:var(--success);color:white;border:none;padding:.85rem;border-radius:var(--r-sm);
+      font-family:var(--font-title);font-weight:700;cursor:pointer;display:flex;align-items:center;
+      justify-content:center;gap:.5rem;transition:var(--t-fast);box-shadow:0 4px 14px var(--success-glow);width:100%;margin-top:.75rem;
+    }
+    .btn-success-action:hover{transform:translateY(-2px);filter:brightness(1.1)}
+    .no-instructor-state{text-align:center;padding:2.5rem 1.5rem;color:var(--text-secondary)}
+    .no-instructor-icon{font-size:3rem;margin-bottom:1.25rem}
+    .no-instructor-state h4{font-family:var(--font-title);font-size:1.1rem;font-weight:700;margin-bottom:.5rem;color:white}
+
+    /* FAQ */
+    .faq-section{margin-top:1.75rem}
+    .faq-title{font-family:var(--font-title);font-size:1rem;font-weight:700;margin-bottom:.9rem}
+    .faq-list{display:flex;flex-direction:column;gap:.6rem}
+    .faq-item{background:rgba(255,255,255,.01);border:1px solid var(--border-color);border-radius:var(--r-sm);overflow:hidden}
+    .faq-question{width:100%;background:transparent;border:none;padding:.9rem 1rem;text-align:left;color:white;font-weight:600;font-size:.86rem;cursor:pointer;display:flex;justify-content:space-between;align-items:center;transition:var(--t-fast)}
+    .faq-question:hover{background:rgba(255,255,255,.03)}
+    .faq-answer{max-height:0;overflow:hidden;transition:max-height .3s cubic-bezier(0,1,0,1);padding:0 1rem;color:var(--text-secondary);font-size:.82rem}
+    .faq-item.active .faq-answer{max-height:200px;padding:0 1rem 1rem 1rem;transition:max-height .3s cubic-bezier(1,0,1,0)}
+    .faq-arrow{transition:var(--t-fast);font-size:.75rem}
+    .faq-item.active .faq-arrow{transform:rotate(180deg)}
+
+    /* INSTRUCTOR PORTAL */
+    .instructor-header-panel{display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:space-between;align-items:center}
+    .instructor-info-top{display:flex;align-items:center;gap:1rem}
+    .instructor-stats-row{display:flex;gap:1rem;align-items:center}
+    .inst-stat-card{background:rgba(0,0,0,.2);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.65rem 1.1rem;min-width:90px;text-align:center}
+    .inst-stat-val{font-family:var(--font-title);font-size:1.5rem;font-weight:800}
+    .inst-stat-val.v-active{color:var(--success)}
+    .inst-stat-val.v-pending{color:var(--warning)}
+    .inst-stat-label{font-size:.7rem;color:var(--text-muted);text-transform:uppercase}
+    .students-section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+    .students-section-header h3{font-family:var(--font-title);font-size:1.1rem;font-weight:700}
+    .students-list{display:grid;grid-template-columns:1fr;gap:1rem}
+    @media(min-width:768px){.students-list{grid-template-columns:repeat(2,1fr)}}
+    .student-list-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--r-md);padding:1.5rem;position:relative;display:flex;flex-direction:column;transition:var(--t-norm)}
+    .student-list-card:hover{border-color:var(--border-hover);transform:translateY(-2px)}
+    .student-list-card::after{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:var(--r-md) 0 0 var(--r-md)}
+    .p-high::after{background:var(--danger)}
+    .p-medium::after{background:var(--warning)}
+    .p-low::after{background:var(--success)}
+    .student-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem}
+    .student-card-title h4{font-family:var(--font-title);font-size:1rem;font-weight:700;margin-bottom:.1rem}
+    .student-card-dni{font-size:.72rem;color:var(--text-muted)}
+    .prio-pill{font-size:.68rem;font-weight:700;padding:.15rem .5rem;border-radius:9999px;text-transform:uppercase;white-space:nowrap}
+    .p-high .prio-pill{background:rgba(244,63,94,.15);color:var(--danger)}
+    .p-medium .prio-pill{background:rgba(245,158,11,.15);color:var(--warning)}
+    .p-low .prio-pill{background:rgba(16,185,129,.15);color:var(--success)}
+    .student-card-details{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;font-size:.78rem;color:var(--text-secondary);margin-bottom:1.1rem;background:rgba(0,0,0,.1);padding:.65rem;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.02)}
+    .student-det-item span{display:block;font-size:.68rem;color:var(--text-muted)}
+    .student-card-actions{display:flex;gap:.5rem;margin-top:auto}
+    .btn-card-action{flex:1;padding:.6rem;border-radius:var(--r-sm);font-size:.78rem;font-weight:600;cursor:pointer;transition:var(--t-fast);display:flex;align-items:center;justify-content:center;gap:.35rem;text-decoration:none}
+    .btn-card-action.primary{background:rgba(16,185,129,.1);color:var(--success);border:1px solid rgba(16,185,129,.3)}
+    .btn-card-action.primary:hover{background:var(--success);color:white}
+    .btn-card-action.wa{background:rgba(37,211,102,.1);color:#25d366;border:1px solid rgba(37,211,102,.3)}
+    .btn-card-action.wa:hover{background:#25d366;color:white}
+    .btn-card-action.blue{background:rgba(59,130,246,.1);color:var(--brand-light);border:1px solid rgba(59,130,246,.3)}
+    .btn-card-action.blue:hover{background:var(--brand);color:white}
+
+    /* ADMIN */
+    .admin-metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1.25rem;margin-bottom:2rem}
+    .metric-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--r-md);padding:1.25rem;display:flex;align-items:center;gap:1rem}
+    .metric-icon-wrap{width:44px;height:44px;border-radius:var(--r-sm);background:rgba(255,255,255,.03);border:1px solid var(--border-color);display:flex;align-items:center;justify-content:center;font-size:1.25rem;color:var(--brand-light);flex-shrink:0}
+    .metric-card.warning .metric-icon-wrap{color:var(--warning)}
+    .metric-card.danger .metric-icon-wrap{color:var(--danger)}
+    .metric-card.success .metric-icon-wrap{color:var(--success)}
+    .metric-info h4{font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+    .metric-val{font-family:var(--font-title);font-size:1.6rem;font-weight:800}
+    .admin-split-grid{display:grid;grid-template-columns:1fr;gap:2rem}
+    @media(min-width:1024px){.admin-split-grid{grid-template-columns:1.3fr 1fr}}
+    .panel-header{border-bottom:1px solid var(--border-color);padding-bottom:1rem;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center}
+    .panel-header h3{font-family:var(--font-title);font-size:1.1rem;font-weight:700}
+    .unassigned-table-container{overflow-x:auto}
+    .unassigned-table{width:100%;border-collapse:collapse;text-align:left}
+    .unassigned-table th{padding:.65rem 1rem;font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border-color)}
+    .unassigned-table td{padding:.9rem 1rem;font-size:.82rem;border-bottom:1px solid rgba(255,255,255,.02)}
+    .unassigned-table tr:hover td{background:rgba(255,255,255,.01)}
+    .wait-badge{font-size:.72rem;font-weight:700;padding:.15rem .5rem;border-radius:9999px}
+    .wait-badge.danger{background:rgba(244,63,94,.15);color:var(--danger)}
+    .wait-badge.warning{background:rgba(245,158,11,.15);color:var(--warning)}
+    .wait-badge.success{background:rgba(16,185,129,.15);color:var(--success)}
+    .instructor-row-card{background:rgba(0,0,0,.15);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.9rem;margin-bottom:.65rem;display:flex;justify-content:space-between;align-items:center;transition:var(--t-fast)}
+    .instructor-row-card:hover{background:rgba(0,0,0,.25);border-color:var(--border-hover)}
+    .instructor-row-info{display:flex;align-items:center;gap:.75rem}
+    .instructor-row-photo{width:38px;height:38px;border-radius:50%;object-fit:cover}
+    .instructor-row-name{font-weight:600;font-size:.86rem}
+    .instructor-row-load{font-size:.72rem;color:var(--text-muted);text-align:right}
+    .instructor-row-load span{font-weight:700;color:var(--brand-light)}
+
+    /* CLOUD CONFIG */
+    .cloud-panel{border-color:rgba(16,185,129,.3)!important;margin-top:2rem}
+    .cloud-panel-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border-color);justify-content:space-between}
+    .cloud-title{font-family:var(--font-title);font-size:1.1rem;font-weight:700;color:var(--success)}
+    .cloud-badge{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;background:rgba(255,255,255,.05);color:var(--text-secondary)}
+    .config-grid{display:grid;grid-template-columns:1fr;gap:1.5rem}
+    @media(min-width:768px){.config-grid{grid-template-columns:1fr 1fr}}
+    .config-box{background:rgba(0,0,0,.15);padding:1.25rem;border-radius:var(--r-sm);border:1px solid var(--border-color)}
+    .config-box h4{color:var(--success);font-size:.82rem;margin-bottom:.85rem}
+    .config-label{display:block;font-size:.72rem;color:var(--text-secondary);margin-bottom:.3rem;text-transform:uppercase}
+    .config-input{
+      width:100%;background:rgba(0,0,0,.3);border:1px solid var(--border-color);padding:.6rem .75rem;
+      border-radius:var(--r-sm);color:white;font-size:.82rem;font-family:var(--font-body);margin-bottom:.75rem;
+    }
+    .config-input:focus{outline:none;border-color:var(--success);box-shadow:0 0 0 2px rgba(16,185,129,.2)}
+    .config-actions{display:flex;gap:.5rem;margin-top:.25rem}
+    .btn-connect{background:var(--success);color:white;border:none;padding:.6rem 1rem;border-radius:var(--r-sm);font-weight:700;font-size:.82rem;cursor:pointer;flex:1;transition:var(--t-fast)}
+    .btn-connect:hover{filter:brightness(1.1)}
+    .btn-disconnect{background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);padding:.6rem .75rem;border-radius:var(--r-sm);font-weight:600;font-size:.78rem;cursor:pointer;transition:var(--t-fast)}
+    .btn-disconnect:hover{background:var(--danger);color:white}
+    .script-area{width:100%;height:100px;background:rgba(0,0,0,.4);border:1px solid var(--border-color);border-radius:var(--r-sm);color:#a7f3d0;font-family:monospace;font-size:.7rem;padding:.65rem;resize:vertical;margin-top:.5rem}
+    .btn-copy{background:rgba(255,255,255,.05);border:1px solid var(--border-color);color:var(--text-secondary);padding:.4rem .75rem;border-radius:var(--r-sm);font-size:.75rem;cursor:pointer;margin-top:.4rem;transition:var(--t-fast)}
+    .btn-copy:hover{background:rgba(255,255,255,.1);color:white}
+    .steps-guide{font-size:.78rem;color:var(--text-secondary);line-height:1.5}
+    .steps-guide h4{color:white;margin-bottom:.5rem;font-size:.82rem}
+    .steps-guide ol{padding-left:1.2rem;display:flex;flex-direction:column;gap:.4rem}
+
+    /* MODAL */
+    .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:var(--t-norm)}
+    .modal-overlay.active{opacity:1;pointer-events:auto}
+    .modal-content{background:var(--bg-secondary);border:1px solid var(--border-color);box-shadow:0 20px 50px rgba(0,0,0,.5);border-radius:var(--r-md);width:100%;max-width:480px;overflow:hidden;transform:scale(.95);transition:var(--t-norm)}
+    .modal-overlay.active .modal-content{transform:scale(1)}
+    .modal-header{padding:1.1rem 1.5rem;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center}
+    .modal-header h3{font-family:var(--font-title);font-size:1.1rem;font-weight:700}
+    .btn-close-modal{background:transparent;border:none;color:var(--text-secondary);font-size:1.4rem;cursor:pointer;line-height:1}
+    .btn-close-modal:hover{color:white}
+    .modal-body{padding:1.25rem 1.5rem}
+    .modal-footer{padding:.9rem 1.5rem;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:.65rem}
+    .btn-action-cancel{background:rgba(255,255,255,.03);border:1px solid var(--border-color);color:var(--text-secondary);padding:.55rem 1.1rem;border-radius:var(--r-sm);font-weight:600;cursor:pointer;font-size:.85rem}
+    .btn-action-cancel:hover{background:rgba(255,255,255,.08);color:white}
+    .btn-action-confirm{background:var(--brand);border:none;color:white;padding:.55rem 1.25rem;border-radius:var(--r-sm);font-weight:600;cursor:pointer;box-shadow:0 4px 10px var(--brand-glow);font-size:.85rem}
+    .btn-action-confirm:hover{background:var(--brand-light)}
+
+    /* BADGE COMPONENTS */
+    .badge{display:inline-block;padding:.2rem .5rem;border-radius:4px;font-size:.72rem;font-weight:600}
+    .badge.blue{background:rgba(59,130,246,.15);color:var(--brand-light)}
+    .badge.red{background:rgba(244,63,94,.15);color:var(--danger)}
+    .badge.green{background:rgba(16,185,129,.15);color:var(--success)}
+
+    /* MISC */
+    .flex-between{display:flex;justify-content:space-between;align-items:center}
+    .mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}
+    .mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.mt-4{margin-top:1rem}
+    .text-secondary{color:var(--text-secondary)}.text-muted{color:var(--text-muted)}.text-center{text-align:center}
+    code{background:rgba(255,255,255,.06);padding:.1rem .35rem;border-radius:4px;font-size:.82em;color:var(--brand-light)}
+
+    /* TOAST */
+    #dc-toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;padding:.85rem 1.25rem;border-radius:var(--r-sm);font-weight:600;color:white;box-shadow:0 10px 25px rgba(0,0,0,.5);display:flex;align-items:center;gap:.5rem;pointer-events:none}
+
+    /* MOBILE */
+    @media(max-width:640px){
+      main{padding:1rem}
+      header{padding:.75rem 1rem}
+      .logo-text{font-size:1.1rem}
+      .auth-container{margin:1.5rem auto}
+      .glass-panel{padding:1.25rem}
+      .alert-card{flex-wrap:wrap}
+      .alert-counter{min-width:auto}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-container" onclick="goHome()">
+    <div class="logo-icon">D</div>
+    <div class="logo-text">Drive<span>Connect</span></div>
+  </div>
+  <div class="role-badge" id="header-badge" style="display:none" onclick="logout()">
+    <div class="role-dot" id="role-dot"></div>
+    <span id="role-text">Cerrar sesión</span>
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+  </div>
+</header>
+
+<main>
+
+  <!-- ===== LOGIN ===== -->
+  <section id="view-login" class="view-section active">
+    <div class="auth-container glass-panel">
+      <div class="auth-header">
+        <h1>Academia de Conducción</h1>
+        <p>Consulta tu instructor asignado y coordina tus clases prácticas directamente</p>
+      </div>
+
+      <div class="tab-switcher">
+        <button class="tab-btn active" id="btn-student" onclick="switchTab('student')">Soy Alumno</button>
+        <button class="tab-btn" id="btn-instructor" onclick="switchTab('instructor')">Soy Instructor</button>
+      </div>
+
+      <!-- ALUMNO -->
+      <div id="group-student">
+        <div class="form-group">
+          <label>Tipo de documento</label>
+          <div class="doc-type-row">
+            <button class="doc-type-btn active" data-type="CC" onclick="setDocType(this,'CC')">C.C.</button>
+            <button class="doc-type-btn" data-type="TI" onclick="setDocType(this,'TI')">T.I.</button>
+            <button class="doc-type-btn" data-type="CE" onclick="setDocType(this,'CE')">C.E.</button>
+            <button class="doc-type-btn" data-type="PA" onclick="setDocType(this,'PA')">Pasaporte</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label id="doc-label">Número de Cédula de Ciudadanía</label>
+          <div class="input-wrapper">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </span>
+            <input type="text" id="student-id" class="form-input" placeholder="Ingresa tu número de documento" autocomplete="off">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="loginStudent()">
+          <span>Consultar mi Instructor</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <!-- INSTRUCTOR -->
+      <div id="group-instructor" style="display:none">
+        <div class="form-group">
+          <label>Código de Instructor</label>
+          <div class="input-wrapper">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+            </span>
+            <input type="text" id="instructor-code" class="form-input" placeholder="Ej: INS-01" autocomplete="off">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="loginInstructor()">
+          <span>Ingresar al Portal</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <div id="login-loading" class="loading-msg">⏳ Consultando base de datos...</div>
+      <div id="login-error" class="error-msg"></div>
+
+      <div class="config-hint" id="config-hint" style="display:none">
+        ⚙️ La base de datos en la nube no está configurada aún. <a href="#" onclick="adminDirect()">Configurar ahora →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PORTAL ALUMNO ===== -->
+  <section id="view-student" class="view-section">
+    <div id="student-alert-banner" class="alert-card danger">
+      <div class="alert-icon" id="student-alert-icon">⚠️</div>
+      <div class="alert-content">
+        <div class="alert-title" id="student-alert-title">Cargando...</div>
+        <div class="alert-desc" id="student-alert-desc"></div>
+      </div>
+      <div class="alert-counter" id="student-alert-counter" style="display:none">0<span>Días</span></div>
+    </div>
+
+    <div class="student-grid">
+      <div class="glass-panel">
+        <div class="flex-between mb-4">
+          <div>
+            <h2 id="student-name-title" style="font-family:var(--font-title);font-size:1.6rem;font-weight:800"></h2>
+            <p class="text-secondary" id="student-doc-subtitle" style="font-size:.86rem"></p>
+          </div>
+          <button class="btn-sec" onclick="logout()" style="padding:.45rem .75rem;font-size:.78rem">Salir</button>
+        </div>
+
+        <div class="timeline-section">
+          <div class="timeline-section-title">Tu Proceso de Aprendizaje</div>
+          <div class="timeline-container">
+            <div class="timeline-line"></div>
+            <div class="timeline-step completed" id="step-theory">
+              <div class="timeline-marker">✓</div>
+              <div class="timeline-content">
+                <div class="timeline-title">Examen Teórico Aprobado</div>
+                <div class="timeline-desc">Aprobaste tu examen teórico. ¡Felicitaciones!</div>
+                <div class="timeline-date" id="student-theory-date"></div>
+              </div>
+            </div>
+            <div class="timeline-step" id="step-instructor">
+              <div class="timeline-marker">2</div>
+              <div class="timeline-content">
+                <div class="timeline-title">Asignación de Instructor</div>
+                <div class="timeline-desc" id="step-instructor-desc">Buscando instructor disponible.</div>
+                <div class="timeline-date" id="student-assign-date"></div>
+              </div>
+            </div>
+            <div class="timeline-step" id="step-contact">
+              <div class="timeline-marker">3</div>
+              <div class="timeline-content">
+                <div class="timeline-title">Contacto Inicial</div>
+                <div class="timeline-desc" id="step-contact-desc">Esperando primer contacto del instructor.</div>
+                <div class="timeline-date" id="student-contact-date"></div>
+              </div>
+            </div>
+            <div class="timeline-step" id="step-practice">
+              <div class="timeline-marker">4</div>
+              <div class="timeline-content">
+                <div class="timeline-title">Clases Prácticas</div>
+                <div class="timeline-desc">En marcha con tu cronograma de práctica.</div>
+                <div class="timeline-date" id="student-practice-date"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="faq-section">
+          <div class="faq-title">Preguntas frecuentes</div>
+          <div class="faq-list">
+            <div class="faq-item">
+              <button class="faq-question" onclick="toggleFaq(this)">
+                <span>¿Por qué debo contactar yo al instructor?</span><span class="faq-arrow">▼</span>
+              </button>
+              <div class="faq-answer"><p>Aunque nuestro protocolo establece que el instructor debe llamarte en máximo 20 días, a veces sus agendas están ocupadas. Al escribirle directamente, garantizas una respuesta inmediata y agendas tus clases más rápido.</p></div>
+            </div>
+            <div class="faq-item">
+              <button class="faq-question" onclick="toggleFaq(this)">
+                <span>¿Cuándo inicia mi primera clase práctica?</span><span class="faq-arrow">▼</span>
+              </button>
+              <div class="faq-answer"><p>Generalmente en el primer contacto con tu instructor coordinan los horarios disponibles. Las clases normalmente inician en la misma semana del primer contacto.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-panel instructor-card" id="instructor-info-panel">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PORTAL INSTRUCTOR ===== -->
+  <section id="view-instructor" class="view-section">
+    <div class="glass-panel mb-4">
+      <div class="instructor-header-panel">
+        <div class="instructor-info-top">
+          <img id="inst-photo" src="" alt="" class="instructor-photo" style="width:55px;height:55px">
+          <div>
+            <h2 id="inst-name" style="font-family:var(--font-title);font-size:1.4rem;font-weight:800"></h2>
+            <p class="text-secondary" id="inst-specialty" style="font-size:.82rem"></p>
+          </div>
+        </div>
+        <div class="instructor-stats-row">
+          <div class="inst-stat-card">
+            <div class="inst-stat-val v-active" id="inst-stat-active">0</div>
+            <div class="inst-stat-label">Activos</div>
+          </div>
+          <div class="inst-stat-card" style="border-color:var(--warning)">
+            <div class="inst-stat-val v-pending" id="inst-stat-pending">0</div>
+            <div class="inst-stat-label">Pendientes</div>
+          </div>
+          <button class="btn-sec" onclick="logout()">Salir</button>
+        </div>
+      </div>
+    </div>
+    <div class="students-section-header">
+      <h3>Tus Alumnos Asignados</h3>
+      <p class="text-secondary" style="font-size:.8rem">Ordenados por urgencia de contacto</p>
+    </div>
+    <div class="students-list" id="instructor-students-list"></div>
+  </section>
+
+  <!-- ===== PANEL ADMIN ===== -->
+  <section id="view-admin" class="view-section">
+    <div class="flex-between mb-4">
+      <div>
+        <h1 style="font-family:var(--font-title);font-size:1.75rem;font-weight:800">Panel de Control</h1>
+        <p class="text-secondary">Monitoreo y gestión de asignaciones en tiempo real</p>
+      </div>
+      <button class="btn-sec" onclick="logout()">Cerrar</button>
+    </div>
+
+    <div class="admin-metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon-wrap">👥</div>
+        <div class="metric-info"><h4>Total Alumnos</h4><div class="metric-val" id="metric-total">0</div></div>
+      </div>
+      <div class="metric-card warning">
+        <div class="metric-icon-wrap">⏰</div>
+        <div class="metric-info"><h4>Sin Instructor</h4><div class="metric-val" id="metric-unassigned">0</div></div>
+      </div>
+      <div class="metric-card danger">
+        <div class="metric-icon-wrap">🚨</div>
+        <div class="metric-info"><h4>Alertas &gt;15d</h4><div class="metric-val" id="metric-alerts">0</div></div>
+      </div>
+      <div class="metric-card success">
+        <div class="metric-icon-wrap">📊</div>
+        <div class="metric-info"><h4>Espera Prom.</h4><div class="metric-val" id="metric-avg">0d</div></div>
+      </div>
+    </div>
+
+    <div class="admin-split-grid">
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h3>Alumnos sin Instructor</h3>
+          <span class="badge red" id="badge-count">0</span>
+        </div>
+        <div class="unassigned-table-container">
+          <table class="unassigned-table">
+            <thead><tr><th>Nombre</th><th>Documento</th><th>Teórico</th><th>Espera</th><th></th></tr></thead>
+            <tbody id="admin-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h3>Instructores y Carga</h3>
+          <span class="badge blue">Resumen</span>
+        </div>
+        <div id="admin-instructors-list"></div>
+      </div>
+    </div>
+
+    <!-- CLOUD CONFIG -->
+    <div class="glass-panel cloud-panel">
+      <div class="cloud-panel-header">
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <span style="font-size:1.5rem">📊</span>
+          <div>
+            <div class="cloud-title">Integración con Google Sheets</div>
+            <p class="text-muted" style="font-size:.72rem">Conecta la base de datos en la nube para operar en producción</p>
+          </div>
+        </div>
+        <span class="cloud-badge" id="cloud-badge">Sin configurar</span>
+      </div>
+      <div class="config-grid">
+        <div class="config-box">
+          <h4>🔑 Credenciales de conexión</h4>
+          <label class="config-label">URL del Google Apps Script (Web App)</label>
+          <input type="text" id="cfg-script-url" class="config-input" placeholder="https://script.google.com/macros/s/.../exec">
+          <label class="config-label">Contraseña de Admin</label>
+          <input type="password" id="cfg-admin-pass" class="config-input" placeholder="Contraseña para acceder al panel">
+          <div class="config-actions">
+            <button class="btn-connect" onclick="saveConfig()">Guardar y Conectar</button>
+            <button class="btn-disconnect" onclick="clearConfig()">Desconectar</button>
+          </div>
+        </div>
+        <div>
+          <div class="config-box" style="margin-bottom:1rem">
+            <div class="steps-guide">
+              <h4>📋 Configuración en 5 pasos</h4>
+              <ol>
+                <li>Crea un Google Sheet nuevo en tu Drive</li>
+                <li>Ve a <strong>Extensiones → Apps Script</strong></li>
+                <li>Borra el código existente y pega el de abajo</li>
+                <li>Clic en <strong>Implementar → Nueva implementación</strong> → "Aplicación web" → acceso "Cualquier persona"</li>
+                <li>Copia la URL generada y pégala arriba</li>
+              </ol>
+            </div>
+          </div>
+          <div class="config-box">
+            <div class="config-label" style="margin-bottom:.4rem">Código del Apps Script:</div>
+            <textarea id="apps-script-code" class="script-area" readonly></textarea>
+            <button class="btn-copy" onclick="copyScript()">📋 Copiar código</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ASSIGN MODAL -->
+<div class="modal-overlay" id="assign-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Asignar Instructor</h3>
+      <button class="btn-close-modal" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="mb-4">Selecciona un instructor para <strong id="modal-student-name"></strong> (<span id="modal-student-doc"></span>)</p>
+      <label class="config-label">Instructor disponible (menor carga primero)</label>
+      <select id="modal-instructor-select" class="config-input" style="font-size:.9rem;padding:.65rem"></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-action-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-action-confirm" onclick="confirmAssign()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>© 2026 DriveConnect — Academia de Conducción. Todos los derechos reservados.</p>
+</footer>
+
+<script>
+// =============================================================================
+// CONFIGURATION — Edit SCRIPT_URL after deploying Apps Script
+// =============================================================================
+const CONFIG = {
+  SCRIPT_URL: localStorage.getItem('dc_script_url') || '',
+  ADMIN_PASS: localStorage.getItem('dc_admin_pass') || 'admin2026',
+  WAIT_DAYS_WARNING: 10,
+  WAIT_DAYS_CRITICAL: 20,
+};
+
+// =============================================================================
+// STATE
+// =============================================================================
+let STATE = {
+  students: [],
+  instructors: [],
+  currentUser: null,
+  activeDocType: 'CC',
+  activeTab: 'student',
+  cloudConnected: false,
+};
+
+const DOC_LABELS = {
+  CC: 'Cédula de Ciudadanía',
+  TI: 'Tarjeta de Identidad',
+  CE: 'Cédula de Extranjería',
+  PA: 'Pasaporte',
+};
+
+// =============================================================================
+// APPS SCRIPT CODE (embedded for copy-paste)
+// =============================================================================
+const APPS_SCRIPT_CODE = `function doGet(e) {
+  setupSheets();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var instSheet = ss.getSheetByName("Instructores");
+  var alSheet = ss.getSheetByName("Alumnos");
+  var instData = sheetToObjects(instSheet);
+  var alData = sheetToObjects(alSheet);
+  var response = JSON.stringify({ status: "ok", students: alData, instructors: instData });
+  if (e.parameter.callback) {
+    return ContentService.createTextOutput(e.parameter.callback + "(" + response + ")")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(response).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  try {
+    setupSheets();
+    var p = JSON.parse(e.postData.contents);
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var alSheet = ss.getSheetByName("Alumnos");
+    if (p.action === "updateStatus") {
+      updateRow(alSheet, p.docNumber, { state: p.state, contactDate: p.contactDate || "", practiceStartDate: p.practiceStartDate || "" });
+    } else if (p.action === "assignInstructor") {
+      updateRow(alSheet, p.docNumber, { instructorId: p.instructorId, state: "instructor_assigned" });
+    } else if (p.action === "addStudent") {
+      alSheet.appendRow([p.docNumber, p.docType, p.name, "", "theory_passed", "", "", p.theoryPassedDate]);
+      SpreadsheetApp.flush();
+    }
+    return ContentService.createTextOutput(JSON.stringify({ status: "success" })).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function sheetToObjects(sheet) {
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0]; var rows = [];
+  for (var i = 1; i < data.length; i++) {
+    if (!data[i][0]) continue;
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) obj[headers[j]] = data[i][j];
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function updateRow(sheet, docNumber, updates) {
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][0].toString().trim() === docNumber.toString().trim()) {
+      var headers = data[0];
+      for (var key in updates) {
+        var col = headers.indexOf(key);
+        if (col >= 0) sheet.getRange(i+1, col+1).setValue(updates[key]);
+      }
+      SpreadsheetApp.flush(); return;
+    }
+  }
+}
+
+function setupSheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var instSheet = ss.getSheetByName("Instructores");
+  if (!instSheet) {
+    instSheet = ss.insertSheet("Instructores");
+    instSheet.appendRow(["id","name","specialty","phone","email","photo","rating","availability"]);
+  }
+  var alSheet = ss.getSheetByName("Alumnos");
+  if (!alSheet) {
+    alSheet = ss.insertSheet("Alumnos");
+    alSheet.appendRow(["docNumber","docType","name","instructorId","state","contactDate","practiceStartDate","theoryPassedDate"]);
+  }
+  var def = ss.getSheetByName("Hoja 1") || ss.getSheetByName("Sheet1");
+  if (def && def.getLastRow() === 0) { try { ss.deleteSheet(def); } catch(e) {} }
+}`;
+
+// =============================================================================
+// API LAYER
+// =============================================================================
+async function fetchData() {
+  const url = localStorage.getItem('dc_script_url');
+  if (!url) return null;
+  try {
+    const res = await fetch(url + '?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data.status !== 'ok') throw new Error(data.message);
+    return data;
+  } catch(e) {
+    console.warn('fetch failed, trying JSONP:', e);
+    return await fetchJSONP(url);
+  }
+}
+
+function fetchJSONP(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = '_dc_cb_' + Date.now();
+    const script = document.createElement('script');
+    const sep = url.includes('?') ? '&' : '?';
+    script.src = url + sep + 'callback=' + cbName;
+    const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 8000);
+    window[cbName] = (data) => { clearTimeout(timer); cleanup(); resolve(data); };
+    script.onerror = () => { clearTimeout(timer); cleanup(); reject(new Error('script error')); };
+    function cleanup() { if (script.parentNode) script.parentNode.removeChild(script); delete window[cbName]; }
+    document.body.appendChild(script);
+  });
+}
+
+async function postData(action, params) {
+  const url = localStorage.getItem('dc_script_url');
+  if (!url) return false;
+  try {
+    await fetch(url, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action, ...params }),
+    });
+    return true;
+  } catch(e) { return false; }
+}
+
+// =============================================================================
+// DATA NORMALIZATION
+// =============================================================================
+function normalizeStudent(obj) {
+  const k = (key) => (obj[key] !== undefined ? obj[key] : '');
+  return {
+    docNumber: String(k('docNumber') || k('dni') || k('cedula') || k('documento') || '').trim(),
+    docType: String(k('docType') || k('tipoDoc') || 'CC').trim() || 'CC',
+    name: String(k('name') || k('nombre') || '').trim(),
+    instructorId: String(k('instructorId') || k('instructor_id') || k('instructor') || '').trim() || null,
+    state: String(k('state') || k('estado') || 'theory_passed').trim(),
+    contactDate: String(k('contactDate') || k('fecha_contacto') || '').trim() || null,
+    practiceStartDate: String(k('practiceStartDate') || k('fecha_practica') || '').trim() || null,
+    theoryPassedDate: String(k('theoryPassedDate') || k('fecha_teorico') || '').trim() || null,
+  };
+}
+
+function normalizeInstructor(obj) {
+  const k = (key) => (obj[key] !== undefined ? obj[key] : '');
+  return {
+    id: String(k('id') || k('codigo') || k('código') || '').trim(),
+    name: String(k('name') || k('nombre') || '').trim(),
+    specialty: String(k('specialty') || k('especialidad') || '').trim(),
+    phone: String(k('phone') || k('telefono') || k('celular') || '').trim(),
+    email: String(k('email') || k('correo') || '').trim(),
+    photo: String(k('photo') || k('foto') || '').trim() || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(k('name') || 'I') + '&background=1e293b&color=60a5fa&size=200',
+    rating: String(k('rating') || k('calificacion') || '').trim() || '—',
+    availability: String(k('availability') || k('disponibilidad') || k('horario') || '').trim(),
+  };
+}
+
+// =============================================================================
+// DATA LOADING
+// =============================================================================
+async function loadData() {
+  const raw = await fetchData();
+  if (!raw) return false;
+  STATE.students = (raw.students || []).map(normalizeStudent).filter(s => s.docNumber);
+  STATE.instructors = (raw.instructors || []).map(normalizeInstructor).filter(i => i.id);
+  STATE.cloudConnected = true;
+  updateCloudBadge(true);
+  return true;
+}
+
+function updateCloudBadge(connected) {
+  const badge = document.getElementById('cloud-badge');
+  if (!badge) return;
+  if (connected) {
+    badge.textContent = '🟢 Conectado';
+    badge.style.background = 'rgba(16,185,129,.15)';
+    badge.style.color = 'var(--success)';
+  } else {
+    badge.textContent = '🔴 Sin conexión';
+    badge.style.background = 'rgba(244,63,94,.15)';
+    badge.style.color = 'var(--danger)';
+  }
+}
+
+// =============================================================================
+// DATE HELPERS
+// =============================================================================
+function today() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function daysBetween(d1, d2) {
+  const a = new Date(d1), b = new Date(d2);
+  a.setHours(0,0,0,0); b.setHours(0,0,0,0);
+  return Math.round(Math.abs(b - a) / 86400000);
+}
+
+function daysWaiting(student) {
+  if (!student.theoryPassedDate) return 0;
+  const ref = (student.state === 'theory_passed' || student.state === 'instructor_assigned')
+    ? today()
+    : (student.contactDate || today());
+  return daysBetween(student.theoryPassedDate, ref);
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const [y, m, d] = dateStr.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function translateState(state) {
+  const map = {
+    theory_passed: 'Teórico aprobado',
+    instructor_assigned: 'Instructor asignado',
+    contacted: 'Contactado',
+    practice_started: 'En práctica',
+  };
+  return map[state] || state;
+}
+
+function getDocLabel(type) {
+  return DOC_LABELS[type] || 'Documento';
+}
+
+// =============================================================================
+// VIEWS
+// =============================================================================
+function showView(id) {
+  document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const badge = document.getElementById('header-badge');
+  const dot = document.getElementById('role-dot');
+  const roleText = document.getElementById('role-text');
+  if (id === 'view-login') {
+    badge.style.display = 'none';
+  } else {
+    badge.style.display = 'inline-flex';
+    if (id === 'view-student') { dot.className = 'role-dot'; roleText.textContent = 'Alumno'; }
+    else if (id === 'view-instructor') { dot.className = 'role-dot instructor'; roleText.textContent = 'Instructor'; }
+    else if (id === 'view-admin') { dot.className = 'role-dot admin'; roleText.textContent = 'Admin'; }
+  }
+}
+
+function goHome() {
+  if (STATE.currentUser) logout(); else showView('view-login');
+}
+
+function logout() {
+  STATE.currentUser = null;
+  showView('view-login');
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('login-loading').style.display = 'none';
+}
+
+// =============================================================================
+// LOGIN
+// =============================================================================
+function switchTab(tab) {
+  STATE.activeTab = tab;
+  document.getElementById('btn-student').classList.toggle('active', tab === 'student');
+  document.getElementById('btn-instructor').classList.toggle('active', tab === 'instructor');
+  document.getElementById('group-student').style.display = tab === 'student' ? 'block' : 'none';
+  document.getElementById('group-instructor').style.display = tab === 'instructor' ? 'block' : 'none';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function setDocType(btn, type) {
+  STATE.activeDocType = type;
+  document.querySelectorAll('.doc-type-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('doc-label').textContent = 'Número de ' + DOC_LABELS[type];
+}
+
+async function loginStudent() {
+  const docNum = document.getElementById('student-id').value.trim();
+  const errEl = document.getElementById('login-error');
+  const loadEl = document.getElementById('login-loading');
+
+  if (!docNum) { showError('Ingresa tu número de documento.'); return; }
+
+  const url = localStorage.getItem('dc_script_url');
+  if (!url) {
+    document.getElementById('config-hint').style.display = 'block';
+    showError('La base de datos no está configurada. Contacta a la academia.');
+    return;
+  }
+
+  errEl.style.display = 'none';
+  loadEl.style.display = 'block';
+  document.querySelector('#group-student .btn-primary').disabled = true;
+
+  try {
+    const ok = await loadData();
+    if (!ok) throw new Error('No se pudo conectar a la base de datos.');
+    const student = STATE.students.find(s => s.docNumber === docNum);
+    if (!student) throw new Error('Documento no encontrado. Verifica el número ingresado o contacta a la academia.');
+    STATE.currentUser = { role: 'student', data: student };
+    renderStudentPortal();
+    showView('view-student');
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    loadEl.style.display = 'none';
+    document.querySelector('#group-student .btn-primary').disabled = false;
+  }
+}
+
+async function loginInstructor() {
+  const code = document.getElementById('instructor-code').value.trim().toUpperCase();
+  const errEl = document.getElementById('login-error');
+  const loadEl = document.getElementById('login-loading');
+
+  if (!code) { showError('Ingresa tu código de instructor.'); return; }
+
+  const url = localStorage.getItem('dc_script_url');
+  if (!url) { showError('La base de datos no está configurada.'); return; }
+
+  errEl.style.display = 'none';
+  loadEl.style.display = 'block';
+
+  try {
+    const ok = await loadData();
+    if (!ok) throw new Error('No se pudo conectar.');
+    const instructor = STATE.instructors.find(i => i.id.toUpperCase() === code);
+    if (!instructor) throw new Error('Código incorrecto. Verifica e intenta de nuevo.');
+    STATE.currentUser = { role: 'instructor', data: instructor };
+    renderInstructorPortal();
+    showView('view-instructor');
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    loadEl.style.display = 'none';
+  }
+}
+
+function adminDirect() {
+  const pass = prompt('Contraseña de administrador:');
+  const stored = localStorage.getItem('dc_admin_pass') || 'admin2026';
+  if (pass === stored) {
+    STATE.currentUser = { role: 'admin', data: null };
+    renderAdminPortal();
+    showView('view-admin');
+    loadCloudConfigUI();
+  } else if (pass !== null) {
+    alert('Contraseña incorrecta.');
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = '⚠ ' + msg;
+  el.style.display = 'block';
+}
+
+// =============================================================================
+// STUDENT PORTAL
+// =============================================================================
+function renderStudentPortal() {
+  const s = STATE.currentUser.data;
+  document.getElementById('student-name-title').textContent = 'Hola, ' + s.name.split(' ')[0];
+  document.getElementById('student-doc-subtitle').textContent = getDocLabel(s.docType) + ' ' + s.docNumber;
+
+  const days = daysWaiting(s);
+  const pending = s.state === 'theory_passed' || s.state === 'instructor_assigned';
+
+  // Alert banner
+  const banner = document.getElementById('student-alert-banner');
+  const alertCounter = document.getElementById('student-alert-counter');
+  if (!pending) {
+    banner.className = 'alert-card success';
+    document.getElementById('student-alert-icon').textContent = '✅';
+    document.getElementById('student-alert-title').textContent = '¡Todo en orden!';
+    document.getElementById('student-alert-desc').textContent = 'Tu instructor ya está en contacto contigo. ¡A practicar!';
+    alertCounter.style.display = 'none';
+  } else if (days >= CONFIG.WAIT_DAYS_CRITICAL) {
+    banner.className = 'alert-card danger';
+    document.getElementById('student-alert-icon').textContent = '🚨';
+    document.getElementById('student-alert-title').textContent = '¡Tiempo de espera superado!';
+    document.getElementById('student-alert-desc').textContent = 'Han pasado más de ' + CONFIG.WAIT_DAYS_CRITICAL + ' días sin contacto. Escríbele directamente a tu instructor a través del botón de WhatsApp.';
+    alertCounter.innerHTML = days + '<span>Días</span>';
+    alertCounter.style.display = 'block';
+  } else if (days >= CONFIG.WAIT_DAYS_WARNING) {
+    banner.className = 'alert-card warning';
+    document.getElementById('student-alert-icon').textContent = '⏳';
+    document.getElementById('student-alert-title').textContent = 'Tiempo de espera moderado';
+    document.getElementById('student-alert-desc').textContent = 'Han pasado ' + days + ' días. Puedes escribirle directamente a tu instructor para agilizar el inicio de clases.';
+    alertCounter.innerHTML = days + '<span>Días</span>';
+    alertCounter.style.display = 'block';
+  } else {
+    banner.className = 'alert-card success';
+    document.getElementById('student-alert-icon').textContent = '😊';
+    document.getElementById('student-alert-title').textContent = 'En espera normal';
+    document.getElementById('student-alert-desc').textContent = 'Aprobaste el teórico hace ' + days + ' día(s). El instructor se pondrá en contacto pronto.';
+    alertCounter.innerHTML = days + '<span>Días</span>';
+    alertCounter.style.display = 'block';
+  }
+
+  // Timeline
+  document.getElementById('student-theory-date').textContent = 'Aprobado el: ' + formatDate(s.theoryPassedDate);
+  const steps = ['step-theory','step-instructor','step-contact','step-practice'];
+  steps.forEach(id => {
+    const el = document.getElementById(id);
+    el.className = 'timeline-step';
+    el.querySelector('.timeline-marker').textContent = id.replace('step-','')[0].toUpperCase();
+  });
+  document.getElementById('step-theory').classList.add('completed');
+  document.getElementById('step-theory').querySelector('.timeline-marker').textContent = '✓';
+
+  const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
+
+  if (s.state === 'theory_passed') {
+    document.getElementById('step-instructor').classList.add('active');
+    document.getElementById('step-instructor').querySelector('.timeline-marker').textContent = '2';
+    document.getElementById('step-instructor-desc').textContent = 'La academia está buscando tu instructor.';
+    document.getElementById('student-assign-date').textContent = 'Pendiente';
+  } else if (s.state === 'instructor_assigned') {
+    document.getElementById('step-instructor').classList.add('completed');
+    document.getElementById('step-instructor').querySelector('.timeline-marker').textContent = '✓';
+    document.getElementById('step-instructor-desc').textContent = inst ? 'Instructor asignado: ' + inst.name : 'Asignado';
+    document.getElementById('step-contact').classList.add('active');
+    document.getElementById('step-contact').querySelector('.timeline-marker').textContent = '3';
+    document.getElementById('step-contact-desc').textContent = 'Puedes escribirle tú para agilizar el inicio.';
+    document.getElementById('student-contact-date').textContent = 'En espera';
+  } else if (s.state === 'contacted') {
+    document.getElementById('step-instructor').classList.add('completed');
+    document.getElementById('step-instructor').querySelector('.timeline-marker').textContent = '✓';
+    document.getElementById('step-contact').classList.add('completed');
+    document.getElementById('step-contact').querySelector('.timeline-marker').textContent = '✓';
+    document.getElementById('step-contact-desc').textContent = '¡Primer contacto realizado!';
+    document.getElementById('student-contact-date').textContent = 'Contactado el: ' + formatDate(s.contactDate);
+    document.getElementById('step-practice').classList.add('active');
+    document.getElementById('step-practice').querySelector('.timeline-marker').textContent = '4';
+  } else if (s.state === 'practice_started') {
+    ['step-instructor','step-contact','step-practice'].forEach(id => {
+      document.getElementById(id).classList.add('completed');
+      document.getElementById(id).querySelector('.timeline-marker').textContent = '✓';
+    });
+    document.getElementById('student-practice-date').textContent = 'Iniciadas el: ' + formatDate(s.practiceStartDate);
+  }
+
+  renderInstructorCard(s, inst);
+}
+
+function renderInstructorCard(student, instructor) {
+  const panel = document.getElementById('instructor-info-panel');
+  if (!instructor) {
+    panel.innerHTML = `
+      <div class="no-instructor-state">
+        <div class="no-instructor-icon">🚗</div>
+        <h4>Asignando tu instructor</h4>
+        <p class="mb-2">Tu examen teórico fue aprobado el <strong>${formatDate(student.theoryPassedDate)}</strong>.</p>
+        <p style="font-size:.8rem;color:var(--text-muted)">La academia está asignándote el instructor más adecuado. Normalmente tarda menos de 48 horas. Vuelve a consultar pronto.</p>
+      </div>`;
+    return;
+  }
+
+  const waMsg = `Hola ${instructor.name}, soy ${student.name} (${getDocLabel(student.docType)} ${student.docNumber}). Aprobé mi examen teórico el ${formatDate(student.theoryPassedDate)} y el sistema me indica que eres mi instructor asignado. Me gustaría coordinar el inicio de mis clases prácticas. ¡Muchas gracias!`;
+  const waUrl = `https://wa.me/${instructor.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+
+  const isPending = student.state === 'instructor_assigned';
+  const confirmBtn = isPending ? `
+    <button class="btn-success-action" onclick="studentConfirmContact()">
+      <span>✓ Ya me contactó el instructor</span>
+    </button>` : '';
+
+  panel.innerHTML = `
+    <div class="instructor-card-header">
+      <img src="${instructor.photo}" alt="${instructor.name}" class="instructor-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(instructor.name)}&background=1e293b&color=60a5fa&size=200'">
+      <div class="instructor-meta">
+        <span class="instructor-badge">Tu Instructor Asignado</span>
+        <h3>${instructor.name}</h3>
+        ${instructor.rating !== '—' ? `<div class="instructor-rating">★ <span>${instructor.rating} / 5.0</span></div>` : ''}
+      </div>
+    </div>
+    <div class="info-list">
+      ${instructor.specialty ? `<div class="info-item"><div class="info-icon">📋</div><div class="info-text"><span>Especialidad</span><p>${instructor.specialty}</p></div></div>` : ''}
+      ${instructor.phone ? `<div class="info-item"><div class="info-icon">📞</div><div class="info-text"><span>Celular</span><p>${instructor.phone}</p></div></div>` : ''}
+      ${instructor.email ? `<div class="info-item"><div class="info-icon">✉️</div><div class="info-text"><span>Correo</span><p>${instructor.email}</p></div></div>` : ''}
+      ${instructor.availability ? `<div class="info-item"><div class="info-icon">📅</div><div class="info-text"><span>Disponibilidad</span><p>${instructor.availability}</p></div></div>` : ''}
+    </div>
+    <div class="action-buttons">
+      <p class="text-muted mb-2 text-center" style="font-size:.75rem">Escríbele directamente para agendar tus clases:</p>
+      <a href="${waUrl}" target="_blank" class="btn-whatsapp">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Escribir por WhatsApp
+      </a>
+      <div class="secondary-actions">
+        ${instructor.phone ? `<a href="tel:${instructor.phone}" class="btn-sec">📞 Llamar</a>` : '<span></span>'}
+        ${instructor.email ? `<a href="mailto:${instructor.email}" class="btn-sec">✉️ Email</a>` : '<span></span>'}
+      </div>
+      ${confirmBtn}
+    </div>`;
+}
+
+async function studentConfirmContact() {
+  const student = STATE.currentUser.data;
+  student.state = 'contacted';
+  student.contactDate = today();
+  STATE.currentUser.data = student;
+  renderStudentPortal();
+  toast('¡Contacto registrado!', 'success');
+  await postData('updateStatus', { docNumber: student.docNumber, state: 'contacted', contactDate: today() });
+}
+
+// =============================================================================
+// INSTRUCTOR PORTAL
+// =============================================================================
+function renderInstructorPortal() {
+  const inst = STATE.currentUser.data;
+  document.getElementById('inst-photo').src = inst.photo;
+  document.getElementById('inst-photo').alt = inst.name;
+  document.getElementById('inst-name').textContent = inst.name;
+  document.getElementById('inst-specialty').textContent = inst.specialty + (inst.availability ? ' | ' + inst.availability : '');
+
+  const myStudents = STATE.students.filter(s => s.instructorId === inst.id);
+  document.getElementById('inst-stat-active').textContent = myStudents.filter(s => s.state === 'practice_started').length;
+  document.getElementById('inst-stat-pending').textContent = myStudents.filter(s => s.state === 'instructor_assigned').length;
+
+  const sorted = [...myStudents].sort((a,b) => {
+    const ap = a.state === 'instructor_assigned', bp = b.state === 'instructor_assigned';
+    if (ap && !bp) return -1; if (!ap && bp) return 1;
+    return daysWaiting(b) - daysWaiting(a);
+  });
+
+  const list = document.getElementById('instructor-students-list');
+  list.innerHTML = '';
+  if (sorted.length === 0) {
+    list.innerHTML = '<div class="glass-panel text-center" style="grid-column:1/-1;padding:3rem"><p class="text-secondary">No tienes alumnos asignados actualmente.</p></div>';
+    return;
+  }
+
+  sorted.forEach(student => {
+    const days = daysWaiting(student);
+    let pClass = 'p-low', pLabel = 'Al día';
+    if (student.state === 'instructor_assigned') {
+      if (days >= CONFIG.WAIT_DAYS_CRITICAL) { pClass = 'p-high'; pLabel = 'Urgente >' + CONFIG.WAIT_DAYS_CRITICAL + 'd'; }
+      else if (days >= CONFIG.WAIT_DAYS_WARNING) { pClass = 'p-medium'; pLabel = 'Advertencia >' + CONFIG.WAIT_DAYS_WARNING + 'd'; }
+      else { pClass = 'p-low'; pLabel = 'Pendiente nuevo'; }
+    } else if (student.state === 'contacted') {
+      pLabel = 'Contactado';
+    } else if (student.state === 'practice_started') {
+      pLabel = 'En práctica';
+    }
+
+    const waMsg = `Hola ${student.name}, soy tu instructor asignado ${inst.name}. Me comunico para coordinar tu primera clase práctica. ¿Qué disponibilidad tienes esta semana?`;
+    const waUrl = `https://wa.me/${student.phone ? student.phone.replace(/\D/g,'') : ''}?text=${encodeURIComponent(waMsg)}`;
+
+    let actionBtns = '';
+    if (student.state === 'instructor_assigned') {
+      actionBtns = `<button class="btn-card-action primary" onclick="instMarkContacted('${student.docNumber}')">✓ Marcar contactado</button>`;
+    } else if (student.state === 'contacted') {
+      actionBtns = `<button class="btn-card-action blue" onclick="instStartPractice('${student.docNumber}')">▶ Iniciar clases</button>`;
+    } else {
+      actionBtns = `<span class="text-muted" style="font-size:.72rem">En práctica activa</span>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = `student-list-card ${pClass}`;
+    card.innerHTML = `
+      <div class="student-card-top">
+        <div class="student-card-title">
+          <h4>${student.name}</h4>
+          <div class="student-card-dni">${getDocLabel(student.docType)} ${student.docNumber}</div>
+        </div>
+        <span class="prio-pill">${pLabel}</span>
+      </div>
+      <div class="student-card-details">
+        <div class="student-det-item"><span>Teórico aprobado</span><strong>${formatDate(student.theoryPassedDate)}</strong></div>
+        <div class="student-det-item"><span>Días en espera</span><strong>${days} días</strong></div>
+        <div class="student-det-item" style="grid-column:span 2"><span>Estado</span><strong>${translateState(student.state)}</strong></div>
+      </div>
+      <div class="student-card-actions">
+        ${actionBtns}
+        ${student.phone ? `<a href="${waUrl}" target="_blank" class="btn-card-action wa">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>WA</a>` : ''}
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+async function instMarkContacted(docNumber) {
+  const s = STATE.students.find(st => st.docNumber === docNumber);
+  if (!s) return;
+  s.state = 'contacted'; s.contactDate = today();
+  renderInstructorPortal();
+  toast('Alumno marcado como contactado', 'success');
+  await postData('updateStatus', { docNumber, state: 'contacted', contactDate: today() });
+}
+
+async function instStartPractice(docNumber) {
+  const s = STATE.students.find(st => st.docNumber === docNumber);
+  if (!s) return;
+  s.state = 'practice_started'; s.practiceStartDate = today();
+  renderInstructorPortal();
+  toast('¡Clases iniciadas registradas!', 'success');
+  await postData('updateStatus', { docNumber, state: 'practice_started', practiceStartDate: today() });
+}
+
+// =============================================================================
+// ADMIN PORTAL
+// =============================================================================
+async function renderAdminPortal() {
+  if (localStorage.getItem('dc_script_url')) {
+    await loadData();
+  }
+
+  const total = STATE.students.length;
+  const unassigned = STATE.students.filter(s => !s.instructorId || s.state === 'theory_passed').length;
+  const critical = STATE.students.filter(s => {
+    const pending = s.state === 'theory_passed' || s.state === 'instructor_assigned';
+    return pending && daysWaiting(s) >= 15;
+  }).length;
+  const pending = STATE.students.filter(s => s.state === 'theory_passed' || s.state === 'instructor_assigned');
+  const avg = pending.length ? Math.round(pending.reduce((a,s) => a + daysWaiting(s), 0) / pending.length) : 0;
+
+  document.getElementById('metric-total').textContent = total;
+  document.getElementById('metric-unassigned').textContent = unassigned;
+  document.getElementById('metric-alerts').textContent = critical;
+  document.getElementById('metric-avg').textContent = avg + 'd';
+  document.getElementById('badge-count').textContent = unassigned + ' alumno(s)';
+
+  // Unassigned table
+  const tbody = document.getElementById('admin-table-body');
+  tbody.innerHTML = '';
+  const unassignedList = STATE.students.filter(s => !s.instructorId || s.state === 'theory_passed')
+    .sort((a,b) => daysWaiting(b) - daysWaiting(a));
+
+  if (unassignedList.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary" style="padding:2rem">¡Sin alumnos pendientes!</td></tr>';
+  } else {
+    unassignedList.forEach(s => {
+      const days = daysWaiting(s);
+      const cls = days >= 20 ? 'danger' : days >= 10 ? 'warning' : 'success';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${s.name}</strong></td>
+        <td><code>${s.docNumber}</code></td>
+        <td>${formatDate(s.theoryPassedDate)}</td>
+        <td><span class="wait-badge ${cls}">${days}d</span></td>
+        <td><button class="btn-primary" style="padding:.3rem .7rem;font-size:.75rem;width:auto" onclick="openModal('${s.docNumber}')">Asignar</button></td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Instructors
+  const instList = document.getElementById('admin-instructors-list');
+  instList.innerHTML = '';
+  if (STATE.instructors.length === 0) {
+    instList.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin instructores en la base de datos.</p>';
+    return;
+  }
+  STATE.instructors.forEach(inst => {
+    const myStudents = STATE.students.filter(s => s.instructorId === inst.id);
+    const active = myStudents.filter(s => s.state === 'practice_started' || s.state === 'contacted').length;
+    const pend = myStudents.filter(s => s.state === 'instructor_assigned').length;
+    const div = document.createElement('div');
+    div.className = 'instructor-row-card';
+    div.innerHTML = `
+      <div class="instructor-row-info">
+        <img src="${inst.photo}" alt="${inst.name}" class="instructor-row-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(inst.name)}&background=1e293b&color=60a5fa&size=80'">
+        <div>
+          <div class="instructor-row-name">${inst.name}</div>
+          <div class="text-muted" style="font-size:.7rem">${inst.specialty}</div>
+        </div>
+      </div>
+      <div class="instructor-row-load">
+        <div>Total: <span>${myStudents.length}</span></div>
+        <div>Activos: <strong style="color:var(--success)">${active}</strong> | Pendientes: <strong style="color:var(--warning)">${pend}</strong></div>
+      </div>`;
+    instList.appendChild(div);
+  });
+}
+
+// =============================================================================
+// ASSIGN MODAL
+// =============================================================================
+let _assignDocNumber = null;
+
+function openModal(docNumber) {
+  _assignDocNumber = docNumber;
+  const student = STATE.students.find(s => s.docNumber === docNumber);
+  document.getElementById('modal-student-name').textContent = student.name;
+  document.getElementById('modal-student-doc').textContent = getDocLabel(student.docType) + ' ' + docNumber;
+
+  const sel = document.getElementById('modal-instructor-select');
+  sel.innerHTML = '';
+  const withLoad = STATE.instructors.map(i => ({
+    ...i,
+    load: STATE.students.filter(s => s.instructorId === i.id).length
+  })).sort((a,b) => a.load - b.load);
+
+  withLoad.forEach((inst, idx) => {
+    const opt = document.createElement('option');
+    opt.value = inst.id;
+    opt.textContent = `${inst.name} — Alumnos: ${inst.load}${idx === 0 ? ' ⭐ Recomendado' : ''}`;
+    sel.appendChild(opt);
+  });
+  document.getElementById('assign-modal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('assign-modal').classList.remove('active');
+  _assignDocNumber = null;
+}
+
+async function confirmAssign() {
+  if (!_assignDocNumber) return;
+  const student = STATE.students.find(s => s.docNumber === _assignDocNumber);
+  const instructorId = document.getElementById('modal-instructor-select').value;
+  const inst = STATE.instructors.find(i => i.id === instructorId);
+  if (student && instructorId) {
+    student.instructorId = instructorId;
+    student.state = 'instructor_assigned';
+    closeModal();
+    renderAdminPortal();
+    toast(`${inst.name} asignado a ${student.name}`, 'success');
+    await postData('assignInstructor', { docNumber: _assignDocNumber, instructorId, state: 'instructor_assigned' });
+  }
+}
+
+// =============================================================================
+// CLOUD CONFIG
+// =============================================================================
+function loadCloudConfigUI() {
+  const url = localStorage.getItem('dc_script_url') || '';
+  const pass = localStorage.getItem('dc_admin_pass') || '';
+  document.getElementById('cfg-script-url').value = url;
+  document.getElementById('cfg-admin-pass').value = pass;
+  document.getElementById('apps-script-code').value = APPS_SCRIPT_CODE;
+  updateCloudBadge(!!url);
+}
+
+function saveConfig() {
+  const url = document.getElementById('cfg-script-url').value.trim();
+  const pass = document.getElementById('cfg-admin-pass').value.trim();
+  if (!url) { toast('Ingresa la URL del script', 'danger'); return; }
+  localStorage.setItem('dc_script_url', url);
+  if (pass) localStorage.setItem('dc_admin_pass', pass);
+  toast('Configuración guardada. Reconectando...', 'success');
+  updateCloudBadge(true);
+  renderAdminPortal();
+}
+
+function clearConfig() {
+  localStorage.removeItem('dc_script_url');
+  localStorage.removeItem('dc_admin_pass');
+  updateCloudBadge(false);
+  toast('Configuración eliminada', 'success');
+}
+
+function copyScript() {
+  const el = document.getElementById('apps-script-code');
+  el.select();
+  navigator.clipboard.writeText(el.value).then(() => toast('Código copiado al portapapeles', 'success'));
+}
+
+// =============================================================================
+// FAQ
+// =============================================================================
+function toggleFaq(btn) {
+  const item = btn.parentElement;
+  const wasActive = item.classList.contains('active');
+  document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+  if (!wasActive) item.classList.add('active');
+}
+
+// =============================================================================
+// TOAST
+// =============================================================================
+function toast(msg, type = 'info') {
+  const prev = document.getElementById('dc-toast');
+  if (prev) prev.remove();
+  const el = document.createElement('div');
+  el.id = 'dc-toast';
+  const colors = { success: 'var(--success)', danger: 'var(--danger)', warning: 'var(--warning)', info: 'var(--brand)' };
+  el.style.cssText = `position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;padding:.85rem 1.25rem;border-radius:8px;font-weight:600;color:${type==='warning'?'#000':'white'};background:${colors[type]||colors.info};box-shadow:0 10px 25px rgba(0,0,0,.5);animation:slideIn .3s ease;font-size:.88rem`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  const style = document.createElement('style');
+  style.textContent = '@keyframes slideIn{from{transform:translateY(80px);opacity:0}to{transform:translateY(0);opacity:1}}';
+  document.head.appendChild(style);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// =============================================================================
+// INIT
+// =============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  // Keyboard submit
+  document.getElementById('student-id').addEventListener('keydown', e => { if (e.key === 'Enter') loginStudent(); });
+  document.getElementById('instructor-code').addEventListener('keydown', e => { if (e.key === 'Enter') loginInstructor(); });
+
+  // Check if script is configured and show hint
+  if (!localStorage.getItem('dc_script_url')) {
+    document.getElementById('config-hint').style.display = 'block';
+  }
+
+  // Secret admin access: click logo 5 times quickly
+  let logoClicks = 0, logoTimer;
+  document.querySelector('.logo-container').addEventListener('click', () => {
+    logoClicks++;
+    clearTimeout(logoTimer);
+    logoTimer = setTimeout(() => { logoClicks = 0; }, 2000);
+    if (logoClicks >= 5) { logoClicks = 0; adminDirect(); }
+  });
+});
+</script>
+</body>
+</html>
