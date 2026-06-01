@@ -56,7 +56,7 @@
       position:sticky;top:0;z-index:100;padding:1rem 2rem;
       display:flex;justify-content:space-between;align-items:center;
     }
-    .logo-container{display:flex;align-items:center;gap:.75rem;text-decoration:none}
+    .logo-container{display:flex;align-items:center;gap:.75rem;text-decoration:none;cursor:pointer}
     .logo-icon{
       background:linear-gradient(135deg,var(--brand),var(--brand-light));width:40px;height:40px;
       border-radius:12px;display:flex;align-items:center;justify-content:center;
@@ -376,7 +376,7 @@
 <body>
 
 <header>
-  <div class="logo-container">
+  <div class="logo-container" onclick="goHome()">
     <div class="logo-icon">D</div>
     <div class="logo-text">Drive<span>Connect</span></div>
   </div>
@@ -433,6 +433,15 @@
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
             </span>
             <input type="text" id="instructor-code" class="form-input" placeholder="Ej: INS-01" autocomplete="off">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>PIN (4 dígitos)</label>
+          <div class="input-wrapper">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            <input type="password" id="instructor-pin" class="form-input" placeholder="••••" maxlength="4" autocomplete="off" inputmode="numeric">
           </div>
         </div>
         <button class="btn-primary" onclick="loginInstructor()">
@@ -750,6 +759,9 @@ function doPost(e) {
     } else if (p.action === "addStudent") {
       alSheet.appendRow([p.docNumber, p.docType, p.name, "", "theory_passed", "", "", p.theoryPassedDate]);
       SpreadsheetApp.flush();
+    } else if (p.action === "updatePin") {
+      var instSheet2 = ss.getSheetByName("Instructores");
+      updateRowById(instSheet2, p.instructorId, { pin: p.pin });
     }
     return ContentService.createTextOutput(JSON.stringify({ status: "success" })).setMimeType(ContentService.MimeType.JSON);
   } catch(err) {
@@ -777,6 +789,22 @@ function updateRow(sheet, docNumber, updates) {
       for (var key in updates) {
         var col = headers.indexOf(key);
         if (col >= 0) sheet.getRange(i+1, col+1).setValue(updates[key]);
+      }
+      SpreadsheetApp.flush(); return;
+    }
+  }
+}
+
+function updateRowById(sheet, id, updates) {
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+  var idCol = headers.indexOf('id');
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][idCol] && data[i][idCol].toString().trim().toUpperCase() === id.toString().trim().toUpperCase()) {
+      for (var key in updates) {
+        var col = headers.indexOf(key);
+        if (col < 0) { sheet.getRange(1, headers.length+1).setValue(key); col = headers.length; headers.push(key); }
+        sheet.getRange(i+1, col+1).setValue(updates[key]);
       }
       SpreadsheetApp.flush(); return;
     }
@@ -872,6 +900,7 @@ function normalizeInstructor(obj) {
     photo: String(k('photo') || k('foto') || '').trim() || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(k('name') || 'I') + '&background=1e293b&color=60a5fa&size=200',
     rating: String(k('rating') || k('calificacion') || '').trim() || '—',
     availability: String(k('availability') || k('disponibilidad') || k('horario') || '').trim(),
+    pin: String(k('pin') || '').trim(),
   };
 }
 
@@ -962,6 +991,9 @@ function showView(id) {
 
 }
 
+function goHome() {
+  if (STATE.currentUser) logout(); else showView('view-login');
+}
 
 function logout() {
   STATE.currentUser = null;
@@ -1025,10 +1057,12 @@ async function loginStudent() {
 
 async function loginInstructor() {
   const code = document.getElementById('instructor-code').value.trim().toUpperCase();
+  const pin  = document.getElementById('instructor-pin').value.trim();
   const errEl = document.getElementById('login-error');
   const loadEl = document.getElementById('login-loading');
 
   if (!code) { showError('Ingresa tu código de instructor.'); return; }
+  if (!pin)  { showError('Ingresa tu PIN.'); return; }
 
   const url = localStorage.getItem('dc_script_url');
   if (!url) { showError('La base de datos no está configurada.'); return; }
@@ -1041,6 +1075,8 @@ async function loginInstructor() {
     if (!ok) throw new Error('No se pudo conectar.');
     const instructor = STATE.instructors.find(i => i.id.toUpperCase() === code);
     if (!instructor) throw new Error('Código incorrecto. Verifica e intenta de nuevo.');
+    if (instructor.pin && instructor.pin !== pin) throw new Error('PIN incorrecto.');
+    if (!instructor.pin) throw new Error('Este instructor no tiene PIN configurado. Contacta al administrador.');
     STATE.currentUser = { role: 'instructor', data: instructor };
     renderInstructorPortal();
     showView('view-instructor');
@@ -1379,6 +1415,10 @@ async function renderAdminPortal() {
         <div>
           <div class="instructor-row-name">${inst.name}</div>
           <div class="text-muted" style="font-size:.7rem">${inst.specialty}</div>
+          <div style="font-size:.7rem;margin-top:.2rem">
+            PIN: <strong style="color:${inst.pin ? 'var(--success)' : 'var(--danger)'}">${inst.pin || '⚠ Sin PIN'}</strong>
+            <button onclick="editPin('${inst.id}')" style="margin-left:.5rem;font-size:.68rem;padding:.1rem .4rem;background:rgba(255,255,255,.08);border:1px solid var(--border-color);border-radius:4px;color:var(--text-secondary);cursor:pointer">✏️ Editar</button>
+          </div>
         </div>
       </div>
       <div class="instructor-row-load">
@@ -1387,6 +1427,24 @@ async function renderAdminPortal() {
       </div>`;
     instList.appendChild(div);
   });
+}
+
+// =============================================================================
+// PIN MANAGEMENT
+// =============================================================================
+async function editPin(instructorId) {
+  const inst = STATE.instructors.find(i => i.id === instructorId);
+  const newPin = prompt(`PIN para ${inst.name}:\n(4 dígitos numéricos)`, inst.pin || '');
+  if (newPin === null) return;
+  if (!/^\d{4}$/.test(newPin)) { alert('El PIN debe ser exactamente 4 dígitos numéricos.'); return; }
+  try {
+    await postData('updatePin', { instructorId, pin: newPin });
+    inst.pin = newPin;
+    renderAdminPortal();
+    alert(`✅ PIN actualizado para ${inst.name}`);
+  } catch(e) {
+    alert('Error al guardar PIN: ' + e.message);
+  }
 }
 
 // =============================================================================
@@ -1507,6 +1565,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Keyboard submit
   document.getElementById('student-id').addEventListener('keydown', e => { if (e.key === 'Enter') loginStudent(); });
   document.getElementById('instructor-code').addEventListener('keydown', e => { if (e.key === 'Enter') loginInstructor(); });
+  document.getElementById('instructor-pin').addEventListener('keydown', e => { if (e.key === 'Enter') loginInstructor(); });
 
   // Check if script is configured and show hint
   if (!localStorage.getItem('dc_script_url')) {
