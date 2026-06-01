@@ -65,15 +65,7 @@
     }
     .logo-text{font-family:var(--font-title);font-size:1.4rem;font-weight:700;letter-spacing:-.5px}
     .logo-text span{background:linear-gradient(135deg,var(--brand-light),var(--success));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-    .role-badge{
-      display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.05);
-      border:1px solid var(--border-color);padding:.4rem .9rem;border-radius:9999px;
-      font-size:.82rem;font-weight:500;cursor:pointer;transition:var(--t-fast);
-    }
-    .role-badge:hover{background:rgba(255,255,255,.1);border-color:var(--border-hover)}
-    .role-dot{width:8px;height:8px;border-radius:50%;background:var(--brand)}
-    .role-dot.admin{background:var(--warning)}
-    .role-dot.instructor{background:var(--success)}
+
 
     main{flex:1;padding:2rem;max-width:1280px;margin:0 auto;width:100%}
     footer{text-align:center;padding:1.5rem 2rem;color:var(--text-muted);font-size:.82rem;border-top:1px solid var(--border-color)}
@@ -388,11 +380,7 @@
     <div class="logo-icon">D</div>
     <div class="logo-text">Drive<span>Connect</span></div>
   </div>
-  <div class="role-badge" id="header-badge" style="display:none" onclick="logout()">
-    <div class="role-dot" id="role-dot"></div>
-    <span id="role-text">Cerrar sesión</span>
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
-  </div>
+
 </header>
 
 <main>
@@ -971,17 +959,7 @@ function getDocLabel(type) {
 function showView(id) {
   document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  const badge = document.getElementById('header-badge');
-  const dot = document.getElementById('role-dot');
-  const roleText = document.getElementById('role-text');
-  if (id === 'view-login') {
-    badge.style.display = 'none';
-  } else {
-    badge.style.display = 'inline-flex';
-    if (id === 'view-student') { dot.className = 'role-dot'; roleText.textContent = 'Alumno'; }
-    else if (id === 'view-instructor') { dot.className = 'role-dot instructor'; roleText.textContent = 'Instructor'; }
-    else if (id === 'view-admin') { dot.className = 'role-dot admin'; roleText.textContent = 'Admin'; }
-  }
+
 }
 
 function goHome() {
