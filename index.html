@@ -1035,7 +1035,6 @@ function goHome() {
 
 function logout() {
   STATE.currentUser = null;
-  sessionStorage.removeItem('dc_session');
   document.querySelector('.logo-container').classList.remove('no-click');
   showView('view-login');
   document.getElementById('login-error').style.display = 'none';
@@ -1156,7 +1155,6 @@ async function loginCoordinator() {
     const ok = await loadData();
     if (!ok) throw new Error('No se pudo conectar a la base de datos.');
     STATE.currentUser = { role: 'coordinator', data: { username: user } };
-    sessionStorage.setItem('dc_session', JSON.stringify({ role: 'coordinator', username: user }));
     document.querySelector('.logo-container').classList.add('no-click');
     renderCoordinatorPortal();
     showView('view-coordinator');
@@ -1172,7 +1170,6 @@ function adminDirect() {
   const stored = localStorage.getItem('dc_admin_pass') || 'admin2026';
   if (pass === stored) {
     STATE.currentUser = { role: 'admin', data: null };
-    sessionStorage.setItem('dc_session', JSON.stringify({ role: 'admin' }));
     document.querySelector('.logo-container').classList.add('no-click');
     renderAdminPortal();
     showView('view-admin');
@@ -1964,36 +1961,6 @@ function toast(msg, type = 'info') {
 // INIT
 // =============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
-  // Restore session on reload
-  const savedSession = sessionStorage.getItem('dc_session');
-  if (savedSession) {
-    try {
-      const session = JSON.parse(savedSession);
-      if (session.role === 'admin') {
-        const ok = await loadData();
-        if (ok) {
-          STATE.currentUser = { role: 'admin', data: null };
-          document.querySelector('.logo-container').classList.add('no-click');
-          renderAdminPortal();
-          showView('view-admin');
-        } else {
-          sessionStorage.removeItem('dc_session');
-        }
-      } else if (session.role === 'coordinator') {
-        const ok = await loadData();
-        if (ok) {
-          STATE.currentUser = { role: 'coordinator', data: { username: session.username } };
-          document.querySelector('.logo-container').classList.add('no-click');
-          renderCoordinatorPortal();
-          showView('view-coordinator');
-        } else {
-          sessionStorage.removeItem('dc_session');
-        }
-      }
-    } catch(e) {
-      sessionStorage.removeItem('dc_session');
-    }
-  }
   // Keyboard submit
   document.getElementById('student-id').addEventListener('keydown', e => { if (e.key === 'Enter') loginStudent(); });
   document.getElementById('instructor-code').addEventListener('keydown', e => { if (e.key === 'Enter') loginInstructor(); });
