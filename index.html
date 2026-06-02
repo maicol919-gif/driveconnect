@@ -1071,6 +1071,7 @@ function goHome() {
 
 function logout() {
   STATE.currentUser = null;
+  sessionStorage.removeItem('dc_session');
   showView('view-login');
   document.getElementById('login-error').style.display = 'none';
   document.getElementById('login-loading').style.display = 'none';
@@ -1188,6 +1189,7 @@ async function loginCoordinator() {
     const ok = await loadData();
     if (!ok) throw new Error('No se pudo conectar a la base de datos.');
     STATE.currentUser = { role: 'coordinator', data: { username: user } };
+    sessionStorage.setItem('dc_session', JSON.stringify({ role: 'coordinator', username: user }));
     renderCoordinatorPortal();
     showView('view-coordinator');
   } catch(e) {
@@ -1202,6 +1204,7 @@ function adminDirect() {
   const stored = localStorage.getItem('dc_admin_pass') || 'admin2026';
   if (pass === stored) {
     STATE.currentUser = { role: 'admin', data: null };
+    sessionStorage.setItem('dc_session', JSON.stringify({ role: 'admin' }));
     renderAdminPortal();
     showView('view-admin');
     loadCloudConfigUI();
@@ -1814,38 +1817,47 @@ async function savePinModal(instructorId) {
   btn.disabled = true;
   btn.textContent = 'Guardando...';
   feedback.textContent = '⏳ Enviando al servidor...';
-  feedback.style.color = 'var(--text-muted)';
+  feedback.style.color = 'var(--brand-light)';
 
-  try {
-    await postData('updatePin', { instructorId, pin: newPin });
+  // Send update
+  await postData('updatePin', { instructorId, pin: newPin });
 
-    // Update local state immediately
-    const inst = STATE.instructors.find(i => i.id === instructorId);
-    if (inst) inst.pin = newPin;
+  // Update local state optimistically
+  const inst = STATE.instructors.find(i => i.id === instructorId);
+  if (inst) inst.pin = newPin;
 
-    feedback.textContent = '✅ Guardado. Verificando en base de datos...';
-    feedback.style.color = 'var(--success)';
+  feedback.textContent = '🔄 Verificando en la base de datos...';
 
-    // Reload from Sheet to confirm it was actually saved
-    await new Promise(r => setTimeout(r, 2000));
-    await loadData();
-
-    const updated = STATE.instructors.find(i => i.id === instructorId);
-    closePinModal();
-
-    if (updated?.pin === newPin) {
-      toast(`✅ PIN de ${updated.name} guardado correctamente`, 'success');
-    } else {
-      toast(`⚠ PIN enviado pero no se pudo verificar. Revisa el Sheet.`, 'warning');
-    }
-    renderAdminPortal();
-
-  } catch(e) {
-    btn.disabled = false;
-    btn.textContent = 'Guardar PIN';
-    feedback.textContent = '❌ Error al guardar: ' + e.message;
-    feedback.style.color = 'var(--danger)';
+  // Wait then verify by re-fetching the Sheet
+  let verified = false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await new Promise(r => setTimeout(r, 2500));
+    try {
+      const raw = await fetchData();
+      if (raw) {
+        const freshInst = (raw.instructors || []).find(i =>
+          String(i.id || '').trim().toUpperCase() === instructorId.toUpperCase()
+        );
+        if (freshInst && String(freshInst.pin || '').trim() === newPin) {
+          // Update full state with fresh data
+          STATE.students = (raw.students || []).map(normalizeStudent).filter(s => s.docNumber);
+          STATE.instructors = (raw.instructors || []).map(normalizeInstructor).filter(i => i.id);
+          verified = true;
+          break;
+        }
+      }
+    } catch(e) {}
+    feedback.textContent = `🔄 Verificando... (intento ${attempt + 2}/3)`;
   }
+
+  closePinModal();
+
+  if (verified) {
+    toast(`✅ PIN de ${inst?.name} guardado y verificado`, 'success');
+  } else {
+    toast(`⚠ PIN enviado pero no se pudo verificar. Si el problema persiste, revisa el Apps Script.`, 'warning');
+  }
+  renderAdminPortal();
 }
 
 // =============================================================================
@@ -2000,7 +2012,36 @@ function toast(msg, type = 'info') {
 // =============================================================================
 // INIT
 // =============================================================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Restore session on reload
+  const savedSession = sessionStorage.getItem('dc_session');
+  if (savedSession) {
+    try {
+      const session = JSON.parse(savedSession);
+      if (session.role === 'admin') {
+        const ok = await loadData();
+        if (ok) {
+          STATE.currentUser = { role: 'admin', data: null };
+          renderAdminPortal();
+          showView('view-admin');
+          loadCloudConfigUI();
+        } else {
+          sessionStorage.removeItem('dc_session');
+        }
+      } else if (session.role === 'coordinator') {
+        const ok = await loadData();
+        if (ok) {
+          STATE.currentUser = { role: 'coordinator', data: { username: session.username } };
+          renderCoordinatorPortal();
+          showView('view-coordinator');
+        } else {
+          sessionStorage.removeItem('dc_session');
+        }
+      }
+    } catch(e) {
+      sessionStorage.removeItem('dc_session');
+    }
+  }
   // Keyboard submit
   document.getElementById('student-id').addEventListener('keydown', e => { if (e.key === 'Enter') loginStudent(); });
   document.getElementById('instructor-code').addEventListener('keydown', e => { if (e.key === 'Enter') loginInstructor(); });
