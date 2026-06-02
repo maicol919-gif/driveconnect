@@ -1814,25 +1814,29 @@ function renderCoordReportTable() {
 // =============================================================================
 let _adminActiveTab = 'system';
 
-function switchAdminTab(tab) {
+async function switchAdminTab(tab) {
   _adminActiveTab = tab;
   ['system','instructors','coordinators','students','logs'].forEach(t => {
     document.getElementById('atab-' + t)?.classList.toggle('active', t === tab);
     const v = document.getElementById('aview-' + t);
     if (v) v.style.display = t === tab ? 'block' : 'none';
   });
+  // Auto-load data if needed when switching to data tabs
+  if (!STATE.cloudConnected && ['instructors','students','logs'].includes(tab)) {
+    toast('⏳ Cargando datos...', 'info');
+    await loadData();
+  }
   if (tab === 'instructors') renderAdminInstructors();
   if (tab === 'coordinators') renderAdminCoordinators();
   if (tab === 'students') renderAdminStudents();
+  if (tab === 'logs') loadAdminLogs();
 }
 
 async function renderAdminPortal() {
-  if (!STATE.cloudConnected) await loadData();
-
   const now = new Date().toLocaleString('es-CO');
-  document.getElementById('admin-last-sync').textContent = 'Último sync: ' + now;
+  document.getElementById('admin-last-sync').textContent = STATE.cloudConnected ? 'Último sync: ' + now : 'Sin datos — presiona Verificar conexión';
 
-  // System tab metrics
+  // Only render metrics if we have data
   const total = STATE.students.length;
   const unassigned = STATE.students.filter(s => !s.instructorId || s.state === 'theory_passed').length;
   const critical = STATE.students.filter(s => {
@@ -1842,10 +1846,10 @@ async function renderAdminPortal() {
   const pending = STATE.students.filter(s => s.state === 'theory_passed' || s.state === 'instructor_assigned');
   const avg = pending.length ? Math.round(pending.reduce((a,s) => a + daysWaiting(s), 0) / pending.length) : 0;
 
-  document.getElementById('metric-total').textContent = total;
-  document.getElementById('metric-unassigned').textContent = unassigned;
-  document.getElementById('metric-alerts').textContent = critical;
-  document.getElementById('metric-avg').textContent = avg + 'd';
+  document.getElementById('metric-total').textContent = total || '—';
+  document.getElementById('metric-unassigned').textContent = unassigned || '—';
+  document.getElementById('metric-alerts').textContent = critical || '—';
+  document.getElementById('metric-avg').textContent = total ? avg + 'd' : '—';
 
   const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
   const urlDisplay = document.getElementById('bd-url-display');
@@ -1856,11 +1860,10 @@ async function renderAdminPortal() {
 
   const badge = document.getElementById('bd-status-badge');
   if (badge) {
-    badge.textContent = STATE.cloudConnected ? '🟢 Conectado' : '🔴 Sin conexión';
-    badge.className = 'badge ' + (STATE.cloudConnected ? 'green' : 'red');
+    badge.textContent = STATE.cloudConnected ? '🟢 Conectado' : '⚪ Sin verificar';
+    badge.className = 'badge ' + (STATE.cloudConnected ? 'green' : 'blue');
   }
 
-  // Render active tab
   if (_adminActiveTab === 'instructors') renderAdminInstructors();
   if (_adminActiveTab === 'coordinators') renderAdminCoordinators();
   if (_adminActiveTab === 'students') renderAdminStudents();
@@ -1877,12 +1880,15 @@ async function adminPingBD() {
     const raw = await fetchData();
     const ms = Date.now() - t0;
     if (raw) {
-      badge.textContent = '🟢 Conectado'; badge.className = 'badge green';
-      result.style.display = 'block';
-      result.innerHTML = `✅ Conexión exitosa en <strong>${ms}ms</strong> — ${raw.students?.length || 0} alumnos, ${raw.instructors?.length || 0} instructores`;
-      result.style.color = 'var(--success)';
       STATE.students = (raw.students || []).map(normalizeStudent).filter(s => s.docNumber);
       STATE.instructors = (raw.instructors || []).map(normalizeInstructor).filter(i => i.id);
+      STATE.cloudConnected = true;
+      badge.textContent = '🟢 Conectado'; badge.className = 'badge green';
+      result.style.display = 'block';
+      result.innerHTML = `✅ Conexión exitosa en <strong>${ms}ms</strong> — ${STATE.students.length} alumnos, ${STATE.instructors.length} instructores`;
+      result.style.color = 'var(--success)';
+      // Refresh metrics now that we have data
+      renderAdminPortal();
     } else throw new Error('Sin respuesta');
   } catch(e) {
     badge.textContent = '🔴 Sin conexión'; badge.className = 'badge red';
