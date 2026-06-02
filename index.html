@@ -667,8 +667,9 @@
       </div>
       <div style="display:flex;align-items:center;gap:.75rem">
         <div class="coord-tabs">
-          <button class="coord-tab active" id="ctab-assign" onclick="switchCoordTab('assign')">Asignaciones</button>
-          <button class="coord-tab" id="ctab-report" onclick="switchCoordTab('report')">Reportes</button>
+          <button class="coord-tab active" id="ctab-assign"      onclick="switchCoordTab('assign')">Asignaciones</button>
+          <button class="coord-tab"        id="ctab-instructors" onclick="switchCoordTab('instructors')">Instructores</button>
+          <button class="coord-tab"        id="ctab-report"      onclick="switchCoordTab('report')">Reportes</button>
         </div>
         <button class="btn-sec" onclick="logout()">Salir</button>
       </div>
@@ -707,12 +708,8 @@
           <table class="assign-table">
             <thead>
               <tr>
-                <th>Alumno</th>
-                <th>Documento</th>
-                <th>Teórico aprobado</th>
-                <th>Espera</th>
-                <th>Horario preferido</th>
-                <th>Acción</th>
+                <th>Alumno</th><th>Documento</th><th>Teórico aprobado</th>
+                <th>Espera</th><th>Horario preferido</th><th>Acción</th>
               </tr>
             </thead>
             <tbody id="coord-table-body"></tbody>
@@ -726,6 +723,17 @@
           <span class="badge blue">Por franja horaria</span>
         </div>
         <div id="coord-instructors-load"></div>
+      </div>
+    </div>
+
+    <!-- SUB-VIEW: INSTRUCTORES -->
+    <div id="coord-view-instructors" style="display:none">
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h3>Instructores</h3>
+          <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem" onclick="openInstructorModal(null)">+ Agregar</button>
+        </div>
+        <div id="coord-inst-list"></div>
       </div>
     </div>
 
@@ -750,14 +758,8 @@
           <table class="assign-table">
             <thead>
               <tr>
-                <th>Alumno</th>
-                <th>Documento</th>
-                <th>Estado</th>
-                <th>Instructor</th>
-                <th>Teórico</th>
-                <th>Contacto</th>
-                <th>Práctica</th>
-                <th>Días espera</th>
+                <th>Alumno</th><th>Documento</th><th>Estado</th><th>Instructor</th>
+                <th>Teórico</th><th>Contacto</th><th>Práctica</th><th>Días espera</th>
               </tr>
             </thead>
             <tbody id="coord-report-body"></tbody>
@@ -1647,10 +1649,55 @@ let _coordActiveTab = 'assign';
 function switchCoordTab(tab) {
   _coordActiveTab = tab;
   document.getElementById('ctab-assign').classList.toggle('active', tab === 'assign');
+  document.getElementById('ctab-instructors').classList.toggle('active', tab === 'instructors');
   document.getElementById('ctab-report').classList.toggle('active', tab === 'report');
   document.getElementById('coord-view-assign').style.display = tab === 'assign' ? 'block' : 'none';
+  document.getElementById('coord-view-instructors').style.display = tab === 'instructors' ? 'block' : 'none';
   document.getElementById('coord-view-report').style.display = tab === 'report' ? 'block' : 'none';
   if (tab === 'report') renderCoordReport();
+  if (tab === 'instructors') renderCoordInstructors();
+}
+
+function renderCoordInstructors() {
+  const container = document.getElementById('coord-inst-list');
+  if (!container) return;
+  if (!STATE.instructors.length) {
+    container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin instructores. Agrega el primero.</p>';
+    return;
+  }
+  container.innerHTML = '';
+  STATE.instructors.forEach(inst => {
+    const load = STATE.students.filter(s => s.instructorId === inst.id).length;
+    const isActive = inst.active !== 'false' && inst.active !== false;
+    const slots = parseSchedule(inst.availability || '');
+    const pillsHtml = slots.length
+      ? slots.map(sl => { const d = SCHEDULE_SLOTS.find(x=>x.key===sl); return d?`<span class="pill ${d.css}">${d.icon} ${d.label}</span>`:''; }).join('')
+      : '<span class="text-muted" style="font-size:.7rem">Sin horario definido</span>';
+    const row = document.createElement('div');
+    row.className = 'instructor-row-card';
+    row.style.cssText = 'flex-wrap:wrap;gap:.75rem;opacity:' + (isActive ? '1' : '.5');
+    row.innerHTML = `
+      <div class="instructor-row-info" style="flex:1;min-width:200px">
+        <img src="${inst.photo}" class="instructor-row-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(inst.name)}&background=1e293b&color=60a5fa&size=80'">
+        <div>
+          <div class="instructor-row-name">${inst.name} ${!isActive?'<span class="badge red" style="font-size:.6rem">Inactivo</span>':''}</div>
+          <div class="text-muted" style="font-size:.7rem">📞 ${inst.phone}</div>
+          <div class="schedule-pills" style="margin-top:.3rem">${pillsHtml}</div>
+          <div style="font-size:.7rem;margin-top:.25rem">
+            PIN: <strong style="color:${inst.pin?'var(--success)':'var(--danger)'}">${inst.pin?'✓ Configurado':'⚠ Sin PIN'}</strong>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">
+        <div class="instructor-row-load" style="margin-right:.5rem;text-align:center">
+          <div style="font-family:var(--font-title);font-size:1.4rem;font-weight:800;color:var(--brand-light)">${load}</div>
+          <div style="font-size:.65rem;color:var(--text-muted)">alumnos</div>
+        </div>
+        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem" onclick="editPin('${inst.id}')">🔑 PIN</button>
+        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem" onclick="openInstructorModal('${inst.id}')">✏️ Editar</button>
+      </div>`;
+    container.appendChild(row);
+  });
 }
 
 async function renderCoordinatorPortal() {
@@ -2071,6 +2118,7 @@ async function saveInstructor(instId) {
   toast(`✅ Instructor ${instId ? 'actualizado' : 'agregado'} — ID: ${id}`, 'success');
   await loadData();
   renderAdminInstructors();
+  renderCoordInstructors();
 }
 
 async function toggleInstructor(instId) {
@@ -2407,7 +2455,8 @@ async function savePinModal(instructorId) {
   } else {
     toast(`⚠ PIN enviado pero no se pudo verificar. Si el problema persiste, revisa el Apps Script.`, 'warning');
   }
-  renderAdminPortal();
+  renderAdminInstructors();
+  renderCoordInstructors();
 }
 
 // =============================================================================
