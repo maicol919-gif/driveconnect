@@ -633,11 +633,11 @@
         <div class="instructor-stats-row">
           <div class="inst-stat-card">
             <div class="inst-stat-val v-active" id="inst-stat-active">0</div>
-            <div class="inst-stat-label">Contactados</div>
+            <div class="inst-stat-label">Confirmados</div>
           </div>
           <div class="inst-stat-card" style="border-color:var(--warning)">
             <div class="inst-stat-val v-pending" id="inst-stat-pending">0</div>
-            <div class="inst-stat-label">Pendientes</div>
+            <div class="inst-stat-label">Sin contactar</div>
           </div>
           <button class="btn-sec" style="font-size:.78rem" onclick="instChangePIN()">🔑 Mi PIN</button>
           <button class="btn-sec" onclick="logout()">Salir</button>
@@ -1539,7 +1539,7 @@ function renderInstructorPortal() {
   document.getElementById('inst-specialty').textContent = inst.availability ? '🕐 ' + inst.availability : '';
 
   const myStudents = STATE.students.filter(s => s.instructorId === inst.id);
-  document.getElementById('inst-stat-active').textContent = myStudents.filter(s => s.state === 'contacted' || s.state === 'practice_started').length;
+  document.getElementById('inst-stat-active').textContent = myStudents.filter(s => s.state === 'contact_confirmed').length;
   document.getElementById('inst-stat-pending').textContent = myStudents.filter(s => s.state === 'instructor_assigned').length;
 
   const sorted = [...myStudents].sort((a,b) => {
@@ -1564,19 +1564,19 @@ function renderInstructorPortal() {
       else { pClass = 'p-low'; pLabel = 'Pendiente contacto'; }
     }
 
-    const waMsg = `Hola ${student.name}, soy ${inst.name}, tu instructor asignado de la academia. Me comunico para coordinar el inicio de tus clases prácticas. ¿Qué disponibilidad tienes esta semana?`;
-    const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+    const waMsg = `Hola ${student.name}, soy ${inst.name}, tu instructor asignado de la academia de conducción. Me comunico para coordinar el inicio de tus clases prácticas. ¿Qué disponibilidad tienes esta semana? 😊\n\nRecuerda entrar a la plataforma y confirmar que ya te contacté. ¡Gracias!`;
+    const waUrl = `https://wa.me/${student.docNumber ? inst.phone.replace(/\D/g,'') : inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
 
     const assignedDate = student.assignedDate || student.theoryPassedDate;
     const daysSinceAssign = assignedDate ? daysBetween(assignedDate, today()) : daysWaiting(student);
 
     let actionBtns = '';
     if (student.state === 'instructor_assigned') {
-      actionBtns = `<button class="btn-card-action primary" onclick="instMarkContacted('${student.docNumber}')">✓ Marcar contactado</button>`;
+      actionBtns = `<span style="font-size:.75rem;color:var(--warning);font-weight:600">⏳ Pendiente — escríbele por WhatsApp</span>`;
     } else if (student.state === 'contacted') {
-      actionBtns = `<span style="font-size:.75rem;color:var(--warning)">⏳ Pendiente confirmación del alumno</span>`;
+      actionBtns = `<span style="font-size:.75rem;color:var(--brand-light)">📞 Contactado — esperando confirmación del alumno</span>`;
     } else {
-      actionBtns = `<span style="font-size:.75rem;color:var(--success)">✅ Contacto confirmado por el alumno</span>`;
+      actionBtns = `<span style="font-size:.75rem;color:var(--success)">✅ Alumno confirmó el contacto</span>`;
     }
 
     const card = document.createElement('div');
@@ -1602,16 +1602,6 @@ function renderInstructorPortal() {
       </div>`;
     list.appendChild(card);
   });
-}
-
-async function instMarkContacted(docNumber) {
-  const s = STATE.students.find(st => st.docNumber === docNumber);
-  if (!s) return;
-  s.state = 'contacted'; s.contactDate = today();
-  renderInstructorPortal();
-  toast('✅ Alumno marcado como contactado', 'success');
-  await postData('updateStatus', { docNumber, state: 'contacted', contactDate: today() });
-  await writeLog(`Instructor ${STATE.currentUser.data.name} marcó contactado a: ${s.name}`);
 }
 
 function instChangePIN() {
