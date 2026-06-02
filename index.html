@@ -765,54 +765,159 @@
     </div>
   </section>
 
-  <!-- ===== PANEL ADMIN ===== -->
+  <!-- ===== PANEL SUPERADMIN ===== -->
   <section id="view-admin" class="view-section">
     <div class="flex-between mb-4">
       <div>
-        <h1 style="font-family:var(--font-title);font-size:1.75rem;font-weight:800">Panel de Control</h1>
-        <p class="text-secondary">Monitoreo y gestión de asignaciones en tiempo real</p>
+        <h1 style="font-family:var(--font-title);font-size:1.75rem;font-weight:800">⚙️ Superadmin</h1>
+        <p class="text-secondary" id="admin-last-sync" style="font-size:.8rem">Cargando...</p>
       </div>
-      <button class="btn-sec" onclick="logout()">Cerrar</button>
+      <button class="btn-sec" onclick="logout()">Cerrar sesión</button>
     </div>
 
-    <div class="admin-metrics-grid">
-      <div class="metric-card">
-        <div class="metric-icon-wrap">👥</div>
-        <div class="metric-info"><h4>Total Alumnos</h4><div class="metric-val" id="metric-total">0</div></div>
-      </div>
-      <div class="metric-card warning">
-        <div class="metric-icon-wrap">⏰</div>
-        <div class="metric-info"><h4>Sin Instructor</h4><div class="metric-val" id="metric-unassigned">0</div></div>
-      </div>
-      <div class="metric-card danger">
-        <div class="metric-icon-wrap">🚨</div>
-        <div class="metric-info"><h4>Alertas &gt;15d</h4><div class="metric-val" id="metric-alerts">0</div></div>
-      </div>
-      <div class="metric-card success">
-        <div class="metric-icon-wrap">📊</div>
-        <div class="metric-info"><h4>Espera Prom.</h4><div class="metric-val" id="metric-avg">0d</div></div>
-      </div>
+    <!-- TABS -->
+    <div class="coord-tabs" style="margin-bottom:1.75rem;width:fit-content">
+      <button class="coord-tab active" id="atab-system"     onclick="switchAdminTab('system')">🖥 Sistema</button>
+      <button class="coord-tab"        id="atab-instructors" onclick="switchAdminTab('instructors')">👨‍🏫 Instructores</button>
+      <button class="coord-tab"        id="atab-coordinators" onclick="switchAdminTab('coordinators')">🗂 Coordinadores</button>
+      <button class="coord-tab"        id="atab-students"   onclick="switchAdminTab('students')">🎓 Alumnos</button>
+      <button class="coord-tab"        id="atab-logs"       onclick="switchAdminTab('logs')">📋 Logs</button>
     </div>
 
-    <div class="admin-split-grid">
+    <!-- TAB: SISTEMA -->
+    <div id="aview-system">
+      <div class="admin-metrics-grid" style="margin-bottom:1.5rem">
+        <div class="metric-card">
+          <div class="metric-icon-wrap">👥</div>
+          <div class="metric-info"><h4>Total Alumnos</h4><div class="metric-val" id="metric-total">0</div></div>
+        </div>
+        <div class="metric-card warning">
+          <div class="metric-icon-wrap">⏰</div>
+          <div class="metric-info"><h4>Sin Instructor</h4><div class="metric-val" id="metric-unassigned">0</div></div>
+        </div>
+        <div class="metric-card danger">
+          <div class="metric-icon-wrap">🚨</div>
+          <div class="metric-info"><h4>Alertas &gt;15d</h4><div class="metric-val" id="metric-alerts">0</div></div>
+        </div>
+        <div class="metric-card success">
+          <div class="metric-icon-wrap">📊</div>
+          <div class="metric-info"><h4>Espera Prom.</h4><div class="metric-val" id="metric-avg">0d</div></div>
+        </div>
+      </div>
+      <div class="glass-panel" style="margin-bottom:1.5rem">
+        <div class="panel-header">
+          <h3>Estado de la base de datos</h3>
+          <span id="bd-status-badge" class="badge blue">Verificando...</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:1.5rem;align-items:center">
+          <div style="flex:1;min-width:200px">
+            <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.3rem">URL del script</div>
+            <code style="font-size:.7rem;word-break:break-all;color:var(--brand-light)" id="bd-url-display"></code>
+          </div>
+          <div style="display:flex;gap:.65rem;flex-shrink:0">
+            <button class="btn-connect" style="width:auto;padding:.55rem 1.1rem;font-size:.82rem" onclick="adminPingBD()">🔄 Verificar conexión</button>
+            <button class="btn-sec" style="font-size:.82rem" onclick="adminChangeBDUrl()">✏️ Cambiar URL</button>
+          </div>
+        </div>
+        <div id="bd-ping-result" style="margin-top:1rem;font-size:.8rem;color:var(--text-secondary);display:none"></div>
+      </div>
       <div class="glass-panel">
         <div class="panel-header">
-          <h3>Alumnos sin Instructor</h3>
-          <span class="badge red" id="badge-count">0</span>
+          <h3>Cambiar contraseña admin</h3>
         </div>
-        <div class="unassigned-table-container">
-          <table class="unassigned-table">
-            <thead><tr><th>Nombre</th><th>Documento</th><th>Teórico</th><th>Espera</th><th></th></tr></thead>
-            <tbody id="admin-table-body"></tbody>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:180px">
+            <label class="config-label">Nueva contraseña</label>
+            <input type="password" id="new-admin-pass" class="config-input" style="margin-bottom:0" placeholder="Min. 8 caracteres">
+          </div>
+          <div style="flex:1;min-width:180px">
+            <label class="config-label">Confirmar contraseña</label>
+            <input type="password" id="confirm-admin-pass" class="config-input" style="margin-bottom:0" placeholder="Repite la contraseña">
+          </div>
+          <button class="btn-connect" style="width:auto;padding:.55rem 1.1rem;font-size:.82rem;flex-shrink:0" onclick="changeAdminPass()">Guardar</button>
+        </div>
+        <div id="pass-change-msg" style="font-size:.78rem;margin-top:.65rem;min-height:1rem"></div>
+      </div>
+    </div>
+
+    <!-- TAB: INSTRUCTORES -->
+    <div id="aview-instructors" style="display:none">
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h3>Instructores</h3>
+          <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem" onclick="openInstructorModal(null)">+ Agregar</button>
+        </div>
+        <div id="admin-inst-list"></div>
+      </div>
+    </div>
+
+    <!-- TAB: COORDINADORES -->
+    <div id="aview-coordinators" style="display:none">
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h3>Coordinadores</h3>
+          <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem" onclick="openCoordModal(null)">+ Agregar</button>
+        </div>
+        <div id="admin-coord-list"></div>
+      </div>
+    </div>
+
+    <!-- TAB: ALUMNOS -->
+    <div id="aview-students" style="display:none">
+      <div class="glass-panel" style="margin-bottom:1.5rem">
+        <div class="panel-header">
+          <h3>Agregar alumno</h3>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;align-items:end">
+          <div>
+            <label class="config-label">Nombre completo</label>
+            <input type="text" id="new-st-name" class="config-input" style="margin-bottom:0" placeholder="Nombre Apellido">
+          </div>
+          <div>
+            <label class="config-label">Tipo doc.</label>
+            <select id="new-st-doctype" class="config-input" style="margin-bottom:0">
+              <option value="CC">C.C.</option><option value="TI">T.I.</option>
+              <option value="CE">C.E.</option><option value="PA">Pasaporte</option>
+            </select>
+          </div>
+          <div>
+            <label class="config-label">Número documento</label>
+            <input type="text" id="new-st-docnum" class="config-input" style="margin-bottom:0" placeholder="123456789">
+          </div>
+          <div>
+            <label class="config-label">Fecha teórico</label>
+            <input type="date" id="new-st-date" class="config-input" style="margin-bottom:0">
+          </div>
+          <div>
+            <button class="btn-connect" style="width:100%;padding:.6rem" onclick="adminAddStudent()">Agregar alumno</button>
+          </div>
+        </div>
+        <div id="add-student-msg" style="font-size:.78rem;margin-top:.65rem;min-height:1rem"></div>
+      </div>
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h3>Todos los alumnos</h3>
+          <input type="text" id="admin-st-search" class="config-input" style="width:200px;margin-bottom:0;padding:.4rem .75rem;font-size:.8rem" placeholder="Buscar...">
+        </div>
+        <div class="assign-table-wrap">
+          <table class="assign-table">
+            <thead><tr><th>Nombre</th><th>Documento</th><th>Estado</th><th>Instructor</th><th>Espera</th><th>Acciones</th></tr></thead>
+            <tbody id="admin-st-tbody"></tbody>
           </table>
         </div>
       </div>
+    </div>
+
+    <!-- TAB: LOGS -->
+    <div id="aview-logs" style="display:none">
       <div class="glass-panel">
         <div class="panel-header">
-          <h3>Instructores y Carga</h3>
-          <span class="badge blue">Resumen</span>
+          <h3>Registro de actividad</h3>
+          <button class="btn-sec" style="font-size:.78rem" onclick="loadAdminLogs()">🔄 Actualizar</button>
         </div>
-        <div id="admin-instructors-list"></div>
+        <div id="admin-logs-container">
+          <p class="text-muted text-center" style="padding:2rem">Presiona "Actualizar" para cargar los logs.</p>
+        </div>
       </div>
     </div>
 
@@ -1140,8 +1245,13 @@ async function loginCoordinator() {
   if (!pass) { showError('Ingresa tu contraseña.'); return; }
 
   const expectedPass = CONFIG.COORDINATORS[user];
+  const inactive = JSON.parse(localStorage.getItem('dc_inactive_coords') || '[]');
   if (!expectedPass || expectedPass !== pass) {
     showError('Usuario o contraseña incorrectos.');
+    return;
+  }
+  if (inactive.includes(user)) {
+    showError('Este usuario está desactivado. Contacta al administrador.');
     return;
   }
 
@@ -1700,17 +1810,34 @@ function renderCoordReportTable() {
 }
 
 // =============================================================================
-// ADMIN PORTAL
+// ADMIN PORTAL — SUPERADMIN
 // =============================================================================
+let _adminActiveTab = 'system';
+
+function switchAdminTab(tab) {
+  _adminActiveTab = tab;
+  ['system','instructors','coordinators','students','logs'].forEach(t => {
+    document.getElementById('atab-' + t)?.classList.toggle('active', t === tab);
+    const v = document.getElementById('aview-' + t);
+    if (v) v.style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'instructors') renderAdminInstructors();
+  if (tab === 'coordinators') renderAdminCoordinators();
+  if (tab === 'students') renderAdminStudents();
+}
+
 async function renderAdminPortal() {
-  // Always load fresh data
   await loadData();
 
+  const now = new Date().toLocaleString('es-CO');
+  document.getElementById('admin-last-sync').textContent = 'Último sync: ' + now;
+
+  // System tab metrics
   const total = STATE.students.length;
   const unassigned = STATE.students.filter(s => !s.instructorId || s.state === 'theory_passed').length;
   const critical = STATE.students.filter(s => {
-    const pending = s.state === 'theory_passed' || s.state === 'instructor_assigned';
-    return pending && daysWaiting(s) >= 15;
+    const p = s.state === 'theory_passed' || s.state === 'instructor_assigned';
+    return p && daysWaiting(s) >= 15;
   }).length;
   const pending = STATE.students.filter(s => s.state === 'theory_passed' || s.state === 'instructor_assigned');
   const avg = pending.length ? Math.round(pending.reduce((a,s) => a + daysWaiting(s), 0) / pending.length) : 0;
@@ -1719,62 +1846,430 @@ async function renderAdminPortal() {
   document.getElementById('metric-unassigned').textContent = unassigned;
   document.getElementById('metric-alerts').textContent = critical;
   document.getElementById('metric-avg').textContent = avg + 'd';
-  document.getElementById('badge-count').textContent = unassigned + ' alumno(s)';
 
-  // Unassigned table
-  const tbody = document.getElementById('admin-table-body');
-  tbody.innerHTML = '';
-  const unassignedList = STATE.students.filter(s => !s.instructorId || s.state === 'theory_passed')
-    .sort((a,b) => daysWaiting(b) - daysWaiting(a));
+  const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
+  const urlDisplay = document.getElementById('bd-url-display');
+  if (urlDisplay) urlDisplay.textContent = url;
 
-  if (unassignedList.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary" style="padding:2rem">¡Sin alumnos pendientes!</td></tr>';
-  } else {
-    unassignedList.forEach(s => {
-      const days = daysWaiting(s);
-      const cls = days >= 20 ? 'danger' : days >= 10 ? 'warning' : 'success';
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><strong>${s.name}</strong></td>
-        <td><code>${s.docNumber}</code></td>
-        <td>${formatDate(s.theoryPassedDate)}</td>
-        <td><span class="wait-badge ${cls}">${days}d</span></td>
-        <td><button class="btn-primary" style="padding:.3rem .7rem;font-size:.75rem;width:auto" onclick="openModal('${s.docNumber}')">Asignar</button></td>`;
-      tbody.appendChild(tr);
-    });
+  const badge = document.getElementById('bd-status-badge');
+  if (badge) {
+    badge.textContent = STATE.cloudConnected ? '🟢 Conectado' : '🔴 Sin conexión';
+    badge.className = 'badge ' + (STATE.cloudConnected ? 'green' : 'red');
   }
 
-  // Instructors
-  const instList = document.getElementById('admin-instructors-list');
-  instList.innerHTML = '';
-  if (STATE.instructors.length === 0) {
-    instList.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin instructores en la base de datos.</p>';
+  // Render active tab
+  if (_adminActiveTab === 'instructors') renderAdminInstructors();
+  if (_adminActiveTab === 'coordinators') renderAdminCoordinators();
+  if (_adminActiveTab === 'students') renderAdminStudents();
+}
+
+// ── SYSTEM ──────────────────────────────────────────────
+async function adminPingBD() {
+  const badge = document.getElementById('bd-status-badge');
+  const result = document.getElementById('bd-ping-result');
+  badge.textContent = '⏳ Verificando...'; badge.className = 'badge blue';
+  result.style.display = 'none';
+  const t0 = Date.now();
+  try {
+    const raw = await fetchData();
+    const ms = Date.now() - t0;
+    if (raw) {
+      badge.textContent = '🟢 Conectado'; badge.className = 'badge green';
+      result.style.display = 'block';
+      result.innerHTML = `✅ Conexión exitosa en <strong>${ms}ms</strong> — ${raw.students?.length || 0} alumnos, ${raw.instructors?.length || 0} instructores`;
+      result.style.color = 'var(--success)';
+      STATE.students = (raw.students || []).map(normalizeStudent).filter(s => s.docNumber);
+      STATE.instructors = (raw.instructors || []).map(normalizeInstructor).filter(i => i.id);
+    } else throw new Error('Sin respuesta');
+  } catch(e) {
+    badge.textContent = '🔴 Sin conexión'; badge.className = 'badge red';
+    result.style.display = 'block';
+    result.innerHTML = '❌ Error: ' + e.message;
+    result.style.color = 'var(--danger)';
+  }
+}
+
+function adminChangeBDUrl() {
+  const current = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
+  const modal = document.createElement('div');
+  modal.id = 'bdurl-modal';
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:500px">
+      <div class="modal-header"><h3>Cambiar URL del script</h3>
+        <button class="btn-close-modal" onclick="document.getElementById('bdurl-modal').remove()">&times;</button></div>
+      <div class="modal-body">
+        <label class="config-label">Nueva URL del Apps Script</label>
+        <input type="text" id="bdurl-input" class="config-input" value="${current}" placeholder="https://script.google.com/macros/s/.../exec">
+        <div id="bdurl-msg" style="font-size:.78rem;margin-top:.4rem;min-height:1rem"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action-cancel" onclick="document.getElementById('bdurl-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" onclick="saveBDUrl()">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  setTimeout(() => document.getElementById('bdurl-input')?.focus(), 100);
+}
+
+function saveBDUrl() {
+  const val = document.getElementById('bdurl-input').value.trim();
+  const msg = document.getElementById('bdurl-msg');
+  if (!val.includes('script.google.com')) { msg.textContent = '⚠ URL inválida.'; msg.style.color='var(--danger)'; return; }
+  localStorage.setItem('dc_script_url', val);
+  document.getElementById('bdurl-modal').remove();
+  toast('✅ URL actualizada. Verificando...', 'success');
+  document.getElementById('bd-url-display').textContent = val;
+  adminPingBD();
+}
+
+function changeAdminPass() {
+  const np = document.getElementById('new-admin-pass').value;
+  const cp = document.getElementById('confirm-admin-pass').value;
+  const msg = document.getElementById('pass-change-msg');
+  if (np.length < 8) { msg.textContent = '⚠ Mínimo 8 caracteres.'; msg.style.color='var(--danger)'; return; }
+  if (np !== cp) { msg.textContent = '⚠ Las contraseñas no coinciden.'; msg.style.color='var(--danger)'; return; }
+  localStorage.setItem('dc_admin_pass', np);
+  document.getElementById('new-admin-pass').value = '';
+  document.getElementById('confirm-admin-pass').value = '';
+  msg.textContent = '✅ Contraseña actualizada correctamente.';
+  msg.style.color = 'var(--success)';
+  setTimeout(() => { msg.textContent = ''; }, 4000);
+}
+
+// ── INSTRUCTORES ─────────────────────────────────────────
+function renderAdminInstructors() {
+  const container = document.getElementById('admin-inst-list');
+  if (!container) return;
+  if (!STATE.instructors.length) {
+    container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin instructores. Agrega el primero.</p>';
     return;
   }
+  container.innerHTML = '';
   STATE.instructors.forEach(inst => {
-    const myStudents = STATE.students.filter(s => s.instructorId === inst.id);
-    const active = myStudents.filter(s => s.state === 'practice_started' || s.state === 'contacted').length;
-    const pend = myStudents.filter(s => s.state === 'instructor_assigned').length;
-    const div = document.createElement('div');
-    div.className = 'instructor-row-card';
-    div.innerHTML = `
-      <div class="instructor-row-info">
-        <img src="${inst.photo}" alt="${inst.name}" class="instructor-row-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(inst.name)}&background=1e293b&color=60a5fa&size=80'">
+    const load = STATE.students.filter(s => s.instructorId === inst.id).length;
+    const isActive = inst.active !== 'false' && inst.active !== false;
+    const slots = parseSchedule(inst.availability || '');
+    const pillsHtml = slots.length
+      ? slots.map(sl => { const d = SCHEDULE_SLOTS.find(x=>x.key===sl); return d?`<span class="pill ${d.css}">${d.icon} ${d.label}</span>`:''; }).join('')
+      : '<span class="text-muted" style="font-size:.7rem">Sin horario</span>';
+    const row = document.createElement('div');
+    row.className = 'instructor-row-card';
+    row.style.cssText = 'flex-wrap:wrap;gap:.75rem;opacity:' + (isActive ? '1' : '.5');
+    row.innerHTML = `
+      <div class="instructor-row-info" style="flex:1;min-width:220px">
+        <img src="${inst.photo}" class="instructor-row-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(inst.name)}&background=1e293b&color=60a5fa&size=80'">
         <div>
-          <div class="instructor-row-name">${inst.name}</div>
-          <div class="text-muted" style="font-size:.7rem">${inst.specialty}</div>
-          <div style="font-size:.7rem;margin-top:.2rem">
-            PIN: <strong style="color:${inst.pin ? 'var(--success)' : 'var(--danger)'}">${inst.pin || '⚠ Sin PIN'}</strong>
-            <button onclick="editPin('${inst.id}')" style="margin-left:.5rem;font-size:.68rem;padding:.1rem .4rem;background:rgba(255,255,255,.08);border:1px solid var(--border-color);border-radius:4px;color:var(--text-secondary);cursor:pointer">✏️ Editar</button>
-          </div>
+          <div class="instructor-row-name">${inst.name} ${!isActive ? '<span class="badge red" style="font-size:.6rem">Inactivo</span>' : ''}</div>
+          <div class="text-muted" style="font-size:.7rem">${inst.specialty} · ${inst.phone}</div>
+          <div class="schedule-pills" style="margin-top:.3rem">${pillsHtml}</div>
+          <div style="font-size:.7rem;margin-top:.2rem">PIN: <strong style="color:${inst.pin?'var(--success)':'var(--danger)'}">${inst.pin||'⚠ Sin PIN'}</strong></div>
         </div>
       </div>
-      <div class="instructor-row-load">
-        <div>Total: <span>${myStudents.length}</span></div>
-        <div>Activos: <strong style="color:var(--success)">${active}</strong> | Pendientes: <strong style="color:var(--warning)">${pend}</strong></div>
+      <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">
+        <div class="instructor-row-load" style="margin-right:.5rem">
+          <div>Alumnos: <span>${load}</span></div>
+        </div>
+        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem" onclick="editPin('${inst.id}')">🔑 PIN</button>
+        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem" onclick="openInstructorModal('${inst.id}')">✏️ Editar</button>
+        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem;color:${isActive?'var(--danger)':'var(--success)'}" onclick="toggleInstructor('${inst.id}')">
+          ${isActive ? '🚫 Desactivar' : '✅ Activar'}
+        </button>
       </div>`;
-    instList.appendChild(div);
+    container.appendChild(row);
   });
+}
+
+function openInstructorModal(instId) {
+  const inst = instId ? STATE.instructors.find(i => i.id === instId) : null;
+  const ex = document.getElementById('inst-edit-modal'); if (ex) ex.remove();
+  const modal = document.createElement('div');
+  modal.id = 'inst-edit-modal'; modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:480px">
+      <div class="modal-header">
+        <h3>${inst ? 'Editar instructor' : 'Agregar instructor'}</h3>
+        <button class="btn-close-modal" onclick="document.getElementById('inst-edit-modal').remove()">&times;</button>
+      </div>
+      <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div style="grid-column:span 2">
+          <label class="config-label">ID (ej: INS-04)</label>
+          <input id="ie-id" class="config-input" style="margin-bottom:0" value="${inst?.id||''}" ${inst?'readonly':''} placeholder="INS-04">
+        </div>
+        <div style="grid-column:span 2">
+          <label class="config-label">Nombre completo</label>
+          <input id="ie-name" class="config-input" style="margin-bottom:0" value="${inst?.name||''}" placeholder="Nombre Apellido">
+        </div>
+        <div>
+          <label class="config-label">Especialidad</label>
+          <input id="ie-specialty" class="config-input" style="margin-bottom:0" value="${inst?.specialty||''}" placeholder="Transmisión Manual">
+        </div>
+        <div>
+          <label class="config-label">Teléfono</label>
+          <input id="ie-phone" class="config-input" style="margin-bottom:0" value="${inst?.phone||''}" placeholder="+573001234567">
+        </div>
+        <div>
+          <label class="config-label">Email</label>
+          <input id="ie-email" class="config-input" style="margin-bottom:0" value="${inst?.email||''}" placeholder="correo@email.com">
+        </div>
+        <div>
+          <label class="config-label">Disponibilidad</label>
+          <input id="ie-avail" class="config-input" style="margin-bottom:0" value="${inst?.availability||''}" placeholder="mañana, tarde">
+        </div>
+        <div style="grid-column:span 2">
+          <label class="config-label">URL Foto (opcional)</label>
+          <input id="ie-photo" class="config-input" style="margin-bottom:0" value="${inst?.photo&&!inst.photo.includes('ui-avatars')?inst.photo:''}" placeholder="https://...">
+        </div>
+        <div id="ie-msg" style="grid-column:span 2;font-size:.78rem;min-height:1rem;color:var(--danger)"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action-cancel" onclick="document.getElementById('inst-edit-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" onclick="saveInstructor('${instId||''}')">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function saveInstructor(instId) {
+  const id = document.getElementById('ie-id').value.trim().toUpperCase();
+  const name = document.getElementById('ie-name').value.trim();
+  const specialty = document.getElementById('ie-specialty').value.trim();
+  const phone = document.getElementById('ie-phone').value.trim();
+  const email = document.getElementById('ie-email').value.trim();
+  const availability = document.getElementById('ie-avail').value.trim();
+  const photo = document.getElementById('ie-photo').value.trim();
+  const msg = document.getElementById('ie-msg');
+  if (!id || !name || !phone) { msg.textContent = '⚠ ID, nombre y teléfono son obligatorios.'; return; }
+  msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
+  const action = instId ? 'updateInstructor' : 'addInstructor';
+  await postData(action, { id, name, specialty, phone, email, availability, photo });
+  await writeLog(instId ? `Instructor editado: ${name}` : `Instructor agregado: ${name} (${id})`);
+  document.getElementById('inst-edit-modal').remove();
+  toast(`✅ ${instId ? 'Instructor actualizado' : 'Instructor agregado'}`, 'success');
+  await loadData();
+  renderAdminInstructors();
+}
+
+async function toggleInstructor(instId) {
+  const inst = STATE.instructors.find(i => i.id === instId);
+  if (!inst) return;
+  const isActive = inst.active !== 'false' && inst.active !== false;
+  const newVal = isActive ? 'false' : 'true';
+  await postData('updateInstructor', { id: instId, active: newVal });
+  await writeLog(`Instructor ${isActive ? 'desactivado' : 'activado'}: ${inst.name}`);
+  inst.active = newVal;
+  toast(`${isActive ? '🚫 Instructor desactivado' : '✅ Instructor activado'}`, isActive ? 'warning' : 'success');
+  renderAdminInstructors();
+  await loadData();
+}
+
+// ── COORDINADORES ────────────────────────────────────────
+function renderAdminCoordinators() {
+  const container = document.getElementById('admin-coord-list');
+  if (!container) return;
+  const coords = Object.entries(CONFIG.COORDINATORS);
+  const inactive = JSON.parse(localStorage.getItem('dc_inactive_coords') || '[]');
+  container.innerHTML = '';
+  if (!coords.length) {
+    container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin coordinadores configurados.</p>';
+    return;
+  }
+  coords.forEach(([user, pass]) => {
+    const isActive = !inactive.includes(user);
+    const row = document.createElement('div');
+    row.className = 'instructor-row-card';
+    row.style.opacity = isActive ? '1' : '.5';
+    row.innerHTML = `
+      <div class="instructor-row-info" style="flex:1">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(59,130,246,.2);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--brand-light);flex-shrink:0">${user[0].toUpperCase()}</div>
+        <div>
+          <div class="instructor-row-name">${user} ${!isActive?'<span class="badge red" style="font-size:.6rem">Inactivo</span>':''}</div>
+          <div class="text-muted" style="font-size:.7rem">Coordinador</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">
+        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem" onclick="openCoordModal('${user}')">✏️ Editar</button>
+        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem;color:${isActive?'var(--danger)':'var(--success)'}" onclick="toggleCoordinator('${user}')">
+          ${isActive ? '🚫 Desactivar' : '✅ Activar'}
+        </button>
+      </div>`;
+    container.appendChild(row);
+  });
+}
+
+function openCoordModal(username) {
+  const ex = document.getElementById('coord-edit-modal'); if (ex) ex.remove();
+  const isEdit = !!username;
+  const modal = document.createElement('div');
+  modal.id = 'coord-edit-modal'; modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:380px">
+      <div class="modal-header">
+        <h3>${isEdit ? 'Editar coordinador' : 'Agregar coordinador'}</h3>
+        <button class="btn-close-modal" onclick="document.getElementById('coord-edit-modal').remove()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label class="config-label">Usuario</label>
+        <input id="ce-user" class="config-input" value="${username||''}" ${isEdit?'readonly':''} placeholder="coordinador3">
+        <label class="config-label">Contraseña</label>
+        <input id="ce-pass" type="password" class="config-input" placeholder="${isEdit?'Nueva contraseña (dejar vacío para no cambiar)':'Contraseña'}">
+        <div id="ce-msg" style="font-size:.78rem;min-height:1rem;color:var(--danger)"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action-cancel" onclick="document.getElementById('coord-edit-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" onclick="saveCoordinator('${username||''}')">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+function saveCoordinator(oldUser) {
+  const user = document.getElementById('ce-user').value.trim().toLowerCase();
+  const pass = document.getElementById('ce-pass').value.trim();
+  const msg = document.getElementById('ce-msg');
+  if (!user) { msg.textContent = '⚠ El usuario es obligatorio.'; return; }
+  if (!oldUser && !pass) { msg.textContent = '⚠ La contraseña es obligatoria.'; return; }
+  if (oldUser) {
+    if (pass) CONFIG.COORDINATORS[oldUser] = pass;
+  } else {
+    if (CONFIG.COORDINATORS[user]) { msg.textContent = '⚠ Ese usuario ya existe.'; return; }
+    CONFIG.COORDINATORS[user] = pass;
+  }
+  document.getElementById('coord-edit-modal').remove();
+  toast(`✅ Coordinador ${oldUser ? 'actualizado' : 'agregado'}`, 'success');
+  writeLog(`Coordinador ${oldUser ? 'editado' : 'agregado'}: ${user}`);
+  renderAdminCoordinators();
+}
+
+function toggleCoordinator(user) {
+  const inactive = JSON.parse(localStorage.getItem('dc_inactive_coords') || '[]');
+  const idx = inactive.indexOf(user);
+  if (idx === -1) { inactive.push(user); toast('🚫 Coordinador desactivado', 'warning'); }
+  else { inactive.splice(idx, 1); toast('✅ Coordinador activado', 'success'); }
+  localStorage.setItem('dc_inactive_coords', JSON.stringify(inactive));
+  writeLog(`Coordinador ${idx === -1 ? 'desactivado' : 'activado'}: ${user}`);
+  renderAdminCoordinators();
+}
+
+// ── ALUMNOS ──────────────────────────────────────────────
+function renderAdminStudents() {
+  const search = (document.getElementById('admin-st-search')?.value || '').toLowerCase();
+  let list = [...STATE.students];
+  if (search) list = list.filter(s => s.name.toLowerCase().includes(search) || s.docNumber.includes(search));
+  list.sort((a,b) => daysWaiting(b) - daysWaiting(a));
+  const tbody = document.getElementById('admin-st-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary" style="padding:2rem">Sin resultados</td></tr>';
+    return;
+  }
+  const stateLabels = { theory_passed:'⏳ Sin instructor', instructor_assigned:'👤 Asignado', contacted:'💬 Contactado', practice_started:'🚗 En práctica' };
+  list.forEach(s => {
+    const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
+    const days = daysWaiting(s);
+    const cls = days >= 20 ? 'danger' : days >= 10 ? 'warning' : 'success';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${s.name}</strong></td>
+      <td><code style="font-size:.72rem">${s.docType} ${s.docNumber}</code></td>
+      <td style="font-size:.78rem">${stateLabels[s.state]||s.state}</td>
+      <td style="font-size:.78rem">${inst?inst.name:'<span class="text-muted">—</span>'}</td>
+      <td><span class="wait-badge ${cls}">${days}d</span></td>
+      <td style="display:flex;gap:.35rem;flex-wrap:wrap">
+        <button class="btn-sec" style="font-size:.7rem;padding:.25rem .5rem" onclick="openModal('${s.docNumber}')">🔄 Reasignar</button>
+        <button class="btn-sec" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminChangeState('${s.docNumber}')">✏️ Estado</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  // Wire search
+  const searchEl = document.getElementById('admin-st-search');
+  if (searchEl && !searchEl.dataset.wired) {
+    searchEl.dataset.wired = '1';
+    searchEl.addEventListener('input', renderAdminStudents);
+  }
+}
+
+async function adminAddStudent() {
+  const name = document.getElementById('new-st-name').value.trim();
+  const docType = document.getElementById('new-st-doctype').value;
+  const docNum = document.getElementById('new-st-docnum').value.trim();
+  const date = document.getElementById('new-st-date').value;
+  const msg = document.getElementById('add-student-msg');
+  if (!name || !docNum || !date) { msg.textContent = '⚠ Todos los campos son obligatorios.'; msg.style.color='var(--danger)'; return; }
+  if (STATE.students.find(s => s.docNumber === docNum)) { msg.textContent = '⚠ Ese documento ya existe.'; msg.style.color='var(--danger)'; return; }
+  msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
+  await postData('addStudent', { docNumber: docNum, docType, name, theoryPassedDate: date });
+  await writeLog(`Alumno agregado: ${name} (${docType} ${docNum})`);
+  msg.textContent = '✅ Alumno agregado correctamente.'; msg.style.color = 'var(--success)';
+  document.getElementById('new-st-name').value = '';
+  document.getElementById('new-st-docnum').value = '';
+  document.getElementById('new-st-date').value = '';
+  await loadData();
+  renderAdminStudents();
+  setTimeout(() => { msg.textContent = ''; }, 4000);
+}
+
+function adminChangeState(docNumber) {
+  const s = STATE.students.find(st => st.docNumber === docNumber);
+  if (!s) return;
+  const ex = document.getElementById('state-modal'); if (ex) ex.remove();
+  const states = ['theory_passed','instructor_assigned','contacted','practice_started'];
+  const labels = { theory_passed:'Sin instructor', instructor_assigned:'Instructor asignado', contacted:'Contactado', practice_started:'En práctica' };
+  const modal = document.createElement('div');
+  modal.id = 'state-modal'; modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:360px">
+      <div class="modal-header"><h3>Cambiar estado — ${s.name}</h3>
+        <button class="btn-close-modal" onclick="document.getElementById('state-modal').remove()">&times;</button></div>
+      <div class="modal-body">
+        <label class="config-label">Nuevo estado</label>
+        <select id="new-state-sel" class="config-input">
+          ${states.map(st => `<option value="${st}" ${s.state===st?'selected':''}>${labels[st]}</option>`).join('')}
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action-cancel" onclick="document.getElementById('state-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" onclick="confirmStateChange('${docNumber}')">Guardar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function confirmStateChange(docNumber) {
+  const newState = document.getElementById('new-state-sel').value;
+  const s = STATE.students.find(st => st.docNumber === docNumber);
+  document.getElementById('state-modal').remove();
+  await postData('updateStatus', { docNumber, state: newState, contactDate: s.contactDate||'', practiceStartDate: s.practiceStartDate||'' });
+  await writeLog(`Estado cambiado: ${s.name} → ${newState}`);
+  s.state = newState;
+  toast('✅ Estado actualizado', 'success');
+  renderAdminStudents();
+}
+
+// ── LOGS ─────────────────────────────────────────────────
+async function writeLog(message) {
+  const entry = `[${new Date().toLocaleString('es-CO')}] ${message}`;
+  await postData('addLog', { entry });
+}
+
+async function loadAdminLogs() {
+  const container = document.getElementById('admin-logs-container');
+  container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">⏳ Cargando logs...</p>';
+  try {
+    const raw = await fetchData();
+    const logs = (raw?.logs || []).reverse();
+    if (!logs.length) {
+      container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin actividad registrada aún.</p>';
+      return;
+    }
+    container.innerHTML = logs.map(l => `
+      <div style="padding:.65rem 1rem;border-bottom:1px solid var(--border-color);font-size:.8rem;color:var(--text-secondary)">
+        ${String(l.entry || l)}
+      </div>`).join('');
+  } catch(e) {
+    container.innerHTML = `<p class="text-muted text-center" style="padding:2rem">❌ Error al cargar logs: ${e.message}</p>`;
+  }
 }
 
 // =============================================================================
