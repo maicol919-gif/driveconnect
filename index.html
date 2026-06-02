@@ -351,6 +351,62 @@
     .badge.red{background:rgba(244,63,94,.15);color:var(--danger)}
     .badge.green{background:rgba(16,185,129,.15);color:var(--success)}
 
+    /* COORDINATOR */
+    .coord-header{display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:center;margin-bottom:2rem}
+    .coord-header-left h1{font-family:var(--font-title);font-size:1.75rem;font-weight:800}
+    .coord-header-left p{color:var(--text-secondary);font-size:.85rem;margin-top:.2rem}
+    .coord-tabs{display:flex;gap:.5rem;background:rgba(0,0,0,.2);padding:.3rem;border-radius:9999px;border:1px solid var(--border-color)}
+    .coord-tab{background:transparent;border:none;color:var(--text-secondary);padding:.55rem 1.1rem;font-size:.82rem;font-weight:600;border-radius:9999px;cursor:pointer;transition:var(--t-fast)}
+    .coord-tab.active{background:var(--brand);color:white;box-shadow:0 4px 10px var(--brand-glow)}
+
+    /* Horario pills */
+    .schedule-pills{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.25rem}
+    .pill{display:inline-block;padding:.12rem .5rem;border-radius:9999px;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+    .pill-morning{background:rgba(245,158,11,.15);color:var(--warning)}
+    .pill-afternoon{background:rgba(59,130,246,.15);color:var(--brand-light)}
+    .pill-night{background:rgba(139,92,246,.15);color:#a78bfa}
+    .pill-any{background:rgba(16,185,129,.15);color:var(--success)}
+
+    /* Assign modal enhancements */
+    .inst-option-card{display:flex;align-items:center;gap:.85rem;padding:.8rem;border:1px solid var(--border-color);border-radius:var(--r-sm);margin-bottom:.5rem;cursor:pointer;transition:var(--t-fast);background:rgba(255,255,255,.01)}
+    .inst-option-card:hover{background:rgba(59,130,246,.06);border-color:rgba(59,130,246,.3)}
+    .inst-option-card.selected{background:rgba(59,130,246,.12);border-color:var(--brand)}
+    .inst-option-card input[type=radio]{accent-color:var(--brand);width:16px;height:16px;flex-shrink:0}
+    .inst-option-info{flex:1}
+    .inst-option-name{font-weight:700;font-size:.9rem}
+    .inst-option-meta{font-size:.72rem;color:var(--text-muted);margin-top:.15rem}
+    .inst-option-load{text-align:right;min-width:60px}
+    .inst-load-num{font-family:var(--font-title);font-size:1.3rem;font-weight:800}
+    .inst-load-label{font-size:.65rem;color:var(--text-muted);text-transform:uppercase}
+    .match-badge{display:inline-block;font-size:.65rem;font-weight:700;padding:.1rem .4rem;border-radius:9999px;margin-left:.4rem}
+    .match-good{background:rgba(16,185,129,.2);color:var(--success)}
+    .match-warn{background:rgba(245,158,11,.2);color:var(--warning)}
+
+    /* Coordinator assignment table */
+    .assign-table-wrap{overflow-x:auto}
+    .assign-table{width:100%;border-collapse:collapse;text-align:left;font-size:.82rem}
+    .assign-table th{padding:.6rem 1rem;font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border-color);white-space:nowrap}
+    .assign-table td{padding:.85rem 1rem;border-bottom:1px solid rgba(255,255,255,.02);vertical-align:middle}
+    .assign-table tr:hover td{background:rgba(255,255,255,.015)}
+    .student-name-cell{font-weight:600}
+    .student-doc-cell{color:var(--text-muted);font-size:.75rem}
+
+    /* Report cards */
+    .report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.25rem;margin-bottom:2rem}
+    .report-card{background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--r-md);padding:1.5rem;transition:var(--t-norm)}
+    .report-card:hover{border-color:var(--border-hover)}
+    .report-card-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem}
+    .report-icon{font-size:1.5rem}
+    .report-title{font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+    .report-val{font-family:var(--font-title);font-size:2rem;font-weight:800;line-height:1}
+    .report-sub{font-size:.78rem;color:var(--text-secondary);margin-top:.3rem}
+    .inst-load-bar-wrap{margin-top:1.25rem}
+    .inst-load-row{display:flex;align-items:center;gap:.65rem;margin-bottom:.6rem;font-size:.78rem}
+    .inst-load-bar-bg{flex:1;background:rgba(255,255,255,.05);border-radius:9999px;height:6px}
+    .inst-load-bar-fill{height:6px;border-radius:9999px;background:var(--brand);transition:width .5s cubic-bezier(.4,0,.2,1)}
+    .inst-load-name{min-width:90px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .inst-load-count{min-width:28px;text-align:right;font-weight:700;color:var(--text-primary)}
+
     /* MISC */
     .flex-between{display:flex;justify-content:space-between;align-items:center}
     .mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}
@@ -396,6 +452,7 @@
       <div class="tab-switcher">
         <button class="tab-btn active" id="btn-student" onclick="switchTab('student')">Soy Alumno</button>
         <button class="tab-btn" id="btn-instructor" onclick="switchTab('instructor')">Soy Instructor</button>
+        <button class="tab-btn" id="btn-coordinator" onclick="switchTab('coordinator')">Coordinador</button>
       </div>
 
       <!-- ALUMNO -->
@@ -446,6 +503,32 @@
         </div>
         <button class="btn-primary" onclick="loginInstructor()">
           <span>Ingresar al Portal</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+
+      <!-- COORDINADOR -->
+      <div id="group-coordinator" style="display:none">
+        <div class="form-group">
+          <label>Usuario</label>
+          <div class="input-wrapper">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </span>
+            <input type="text" id="coord-user" class="form-input" placeholder="Nombre de usuario" autocomplete="off">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <div class="input-wrapper">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            <input type="password" id="coord-pass" class="form-input" placeholder="Contraseña" autocomplete="off">
+          </div>
+        </div>
+        <button class="btn-primary" onclick="loginCoordinator()">
+          <span>Ingresar al Panel</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
       </div>
@@ -575,6 +658,115 @@
     <div class="students-list" id="instructor-students-list"></div>
   </section>
 
+  <!-- ===== PANEL COORDINADOR ===== -->
+  <section id="view-coordinator" class="view-section">
+    <div class="coord-header">
+      <div class="coord-header-left">
+        <h1>Panel de Coordinación</h1>
+        <p id="coord-welcome">Bienvenido/a</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <div class="coord-tabs">
+          <button class="coord-tab active" id="ctab-assign" onclick="switchCoordTab('assign')">Asignaciones</button>
+          <button class="coord-tab" id="ctab-report" onclick="switchCoordTab('report')">Reportes</button>
+        </div>
+        <button class="btn-sec" onclick="logout()">Salir</button>
+      </div>
+    </div>
+
+    <!-- SUB-VIEW: ASIGNACIONES -->
+    <div id="coord-view-assign">
+      <div class="admin-metrics-grid" style="margin-bottom:1.5rem">
+        <div class="metric-card">
+          <div class="metric-icon-wrap">👥</div>
+          <div class="metric-info"><h4>Total Alumnos</h4><div class="metric-val" id="cmetric-total">0</div></div>
+        </div>
+        <div class="metric-card warning">
+          <div class="metric-icon-wrap">⏰</div>
+          <div class="metric-info"><h4>Sin Instructor</h4><div class="metric-val" id="cmetric-unassigned">0</div></div>
+        </div>
+        <div class="metric-card danger">
+          <div class="metric-icon-wrap">🚨</div>
+          <div class="metric-info"><h4>Alertas &gt;15d</h4><div class="metric-val" id="cmetric-alerts">0</div></div>
+        </div>
+        <div class="metric-card success">
+          <div class="metric-icon-wrap">📊</div>
+          <div class="metric-info"><h4>Espera Prom.</h4><div class="metric-val" id="cmetric-avg">0d</div></div>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <div class="panel-header">
+          <div>
+            <h3>Alumnos pendientes de asignación</h3>
+            <p class="text-muted" style="font-size:.75rem;margin-top:.2rem">Ordenados por días de espera (mayor urgencia primero)</p>
+          </div>
+          <span class="badge red" id="cbadge-count">0</span>
+        </div>
+        <div class="assign-table-wrap">
+          <table class="assign-table">
+            <thead>
+              <tr>
+                <th>Alumno</th>
+                <th>Documento</th>
+                <th>Teórico aprobado</th>
+                <th>Espera</th>
+                <th>Horario preferido</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody id="coord-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="glass-panel" style="margin-top:1.5rem">
+        <div class="panel-header">
+          <h3>Carga de instructores</h3>
+          <span class="badge blue">Por franja horaria</span>
+        </div>
+        <div id="coord-instructors-load"></div>
+      </div>
+    </div>
+
+    <!-- SUB-VIEW: REPORTES -->
+    <div id="coord-view-report" style="display:none">
+      <div class="report-grid" id="coord-report-cards"></div>
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h3>Historial completo de alumnos</h3>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <input type="text" id="coord-search" class="config-input" style="width:200px;margin-bottom:0;padding:.45rem .75rem;font-size:.8rem" placeholder="Buscar alumno...">
+            <select id="coord-filter-state" class="config-input" style="width:160px;margin-bottom:0;padding:.45rem .6rem;font-size:.8rem">
+              <option value="">Todos los estados</option>
+              <option value="theory_passed">Sin instructor</option>
+              <option value="instructor_assigned">Instructor asignado</option>
+              <option value="contacted">Contactado</option>
+              <option value="practice_started">En práctica</option>
+            </select>
+          </div>
+        </div>
+        <div class="assign-table-wrap">
+          <table class="assign-table">
+            <thead>
+              <tr>
+                <th>Alumno</th>
+                <th>Documento</th>
+                <th>Estado</th>
+                <th>Instructor</th>
+                <th>Teórico</th>
+                <th>Contacto</th>
+                <th>Práctica</th>
+                <th>Días espera</th>
+              </tr>
+            </thead>
+            <tbody id="coord-report-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== PANEL ADMIN ===== -->
   <section id="view-admin" class="view-section">
     <div class="flex-between mb-4">
@@ -677,19 +869,20 @@
 
 <!-- ASSIGN MODAL -->
 <div class="modal-overlay" id="assign-modal">
-  <div class="modal-content">
+  <div class="modal-content" style="max-width:540px">
     <div class="modal-header">
       <h3>Asignar Instructor</h3>
       <button class="btn-close-modal" onclick="closeModal()">&times;</button>
     </div>
     <div class="modal-body">
-      <p class="mb-4">Selecciona un instructor para <strong id="modal-student-name"></strong> (<span id="modal-student-doc"></span>)</p>
-      <label class="config-label">Instructor disponible (menor carga primero)</label>
-      <select id="modal-instructor-select" class="config-input" style="font-size:.9rem;padding:.65rem"></select>
+      <p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:.5rem">Alumno: <strong id="modal-student-name" style="color:white"></strong> — <span id="modal-student-doc" style="color:var(--text-muted)"></span></p>
+      <div id="modal-student-schedule" style="margin-bottom:1rem"></div>
+      <p style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.65rem">Selecciona un instructor (menor carga compatible primero):</p>
+      <div id="modal-instructor-list" style="max-height:320px;overflow-y:auto;padding-right:.25rem"></div>
     </div>
     <div class="modal-footer">
       <button class="btn-action-cancel" onclick="closeModal()">Cancelar</button>
-      <button class="btn-action-confirm" onclick="confirmAssign()">Confirmar</button>
+      <button class="btn-action-confirm" onclick="confirmAssign()">Confirmar asignación</button>
     </div>
   </div>
 </div>
@@ -707,6 +900,11 @@ const CONFIG = {
   ADMIN_PASS: localStorage.getItem('dc_admin_pass') || 'admin2026',
   WAIT_DAYS_WARNING: 10,
   WAIT_DAYS_CRITICAL: 20,
+  // Cuentas de coordinadores (usuario → contraseña). Edita aquí para cambiarlas.
+  COORDINATORS: {
+    'coordinador1': 'coord2026#A',
+    'coordinador2': 'coord2026#B',
+  },
 };
 
 // =============================================================================
@@ -886,6 +1084,7 @@ function normalizeStudent(obj) {
     contactDate: String(k('contactDate') || k('fecha_contacto') || '').trim() || null,
     practiceStartDate: String(k('practiceStartDate') || k('fecha_practica') || '').trim() || null,
     theoryPassedDate: String(k('theoryPassedDate') || k('fecha_teorico') || '').trim() || null,
+    preferredSchedule: String(k('preferredSchedule') || k('horario') || k('schedule') || '').trim() || null,
   };
 }
 
@@ -1009,8 +1208,10 @@ function switchTab(tab) {
   STATE.activeTab = tab;
   document.getElementById('btn-student').classList.toggle('active', tab === 'student');
   document.getElementById('btn-instructor').classList.toggle('active', tab === 'instructor');
+  document.getElementById('btn-coordinator').classList.toggle('active', tab === 'coordinator');
   document.getElementById('group-student').style.display = tab === 'student' ? 'block' : 'none';
   document.getElementById('group-instructor').style.display = tab === 'instructor' ? 'block' : 'none';
+  document.getElementById('group-coordinator').style.display = tab === 'coordinator' ? 'block' : 'none';
   document.getElementById('login-error').style.display = 'none';
 }
 
@@ -1080,6 +1281,40 @@ async function loginInstructor() {
     STATE.currentUser = { role: 'instructor', data: instructor };
     renderInstructorPortal();
     showView('view-instructor');
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    loadEl.style.display = 'none';
+  }
+}
+
+async function loginCoordinator() {
+  const user = document.getElementById('coord-user').value.trim().toLowerCase();
+  const pass = document.getElementById('coord-pass').value.trim();
+  const errEl = document.getElementById('login-error');
+  const loadEl = document.getElementById('login-loading');
+
+  if (!user) { showError('Ingresa tu usuario.'); return; }
+  if (!pass) { showError('Ingresa tu contraseña.'); return; }
+
+  const expectedPass = CONFIG.COORDINATORS[user];
+  if (!expectedPass || expectedPass !== pass) {
+    showError('Usuario o contraseña incorrectos.');
+    return;
+  }
+
+  const url = localStorage.getItem('dc_script_url');
+  if (!url) { showError('La base de datos no está configurada. Contacta al administrador.'); return; }
+
+  errEl.style.display = 'none';
+  loadEl.style.display = 'block';
+
+  try {
+    const ok = await loadData();
+    if (!ok) throw new Error('No se pudo conectar a la base de datos.');
+    STATE.currentUser = { role: 'coordinator', data: { username: user } };
+    renderCoordinatorPortal();
+    showView('view-coordinator');
   } catch(e) {
     showError(e.message);
   } finally {
@@ -1351,6 +1586,214 @@ async function instStartPractice(docNumber) {
 }
 
 // =============================================================================
+// SCHEDULE HELPERS
+// =============================================================================
+const SCHEDULE_SLOTS = [
+  { key: 'morning',   label: 'Mañana',   css: 'pill-morning',   icon: '🌅' },
+  { key: 'afternoon', label: 'Tarde',     css: 'pill-afternoon', icon: '☀️' },
+  { key: 'night',     label: 'Noche',     css: 'pill-night',     icon: '🌙' },
+];
+
+function parseSchedule(raw) {
+  if (!raw) return [];
+  const r = raw.toLowerCase();
+  const slots = [];
+  if (r.includes('mañana') || r.includes('manana') || r.includes('morning') || r.includes('am')) slots.push('morning');
+  if (r.includes('tarde') || r.includes('afternoon') || r.includes('pm')) slots.push('afternoon');
+  if (r.includes('noche') || r.includes('night') || r.includes('nocturno')) slots.push('night');
+  return slots;
+}
+
+function scheduleMatch(instrSlots, studentSlots) {
+  if (!instrSlots.length || !studentSlots.length) return null; // unknown
+  return instrSlots.some(s => studentSlots.includes(s));
+}
+
+function renderSchedulePills(slots, container) {
+  if (!slots.length) { container.innerHTML = '<span class="pill pill-any">Horario flexible</span>'; return; }
+  container.innerHTML = slots.map(s => {
+    const def = SCHEDULE_SLOTS.find(x => x.key === s);
+    return def ? `<span class="pill ${def.css}">${def.icon} ${def.label}</span>` : '';
+  }).join('');
+}
+
+// =============================================================================
+// COORDINATOR PORTAL
+// =============================================================================
+let _coordActiveTab = 'assign';
+
+function switchCoordTab(tab) {
+  _coordActiveTab = tab;
+  document.getElementById('ctab-assign').classList.toggle('active', tab === 'assign');
+  document.getElementById('ctab-report').classList.toggle('active', tab === 'report');
+  document.getElementById('coord-view-assign').style.display = tab === 'assign' ? 'block' : 'none';
+  document.getElementById('coord-view-report').style.display = tab === 'report' ? 'block' : 'none';
+  if (tab === 'report') renderCoordReport();
+}
+
+async function renderCoordinatorPortal() {
+  const user = STATE.currentUser.data.username;
+  document.getElementById('coord-welcome').textContent = 'Bienvenido/a, ' + user;
+
+  const total = STATE.students.length;
+  const unassigned = STATE.students.filter(s => !s.instructorId || s.state === 'theory_passed').length;
+  const critical = STATE.students.filter(s => {
+    const p = s.state === 'theory_passed' || s.state === 'instructor_assigned';
+    return p && daysWaiting(s) >= 15;
+  }).length;
+  const pending = STATE.students.filter(s => s.state === 'theory_passed' || s.state === 'instructor_assigned');
+  const avg = pending.length ? Math.round(pending.reduce((a,s) => a + daysWaiting(s), 0) / pending.length) : 0;
+
+  document.getElementById('cmetric-total').textContent = total;
+  document.getElementById('cmetric-unassigned').textContent = unassigned;
+  document.getElementById('cmetric-alerts').textContent = critical;
+  document.getElementById('cmetric-avg').textContent = avg + 'd';
+  document.getElementById('cbadge-count').textContent = unassigned + ' alumno(s)';
+
+  // Unassigned table
+  const tbody = document.getElementById('coord-table-body');
+  tbody.innerHTML = '';
+  const unassignedList = STATE.students.filter(s => !s.instructorId || s.state === 'theory_passed')
+    .sort((a,b) => daysWaiting(b) - daysWaiting(a));
+
+  if (unassignedList.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary" style="padding:2rem">¡Sin alumnos pendientes de asignación! 🎉</td></tr>';
+  } else {
+    unassignedList.forEach(s => {
+      const days = daysWaiting(s);
+      const cls = days >= 20 ? 'danger' : days >= 10 ? 'warning' : 'success';
+      const slots = parseSchedule(s.preferredSchedule || '');
+      const pillsHtml = slots.length
+        ? slots.map(sl => { const d = SCHEDULE_SLOTS.find(x=>x.key===sl); return d ? `<span class="pill ${d.css}">${d.icon} ${d.label}</span>` : ''; }).join('')
+        : '<span class="text-muted" style="font-size:.72rem">No indicado</span>';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><div class="student-name-cell">${s.name}</div></td>
+        <td><code>${s.docType} ${s.docNumber}</code></td>
+        <td>${formatDate(s.theoryPassedDate)}</td>
+        <td><span class="wait-badge ${cls}">${days}d</span></td>
+        <td><div class="schedule-pills">${pillsHtml}</div></td>
+        <td><button class="btn-primary" style="padding:.3rem .75rem;font-size:.75rem;width:auto" onclick="openModal('${s.docNumber}')">Asignar</button></td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Instructor load by schedule
+  renderInstructorLoadPanel();
+}
+
+function renderInstructorLoadPanel() {
+  const container = document.getElementById('coord-instructors-load');
+  if (!container) return;
+  container.innerHTML = '';
+  const maxLoad = Math.max(...STATE.instructors.map(i => STATE.students.filter(s => s.instructorId === i.id).length), 1);
+
+  STATE.instructors.forEach(inst => {
+    const myStudents = STATE.students.filter(s => s.instructorId === inst.id);
+    const slots = parseSchedule(inst.availability || '');
+    const active = myStudents.filter(s => s.state === 'practice_started' || s.state === 'contacted').length;
+    const pend = myStudents.filter(s => s.state === 'instructor_assigned').length;
+    const fillPct = Math.round((myStudents.length / Math.max(maxLoad, 1)) * 100);
+    const pillsHtml = slots.length
+      ? slots.map(sl => { const d = SCHEDULE_SLOTS.find(x=>x.key===sl); return d ? `<span class="pill ${d.css}">${d.icon} ${d.label}</span>` : ''; }).join('')
+      : '<span class="pill pill-any">Flexible</span>';
+    const barColor = fillPct > 75 ? 'var(--danger)' : fillPct > 45 ? 'var(--warning)' : 'var(--success)';
+
+    const div = document.createElement('div');
+    div.className = 'instructor-row-card';
+    div.style.flexWrap = 'wrap';
+    div.style.gap = '.75rem';
+    div.innerHTML = `
+      <div class="instructor-row-info" style="flex:1;min-width:200px">
+        <img src="${inst.photo}" alt="${inst.name}" class="instructor-row-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(inst.name)}&background=1e293b&color=60a5fa&size=80'">
+        <div>
+          <div class="instructor-row-name">${inst.name}</div>
+          <div class="schedule-pills" style="margin-top:.3rem">${pillsHtml}</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:180px">
+        <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-muted);margin-bottom:.3rem">
+          <span>Carga: <strong style="color:white">${myStudents.length}</strong> alumnos</span>
+          <span style="font-size:.68rem">Activos: <strong style="color:var(--success)">${active}</strong> | Pendientes: <strong style="color:var(--warning)">${pend}</strong></span>
+        </div>
+        <div class="inst-load-bar-bg"><div class="inst-load-bar-fill" style="width:${fillPct}%;background:${barColor}"></div></div>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+
+function renderCoordReport() {
+  // Summary cards
+  const byState = {
+    theory_passed: STATE.students.filter(s => s.state === 'theory_passed').length,
+    instructor_assigned: STATE.students.filter(s => s.state === 'instructor_assigned').length,
+    contacted: STATE.students.filter(s => s.state === 'contacted').length,
+    practice_started: STATE.students.filter(s => s.state === 'practice_started').length,
+  };
+
+  document.getElementById('coord-report-cards').innerHTML = `
+    <div class="report-card">
+      <div class="report-card-header"><span class="report-icon">📋</span><div class="report-title">Sin instructor</div></div>
+      <div class="report-val" style="color:var(--warning)">${byState.theory_passed}</div>
+      <div class="report-sub">Esperan asignación</div>
+    </div>
+    <div class="report-card">
+      <div class="report-card-header"><span class="report-icon">👤</span><div class="report-title">Instructor asignado</div></div>
+      <div class="report-val" style="color:var(--brand-light)">${byState.instructor_assigned}</div>
+      <div class="report-sub">Pendientes de contacto</div>
+    </div>
+    <div class="report-card">
+      <div class="report-card-header"><span class="report-icon">💬</span><div class="report-title">Contactados</div></div>
+      <div class="report-val" style="color:var(--success)">${byState.contacted}</div>
+      <div class="report-sub">En coordinación</div>
+    </div>
+    <div class="report-card">
+      <div class="report-card-header"><span class="report-icon">🚗</span><div class="report-title">En práctica</div></div>
+      <div class="report-val" style="color:var(--success)">${byState.practice_started}</div>
+      <div class="report-sub">Clases activas</div>
+    </div>`;
+
+  renderCoordReportTable();
+
+  document.getElementById('coord-search').addEventListener('input', renderCoordReportTable);
+  document.getElementById('coord-filter-state').addEventListener('change', renderCoordReportTable);
+}
+
+function renderCoordReportTable() {
+  const search = (document.getElementById('coord-search')?.value || '').toLowerCase();
+  const filterState = document.getElementById('coord-filter-state')?.value || '';
+  const tbody = document.getElementById('coord-report-body');
+  tbody.innerHTML = '';
+
+  let list = [...STATE.students];
+  if (search) list = list.filter(s => s.name.toLowerCase().includes(search) || s.docNumber.includes(search));
+  if (filterState) list = list.filter(s => s.state === filterState);
+  list.sort((a,b) => daysWaiting(b) - daysWaiting(a));
+
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary" style="padding:1.5rem">Sin resultados</td></tr>';
+    return;
+  }
+  list.forEach(s => {
+    const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
+    const days = daysWaiting(s);
+    const cls = days >= 20 ? 'danger' : days >= 10 ? 'warning' : 'success';
+    const stateLabels = { theory_passed:'⏳ Sin instructor', instructor_assigned:'👤 Asignado', contacted:'💬 Contactado', practice_started:'🚗 En práctica' };
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><div class="student-name-cell">${s.name}</div></td>
+      <td><code style="font-size:.72rem">${s.docType} ${s.docNumber}</code></td>
+      <td style="font-size:.8rem">${stateLabels[s.state] || s.state}</td>
+      <td style="font-size:.8rem">${inst ? inst.name : '<span class="text-muted">—</span>'}</td>
+      <td style="font-size:.78rem">${formatDate(s.theoryPassedDate)}</td>
+      <td style="font-size:.78rem">${formatDate(s.contactDate)}</td>
+      <td style="font-size:.78rem">${formatDate(s.practiceStartDate)}</td>
+      <td><span class="wait-badge ${cls}">${days}d</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// =============================================================================
 // ADMIN PORTAL
 // =============================================================================
 async function renderAdminPortal() {
@@ -1448,49 +1891,105 @@ async function editPin(instructorId) {
 }
 
 // =============================================================================
-// ASSIGN MODAL
+// ASSIGN MODAL (smart - schedule-aware)
 // =============================================================================
 let _assignDocNumber = null;
+let _assignSelectedInstId = null;
 
 function openModal(docNumber) {
   _assignDocNumber = docNumber;
+  _assignSelectedInstId = null;
   const student = STATE.students.find(s => s.docNumber === docNumber);
   document.getElementById('modal-student-name').textContent = student.name;
   document.getElementById('modal-student-doc').textContent = getDocLabel(student.docType) + ' ' + docNumber;
 
-  const sel = document.getElementById('modal-instructor-select');
-  sel.innerHTML = '';
-  const withLoad = STATE.instructors.map(i => ({
-    ...i,
-    load: STATE.students.filter(s => s.instructorId === i.id).length
-  })).sort((a,b) => a.load - b.load);
+  // Show student preferred schedule if any
+  const studSlots = parseSchedule(student.preferredSchedule || '');
+  const schedDiv = document.getElementById('modal-student-schedule');
+  if (studSlots.length) {
+    schedDiv.innerHTML = '<span style="font-size:.72rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Horario alumno: </span>';
+    const pillsWrap = document.createElement('div');
+    pillsWrap.className = 'schedule-pills';
+    pillsWrap.style.display = 'inline-flex';
+    pillsWrap.style.marginLeft = '.35rem';
+    renderSchedulePills(studSlots, pillsWrap);
+    schedDiv.appendChild(pillsWrap);
+  } else {
+    schedDiv.innerHTML = '<span style="font-size:.75rem;color:var(--text-muted)">Horario alumno: no indicado</span>';
+  }
 
-  withLoad.forEach((inst, idx) => {
-    const opt = document.createElement('option');
-    opt.value = inst.id;
-    opt.textContent = `${inst.name} — Alumnos: ${inst.load}${idx === 0 ? ' ⭐ Recomendado' : ''}`;
-    sel.appendChild(opt);
+  // Build instructor options sorted: compatible + less load first
+  const withMeta = STATE.instructors.map(i => {
+    const load = STATE.students.filter(s => s.instructorId === i.id).length;
+    const iSlots = parseSchedule(i.availability || '');
+    const match = scheduleMatch(iSlots, studSlots); // true / false / null
+    return { ...i, load, iSlots, match };
+  }).sort((a, b) => {
+    // compatible first (true > null > false)
+    const matchScore = (m) => m === true ? 0 : m === null ? 1 : 2;
+    if (matchScore(a.match) !== matchScore(b.match)) return matchScore(a.match) - matchScore(b.match);
+    return a.load - b.load;
   });
+
+  const list = document.getElementById('modal-instructor-list');
+  list.innerHTML = '';
+  withMeta.forEach((inst, idx) => {
+    const matchLabel = inst.match === true
+      ? '<span class="match-badge match-good">✓ Horario compatible</span>'
+      : inst.match === false
+        ? '<span class="match-badge match-warn">⚠ Horario diferente</span>'
+        : '';
+    const pillsHtml = inst.iSlots.length
+      ? inst.iSlots.map(sl => { const d = SCHEDULE_SLOTS.find(x=>x.key===sl); return d ? `<span class="pill ${d.css}" style="font-size:.6rem">${d.icon} ${d.label}</span>` : ''; }).join('')
+      : '<span style="font-size:.68rem;color:var(--text-muted)">Horario flexible</span>';
+
+    const card = document.createElement('div');
+    card.className = 'inst-option-card' + (idx === 0 ? ' selected' : '');
+    card.dataset.id = inst.id;
+    if (idx === 0) _assignSelectedInstId = inst.id;
+    card.innerHTML = `
+      <input type="radio" name="inst-radio" value="${inst.id}" ${idx === 0 ? 'checked' : ''}>
+      <div class="inst-option-info">
+        <div class="inst-option-name">${inst.name}${matchLabel}</div>
+        <div class="inst-option-meta">
+          <div class="schedule-pills" style="margin-top:.2rem">${pillsHtml}</div>
+        </div>
+      </div>
+      <div class="inst-option-load">
+        <div class="inst-load-num" style="color:${inst.load > 8 ? 'var(--danger)' : inst.load > 5 ? 'var(--warning)' : 'var(--success)'}">${inst.load}</div>
+        <div class="inst-load-label">alumnos</div>
+      </div>`;
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.inst-option-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      card.querySelector('input[type=radio]').checked = true;
+      _assignSelectedInstId = inst.id;
+    });
+    list.appendChild(card);
+  });
+
   document.getElementById('assign-modal').classList.add('active');
 }
 
 function closeModal() {
   document.getElementById('assign-modal').classList.remove('active');
   _assignDocNumber = null;
+  _assignSelectedInstId = null;
 }
 
 async function confirmAssign() {
-  if (!_assignDocNumber) return;
+  if (!_assignDocNumber || !_assignSelectedInstId) { toast('Selecciona un instructor', 'warning'); return; }
   const student = STATE.students.find(s => s.docNumber === _assignDocNumber);
-  const instructorId = document.getElementById('modal-instructor-select').value;
-  const inst = STATE.instructors.find(i => i.id === instructorId);
-  if (student && instructorId) {
-    student.instructorId = instructorId;
+  const inst = STATE.instructors.find(i => i.id === _assignSelectedInstId);
+  if (student && inst) {
+    student.instructorId = _assignSelectedInstId;
     student.state = 'instructor_assigned';
     closeModal();
-    renderAdminPortal();
+    // Refresh whichever portal is active
+    if (STATE.currentUser?.role === 'coordinator') renderCoordinatorPortal();
+    else renderAdminPortal();
     toast(`${inst.name} asignado a ${student.name}`, 'success');
-    await postData('assignInstructor', { docNumber: _assignDocNumber, instructorId, state: 'instructor_assigned' });
+    await postData('assignInstructor', { docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, state: 'instructor_assigned' });
   }
 }
 
@@ -1566,6 +2065,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('student-id').addEventListener('keydown', e => { if (e.key === 'Enter') loginStudent(); });
   document.getElementById('instructor-code').addEventListener('keydown', e => { if (e.key === 'Enter') loginInstructor(); });
   document.getElementById('instructor-pin').addEventListener('keydown', e => { if (e.key === 'Enter') loginInstructor(); });
+  document.getElementById('coord-user').addEventListener('keydown', e => { if (e.key === 'Enter') loginCoordinator(); });
+  document.getElementById('coord-pass').addEventListener('keydown', e => { if (e.key === 'Enter') loginCoordinator(); });
 
   // Check if script is configured and show hint
   if (!localStorage.getItem('dc_script_url')) {
@@ -1584,3 +2085,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
