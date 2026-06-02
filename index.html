@@ -742,7 +742,8 @@
               <option value="">Todos los estados</option>
               <option value="theory_passed">Sin instructor</option>
               <option value="instructor_assigned">Instructor asignado</option>
-              <option value="contacted">Contactado</option>
+              <option value="contacted">Contactado (sin confirmar)</option>
+              <option value="contact_confirmed">Confirmado por alumno</option>
               <option value="practice_started">En práctica</option>
             </select>
           </div>
@@ -1110,10 +1111,11 @@ function formatDate(dateStr) {
   
 function translateState(state) {
   const map = {
-    theory_passed: 'Teórico aprobado',
-    instructor_assigned: 'Instructor asignado',
-    contacted: 'Contactado',
-    practice_started: 'En práctica',
+    theory_passed: 'Sin instructor',
+    instructor_assigned: 'Pendiente contacto',
+    contacted: 'Contactado (sin confirmar)',
+    contact_confirmed: 'Contacto confirmado',
+    practice_started: 'Contactado (sin confirmar)',
   };
   return map[state] || state;
 }
@@ -1372,11 +1374,17 @@ function renderStudentPortal() {
   // Alert banner
   const banner = document.getElementById('student-alert-banner');
   const alertCounter = document.getElementById('student-alert-counter');
-  if (s.state === 'contacted') {
+  if (s.state === 'contact_confirmed') {
     banner.className = 'alert-card success';
     document.getElementById('student-alert-icon').textContent = '✅';
-    document.getElementById('student-alert-title').textContent = '¡Tu instructor ya te contactó!';
-    document.getElementById('student-alert-desc').textContent = 'Coordinaste con tu instructor el ' + formatDate(s.contactDate) + '. ¡Mucho éxito en tus clases!';
+    document.getElementById('student-alert-title').textContent = '¡Contacto confirmado!';
+    document.getElementById('student-alert-desc').textContent = 'Confirmaste que tu instructor te contactó el ' + formatDate(s.contactDate) + '. ¡Mucho éxito!';
+    alertCounter.style.display = 'none';
+  } else if (s.state === 'contacted') {
+    banner.className = 'alert-card warning';
+    document.getElementById('student-alert-icon').textContent = '📞';
+    document.getElementById('student-alert-title').textContent = '¿Ya te contactó tu instructor?';
+    document.getElementById('student-alert-desc').textContent = 'Tu instructor reportó haberte contactado. Confírmalo para cerrar el proceso.';
     alertCounter.style.display = 'none';
   } else if (days >= CONFIG.WAIT_DAYS_CRITICAL) {
     banner.className = 'alert-card danger';
@@ -1426,14 +1434,16 @@ function renderStudentPortal() {
     if (sc) { sc.classList.add('active'); sc.querySelector('.timeline-marker').textContent = '3'; }
     document.getElementById('step-contact-desc').textContent = 'Tu instructor te contactará pronto. También puedes escribirle tú.';
     document.getElementById('student-contact-date').textContent = '';
-  } else if (s.state === 'contacted' || s.state === 'practice_started') {
+  } else if (s.state === 'contacted' || s.state === 'contact_confirmed' || s.state === 'practice_started') {
     ['step-instructor','step-contact'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { el.classList.add('completed'); el.querySelector('.timeline-marker').textContent = '✓'; }
     });
     document.getElementById('step-instructor-desc').textContent = inst ? inst.name + ' es tu instructor.' : 'Instructor asignado.';
-    document.getElementById('step-contact-desc').textContent = '¡Primer contacto realizado!';
-    document.getElementById('student-contact-date').textContent = 'Contactado el: ' + formatDate(s.contactDate);
+    document.getElementById('step-contact-desc').textContent = s.state === 'contact_confirmed'
+      ? '✅ Contacto confirmado por ti.'
+      : '📞 Tu instructor reportó contacto — pendiente tu confirmación.';
+    document.getElementById('student-contact-date').textContent = formatDate(s.contactDate);
   }
 
   renderInstructorCard(s, inst);
@@ -1452,14 +1462,27 @@ function renderInstructorCard(student, instructor) {
     return;
   }
 
-  const waMsg = `Hola ${instructor.name}, soy ${student.name} (${getDocLabel(student.docType)} ${student.docNumber}). Aprobé mi examen teórico el ${formatDate(student.theoryPassedDate)} y el sistema me indica que eres mi instructor asignado. Me gustaría coordinar el inicio de mis clases prácticas. ¡Muchas gracias!`;
+  const waMsg = `Hola ${instructor.name}, soy ${student.name} (${getDocLabel(student.docType)} ${student.docNumber}). Aprobé mi examen teórico y el sistema me indica que eres mi instructor asignado. Me gustaría coordinar el inicio de mis clases prácticas. ¡Muchas gracias!`;
   const waUrl = `https://wa.me/${instructor.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
 
-  const isPending = student.state === 'instructor_assigned';
-  const confirmBtn = isPending ? `
-    <button class="btn-success-action" onclick="studentConfirmContact()">
-      <span>✓ Ya me contactó el instructor</span>
-    </button>` : '';
+  // Confirmation button logic
+  let confirmBtn = '';
+  if (student.state === 'contacted') {
+    confirmBtn = `
+      <div style="margin-top:.75rem;border:1px solid rgba(245,158,11,.3);border-radius:var(--r-sm);padding:1rem;background:rgba(245,158,11,.05)">
+        <p style="font-size:.8rem;color:var(--warning);font-weight:600;margin-bottom:.65rem">📞 Tu instructor reportó haberte contactado</p>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn-success-action" style="margin-top:0;flex:1;padding:.65rem" onclick="studentConfirmContact(true)">
+            ✅ Sí, ya me contactó
+          </button>
+          <button onclick="studentConfirmContact(false)" style="flex:1;padding:.65rem;background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-sm);font-weight:700;cursor:pointer;font-size:.82rem">
+            ❌ Aún no me han contactado
+          </button>
+        </div>
+      </div>`;
+  } else if (student.state === 'contact_confirmed') {
+    confirmBtn = `<div style="margin-top:.75rem;padding:.75rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-sm);font-size:.82rem;color:var(--success);text-align:center">✅ Confirmaste el contacto el ${formatDate(student.contactDate)}</div>`;
+  }
 
   panel.innerHTML = `
     <div class="instructor-card-header">
@@ -1467,37 +1490,42 @@ function renderInstructorCard(student, instructor) {
       <div class="instructor-meta">
         <span class="instructor-badge">Tu Instructor Asignado</span>
         <h3>${instructor.name}</h3>
-        ${instructor.rating !== '—' ? `<div class="instructor-rating">★ <span>${instructor.rating} / 5.0</span></div>` : ''}
+        ${instructor.availability ? `<div style="font-size:.78rem;color:var(--text-secondary);margin-top:.2rem">🕐 ${instructor.availability}</div>` : ''}
       </div>
     </div>
     <div class="info-list">
-      ${instructor.specialty ? `<div class="info-item"><div class="info-icon">📋</div><div class="info-text"><span>Especialidad</span><p>${instructor.specialty}</p></div></div>` : ''}
       ${instructor.phone ? `<div class="info-item"><div class="info-icon">📞</div><div class="info-text"><span>Celular</span><p>${instructor.phone}</p></div></div>` : ''}
-      ${instructor.email ? `<div class="info-item"><div class="info-icon">✉️</div><div class="info-text"><span>Correo</span><p>${instructor.email}</p></div></div>` : ''}
-      ${instructor.availability ? `<div class="info-item"><div class="info-icon">📅</div><div class="info-text"><span>Disponibilidad</span><p>${instructor.availability}</p></div></div>` : ''}
     </div>
     <div class="action-buttons">
-      <p class="text-muted mb-2 text-center" style="font-size:.75rem">Escríbele directamente para agendar tus clases:</p>
+      <p class="text-muted mb-2 text-center" style="font-size:.75rem">Escríbele directamente para coordinar tus clases:</p>
       <a href="${waUrl}" target="_blank" class="btn-whatsapp">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         Escribir por WhatsApp
       </a>
-      <div class="secondary-actions">
-        ${instructor.phone ? `<a href="tel:${instructor.phone}" class="btn-sec">📞 Llamar</a>` : '<span></span>'}
-        ${instructor.email ? `<a href="mailto:${instructor.email}" class="btn-sec">✉️ Email</a>` : '<span></span>'}
-      </div>
       ${confirmBtn}
     </div>`;
 }
 
-async function studentConfirmContact() {
+async function studentConfirmContact(confirmed) {
   const student = STATE.currentUser.data;
-  student.state = 'contacted';
-  student.contactDate = today();
-  STATE.currentUser.data = student;
-  renderStudentPortal();
-  toast('¡Contacto registrado!', 'success');
-  await postData('updateStatus', { docNumber: student.docNumber, state: 'contacted', contactDate: today() });
+  if (confirmed) {
+    student.state = 'contact_confirmed';
+    student.contactDate = student.contactDate || today();
+    STATE.currentUser.data = student;
+    renderStudentPortal();
+    toast('✅ ¡Gracias por confirmar!', 'success');
+    await postData('updateStatus', { docNumber: student.docNumber, state: 'contact_confirmed', contactDate: student.contactDate });
+    await writeLog(`Alumno confirmó contacto con instructor: ${student.name} (${student.docNumber})`);
+  } else {
+    // Student says they were NOT contacted — flag it
+    student.state = 'instructor_assigned';
+    student.contactDate = null;
+    STATE.currentUser.data = student;
+    renderStudentPortal();
+    toast('⚠ Reporte enviado a la coordinación', 'warning');
+    await postData('updateStatus', { docNumber: student.docNumber, state: 'instructor_assigned', contactDate: '' });
+    await writeLog(`⚠ ALERTA: Alumno reportó NO haber sido contactado: ${student.name} (${student.docNumber})`);
+  }
 }
 
 // =============================================================================
@@ -1539,11 +1567,16 @@ function renderInstructorPortal() {
     const waMsg = `Hola ${student.name}, soy ${inst.name}, tu instructor asignado de la academia. Me comunico para coordinar el inicio de tus clases prácticas. ¿Qué disponibilidad tienes esta semana?`;
     const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
 
+    const assignedDate = student.assignedDate || student.theoryPassedDate;
+    const daysSinceAssign = assignedDate ? daysBetween(assignedDate, today()) : daysWaiting(student);
+
     let actionBtns = '';
     if (student.state === 'instructor_assigned') {
       actionBtns = `<button class="btn-card-action primary" onclick="instMarkContacted('${student.docNumber}')">✓ Marcar contactado</button>`;
+    } else if (student.state === 'contacted') {
+      actionBtns = `<span style="font-size:.75rem;color:var(--warning)">⏳ Pendiente confirmación del alumno</span>`;
     } else {
-      actionBtns = `<span style="font-size:.75rem;color:var(--success)">✅ Contacto realizado el ${formatDate(student.contactDate)}</span>`;
+      actionBtns = `<span style="font-size:.75rem;color:var(--success)">✅ Contacto confirmado por el alumno</span>`;
     }
 
     const card = document.createElement('div');
@@ -1557,8 +1590,8 @@ function renderInstructorPortal() {
         <span class="prio-pill">${pLabel}</span>
       </div>
       <div class="student-card-details">
-        <div class="student-det-item"><span>Teórico aprobado</span><strong>${formatDate(student.theoryPassedDate)}</strong></div>
-        <div class="student-det-item"><span>Días desde teórico</span><strong>${days}d</strong></div>
+        <div class="student-det-item"><span>Asignado el</span><strong>${formatDate(assignedDate)}</strong></div>
+        <div class="student-det-item"><span>Días desde asignación</span><strong>${daysSinceAssign}d</strong></div>
       </div>
       <div class="student-card-actions">
         ${actionBtns}
@@ -1824,7 +1857,7 @@ function renderCoordReportTable() {
     const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
     const days = daysWaiting(s);
     const cls = days >= 20 ? 'danger' : days >= 10 ? 'warning' : 'success';
-    const stateLabels = { theory_passed:'⏳ Sin instructor', instructor_assigned:'👤 Asignado', contacted:'💬 Contactado', practice_started:'🚗 En práctica' };
+    const stateLabels = { theory_passed:'⏳ Sin instructor', instructor_assigned:'👤 Pendiente contacto', contacted:'📞 Contactado (sin confirmar)', contact_confirmed:'✅ Confirmado', practice_started:'📞 Contactado (sin confirmar)' };
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><div class="student-name-cell">${s.name}</div></td>
@@ -2211,7 +2244,7 @@ function renderAdminStudents() {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary" style="padding:2rem">Sin resultados</td></tr>';
     return;
   }
-  const stateLabels = { theory_passed:'⏳ Sin instructor', instructor_assigned:'👤 Asignado', contacted:'💬 Contactado', practice_started:'🚗 En práctica' };
+  const stateLabels = { theory_passed:'⏳ Sin instructor', instructor_assigned:'👤 Pendiente contacto', contacted:'📞 Contactado (sin confirmar)', contact_confirmed:'✅ Confirmado', practice_started:'📞 Contactado (sin confirmar)' };
   list.forEach(s => {
     const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
     const days = daysWaiting(s);
@@ -2262,7 +2295,7 @@ function adminChangeState(docNumber) {
   if (!s) return;
   const ex = document.getElementById('state-modal'); if (ex) ex.remove();
   const states = ['theory_passed','instructor_assigned','contacted','practice_started'];
-  const labels = { theory_passed:'Sin instructor', instructor_assigned:'Instructor asignado', contacted:'Contactado', practice_started:'En práctica' };
+  const labels = { theory_passed:'Sin instructor', instructor_assigned:'Pendiente contacto', contacted:'Contactado sin confirmar', contact_confirmed:'Confirmado por alumno', practice_started:'Contactado sin confirmar' };
   const modal = document.createElement('div');
   modal.id = 'state-modal'; modal.className = 'modal-overlay active';
   modal.innerHTML = `
