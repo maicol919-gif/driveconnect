@@ -57,6 +57,7 @@
       display:flex;justify-content:space-between;align-items:center;
     }
     .logo-container{display:flex;align-items:center;gap:.75rem;text-decoration:none;cursor:pointer}
+    .logo-container.no-click{cursor:default;pointer-events:none}
     .logo-icon{
       background:linear-gradient(135deg,var(--brand),var(--brand-light));width:40px;height:40px;
       border-radius:12px;display:flex;align-items:center;justify-content:center;
@@ -1072,6 +1073,7 @@ function goHome() {
 function logout() {
   STATE.currentUser = null;
   sessionStorage.removeItem('dc_session');
+  document.querySelector('.logo-container').classList.remove('no-click');
   showView('view-login');
   document.getElementById('login-error').style.display = 'none';
   document.getElementById('login-loading').style.display = 'none';
@@ -1122,6 +1124,7 @@ async function loginStudent() {
     const student = STATE.students.find(s => s.docNumber === docNum);
     if (!student) throw new Error('Documento no encontrado. Verifica el número ingresado o contacta a la academia.');
     STATE.currentUser = { role: 'student', data: student };
+    document.querySelector('.logo-container').classList.add('no-click');
     renderStudentPortal();
     showView('view-student');
   } catch(e) {
@@ -1155,6 +1158,7 @@ async function loginInstructor() {
     if (instructor.pin && instructor.pin !== pin) throw new Error('PIN incorrecto.');
     if (!instructor.pin) throw new Error('Este instructor no tiene PIN configurado. Contacta al administrador.');
     STATE.currentUser = { role: 'instructor', data: instructor };
+    document.querySelector('.logo-container').classList.add('no-click');
     renderInstructorPortal();
     showView('view-instructor');
   } catch(e) {
@@ -1190,6 +1194,7 @@ async function loginCoordinator() {
     if (!ok) throw new Error('No se pudo conectar a la base de datos.');
     STATE.currentUser = { role: 'coordinator', data: { username: user } };
     sessionStorage.setItem('dc_session', JSON.stringify({ role: 'coordinator', username: user }));
+    document.querySelector('.logo-container').classList.add('no-click');
     renderCoordinatorPortal();
     showView('view-coordinator');
   } catch(e) {
@@ -1205,6 +1210,7 @@ function adminDirect() {
   if (pass === stored) {
     STATE.currentUser = { role: 'admin', data: null };
     sessionStorage.setItem('dc_session', JSON.stringify({ role: 'admin' }));
+    document.querySelector('.logo-container').classList.add('no-click');
     renderAdminPortal();
     showView('view-admin');
     loadCloudConfigUI();
@@ -2022,6 +2028,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const ok = await loadData();
         if (ok) {
           STATE.currentUser = { role: 'admin', data: null };
+          document.querySelector('.logo-container').classList.add('no-click');
           renderAdminPortal();
           showView('view-admin');
           loadCloudConfigUI();
@@ -2032,6 +2039,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const ok = await loadData();
         if (ok) {
           STATE.currentUser = { role: 'coordinator', data: { username: session.username } };
+          document.querySelector('.logo-container').classList.add('no-click');
           renderCoordinatorPortal();
           showView('view-coordinator');
         } else {
@@ -2057,6 +2065,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Secret admin access: click logo 5 times quickly
   let logoClicks = 0, logoTimer;
   document.querySelector('.logo-container').addEventListener('click', () => {
+    // If logged in, logo does nothing
+    if (STATE.currentUser) return;
     logoClicks++;
     clearTimeout(logoTimer);
     logoTimer = setTimeout(() => { logoClicks = 0; }, 2000);
