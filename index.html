@@ -1511,7 +1511,7 @@ function renderInstructorPortal() {
   document.getElementById('inst-specialty').textContent = inst.availability ? '🕐 ' + inst.availability : '';
 
   const myStudents = STATE.students.filter(s => s.instructorId === inst.id);
-  document.getElementById('inst-stat-active').textContent = myStudents.filter(s => s.state === 'contacted').length;
+  document.getElementById('inst-stat-active').textContent = myStudents.filter(s => s.state === 'contacted' || s.state === 'practice_started').length;
   document.getElementById('inst-stat-pending').textContent = myStudents.filter(s => s.state === 'instructor_assigned').length;
 
   const sorted = [...myStudents].sort((a,b) => {
