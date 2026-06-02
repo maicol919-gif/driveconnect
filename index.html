@@ -1206,6 +1206,7 @@ function adminDirect() {
 async function confirmAdminLogin() {
   const input = document.getElementById('admin-pass-input');
   const errEl = document.getElementById('admin-auth-error');
+  const btn = document.querySelector('#admin-auth-modal .btn-action-confirm');
   const pass = input.value;
   const stored = localStorage.getItem('dc_admin_pass') || 'admin2026';
 
@@ -1216,14 +1217,28 @@ async function confirmAdminLogin() {
     return;
   }
 
+  // Immediate feedback before data loads
+  btn.disabled = true;
+  btn.textContent = 'Cargando...';
+  errEl.style.color = 'var(--brand-light)';
+  errEl.textContent = '⏳ Conectando con la base de datos...';
+
   document.getElementById('admin-auth-modal').remove();
   STATE.currentUser = { role: 'admin', data: null };
   document.querySelector('.logo-container').classList.add('no-click');
-  const loadEl = document.getElementById('login-loading');
-  if (loadEl) { loadEl.style.display = 'block'; loadEl.textContent = '⏳ Cargando panel...'; }
-  await renderAdminPortal();
-  if (loadEl) loadEl.style.display = 'none';
+
+  // Show skeleton/loading state immediately
   showView('view-admin');
+  document.getElementById('metric-total').textContent = '...';
+  document.getElementById('metric-unassigned').textContent = '...';
+  document.getElementById('metric-alerts').textContent = '...';
+  document.getElementById('metric-avg').textContent = '...';
+  document.getElementById('admin-table-body').innerHTML =
+    '<tr><td colspan="5" class="text-center text-secondary" style="padding:2rem">⏳ Cargando datos...</td></tr>';
+  document.getElementById('admin-instructors-list').innerHTML =
+    '<p class="text-muted text-center" style="padding:2rem">⏳ Cargando...</p>';
+
+  await renderAdminPortal();
 }
 
 function showError(msg) {
