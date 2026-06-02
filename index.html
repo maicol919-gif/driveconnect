@@ -2547,6 +2547,11 @@ function toast(msg, type = 'info') {
 // INIT
 // =============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+  // Warm up the Apps Script in background so it's ready when user logs in
+  setTimeout(() => {
+    const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
+    if (url) fetch(url + '?warmup=1&t=' + Date.now()).catch(() => {});
+  }, 800);
   // Keyboard submit
   document.getElementById('student-id').addEventListener('keydown', e => { if (e.key === 'Enter') loginStudent(); });
   document.getElementById('instructor-code').addEventListener('keydown', e => { if (e.key === 'Enter') loginInstructor(); });
