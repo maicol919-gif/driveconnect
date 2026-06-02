@@ -304,10 +304,7 @@
     .instructor-row-load span{font-weight:700;color:var(--brand-light)}
 
     /* CLOUD CONFIG */
-    .cloud-panel{border-color:rgba(16,185,129,.3)!important;margin-top:2rem}
-    .cloud-panel-header{display:flex;align-items:center;gap:.75rem;margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border-color);justify-content:space-between}
-    .cloud-title{font-family:var(--font-title);font-size:1.1rem;font-weight:700;color:var(--success)}
-    .cloud-badge{display:inline-block;padding:.2rem .6rem;border-radius:4px;font-size:.75rem;font-weight:600;background:rgba(255,255,255,.05);color:var(--text-secondary)}
+
     .config-grid{display:grid;grid-template-columns:1fr;gap:1.5rem}
     @media(min-width:768px){.config-grid{grid-template-columns:1fr 1fr}}
     .config-box{background:rgba(0,0,0,.15);padding:1.25rem;border-radius:var(--r-sm);border:1px solid var(--border-color)}
@@ -819,25 +816,6 @@
       </div>
     </div>
 
-    <!-- CLOUD CONFIG -->
-    <div class="glass-panel cloud-panel">
-      <div class="cloud-panel-header">
-        <div style="display:flex;align-items:center;gap:.75rem">
-          <span style="font-size:1.5rem">📊</span>
-          <div>
-            <div class="cloud-title">Conexión Google Sheets</div>
-            <p class="text-muted" style="font-size:.72rem">Estado de la base de datos en la nube</p>
-          </div>
-        </div>
-        <span class="cloud-badge" id="cloud-badge">Verificando...</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-        <p style="font-size:.82rem;color:var(--text-secondary);flex:1">
-          La URL del script está configurada internamente. Para cambiarla contacta al administrador técnico.
-        </p>
-        <button class="btn-connect" style="width:auto;padding:.55rem 1.25rem" onclick="reloadData()">🔄 Reconectar</button>
-      </div>
-    </div>
   </section>
 
 </main>
@@ -988,22 +966,7 @@ async function loadData() {
   STATE.students = (raw.students || []).map(normalizeStudent).filter(s => s.docNumber);
   STATE.instructors = (raw.instructors || []).map(normalizeInstructor).filter(i => i.id);
   STATE.cloudConnected = true;
-  updateCloudBadge(true);
   return true;
-}
-
-function updateCloudBadge(connected) {
-  const badge = document.getElementById('cloud-badge');
-  if (!badge) return;
-  if (connected) {
-    badge.textContent = '🟢 Conectado';
-    badge.style.background = 'rgba(16,185,129,.15)';
-    badge.style.color = 'var(--success)';
-  } else {
-    badge.textContent = '🔴 Sin conexión';
-    badge.style.background = 'rgba(244,63,94,.15)';
-    badge.style.color = 'var(--danger)';
-  }
 }
 
 // =============================================================================
@@ -1213,7 +1176,6 @@ function adminDirect() {
     document.querySelector('.logo-container').classList.add('no-click');
     renderAdminPortal();
     showView('view-admin');
-    loadCloudConfigUI();
   } else if (pass !== null) {
     alert('Contraseña incorrecta.');
   }
@@ -1681,9 +1643,8 @@ function renderCoordReportTable() {
 // ADMIN PORTAL
 // =============================================================================
 async function renderAdminPortal() {
-  if (localStorage.getItem('dc_script_url')) {
-    await loadData();
-  }
+  // Always load fresh data
+  await loadData();
 
   const total = STATE.students.length;
   const unassigned = STATE.students.filter(s => !s.instructorId || s.state === 'theory_passed').length;
@@ -1969,23 +1930,7 @@ async function confirmAssign() {
   }
 }
 
-// =============================================================================
-// CLOUD CONFIG
-// =============================================================================
-function loadCloudConfigUI() {
-  updateCloudBadge(!!CONFIG.SCRIPT_URL);
-}
 
-async function reloadData() {
-  toast('Reconectando...', 'info');
-  const ok = await loadData();
-  if (ok) {
-    toast('✅ Datos actualizados', 'success');
-    renderAdminPortal();
-  } else {
-    toast('❌ No se pudo conectar', 'danger');
-  }
-}
 
 // =============================================================================
 // FAQ
@@ -2031,7 +1976,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           document.querySelector('.logo-container').classList.add('no-click');
           renderAdminPortal();
           showView('view-admin');
-          loadCloudConfigUI();
         } else {
           sessionStorage.removeItem('dc_session');
         }
