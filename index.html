@@ -1827,7 +1827,7 @@ function switchAdminTab(tab) {
 }
 
 async function renderAdminPortal() {
-  await loadData();
+  if (!STATE.cloudConnected) await loadData();
 
   const now = new Date().toLocaleString('es-CO');
   document.getElementById('admin-last-sync').textContent = 'Último sync: ' + now;
@@ -1849,7 +1849,10 @@ async function renderAdminPortal() {
 
   const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
   const urlDisplay = document.getElementById('bd-url-display');
-  if (urlDisplay) urlDisplay.textContent = url;
+  if (urlDisplay) {
+    const short = url.length > 60 ? url.substring(0, 57) + '...' : url;
+    urlDisplay.textContent = short;
+  }
 
   const badge = document.getElementById('bd-status-badge');
   if (badge) {
