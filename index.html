@@ -896,7 +896,7 @@
 // CONFIGURATION — Edit SCRIPT_URL after deploying Apps Script
 // =============================================================================
 const CONFIG = {
-  SCRIPT_URL: localStorage.getItem('dc_script_url') || '',
+  SCRIPT_URL: localStorage.getItem('dc_script_url') || 'https://script.google.com/macros/s/AKfycbz2MwhNpoMEraFJwnpimc1gI4K_6QMquTF1Dwwvg7udM5nIzY_v5WSSMiPuTyIlt3QxQw/exec',
   ADMIN_PASS: localStorage.getItem('dc_admin_pass') || 'admin2026',
   WAIT_DAYS_WARNING: 10,
   WAIT_DAYS_CRITICAL: 20,
@@ -1029,7 +1029,7 @@ function setupSheets() {
 // API LAYER
 // =============================================================================
 async function fetchData() {
-  const url = localStorage.getItem('dc_script_url');
+  const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
   if (!url) return null;
   try {
     const res = await fetch(url + '?t=' + Date.now());
@@ -1058,7 +1058,7 @@ function fetchJSONP(url) {
 }
 
 async function postData(action, params) {
-  const url = localStorage.getItem('dc_script_url');
+  const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
   if (!url) return false;
   try {
     await fetch(url, {
@@ -1229,7 +1229,7 @@ async function loginStudent() {
 
   if (!docNum) { showError('Ingresa tu número de documento.'); return; }
 
-  const url = localStorage.getItem('dc_script_url');
+  const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
   if (!url) {
     document.getElementById('config-hint').style.display = 'block';
     showError('La base de datos no está configurada. Contacta a la academia.');
@@ -1265,7 +1265,7 @@ async function loginInstructor() {
   if (!code) { showError('Ingresa tu código de instructor.'); return; }
   if (!pin)  { showError('Ingresa tu PIN.'); return; }
 
-  const url = localStorage.getItem('dc_script_url');
+  const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
   if (!url) { showError('La base de datos no está configurada.'); return; }
 
   errEl.style.display = 'none';
@@ -1303,7 +1303,7 @@ async function loginCoordinator() {
     return;
   }
 
-  const url = localStorage.getItem('dc_script_url');
+  const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
   if (!url) { showError('La base de datos no está configurada. Contacta al administrador.'); return; }
 
   errEl.style.display = 'none';
@@ -2069,7 +2069,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('coord-pass').addEventListener('keydown', e => { if (e.key === 'Enter') loginCoordinator(); });
 
   // Check if script is configured and show hint
-  if (!localStorage.getItem('dc_script_url')) {
+  if (!localStorage.getItem('dc_script_url') && !CONFIG.SCRIPT_URL) {
     document.getElementById('config-hint').style.display = 'block';
   }
 
