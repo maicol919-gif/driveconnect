@@ -2055,6 +2055,10 @@ function openInstructorModal(instId) {
       </div>
       <div class="modal-body">
         <div class="form-group" style="margin-bottom:.75rem">
+          <label class="config-label">Cédula ${inst ? '<span style="color:var(--text-muted);font-size:.68rem">(no editable)</span>' : ''}</label>
+          <input id="ie-id" class="config-input" style="margin-bottom:0" value="${inst?.id||''}" ${inst?'readonly style="opacity:.5;cursor:not-allowed;margin-bottom:0"':''} placeholder="Ej: 1130741852" inputmode="numeric">
+        </div>
+        <div class="form-group" style="margin-bottom:.75rem">
           <label class="config-label">Nombre completo</label>
           <input id="ie-name" class="config-input" style="margin-bottom:0" value="${inst?.name||''}" placeholder="Nombre Apellido">
         </div>
@@ -2084,10 +2088,11 @@ function openInstructorModal(instId) {
       </div>
     </div>`;
   document.body.appendChild(modal);
-  setTimeout(() => document.getElementById('ie-name')?.focus(), 100);
+  setTimeout(() => document.getElementById(inst ? 'ie-name' : 'ie-id')?.focus(), 100);
 }
 
 async function saveInstructor(instId) {
+  const cedula = document.getElementById('ie-id').value.trim();
   const name = document.getElementById('ie-name').value.trim();
   const phone = document.getElementById('ie-phone').value.trim();
   const morning = document.getElementById('ie-morning').checked;
@@ -2095,27 +2100,21 @@ async function saveInstructor(instId) {
   const night = document.getElementById('ie-night').checked;
   const msg = document.getElementById('ie-msg');
 
+  if (!instId && !cedula) { msg.textContent = '⚠ La cédula es obligatoria.'; return; }
+  if (!instId && !/^\d{6,12}$/.test(cedula)) { msg.textContent = '⚠ La cédula debe tener entre 6 y 12 dígitos numéricos.'; return; }
+  if (!instId && STATE.instructors.find(i => i.id === cedula)) { msg.textContent = '⚠ Ya existe un instructor con esa cédula.'; return; }
   if (!name || !phone) { msg.textContent = '⚠ Nombre y teléfono son obligatorios.'; return; }
 
   const slots = [morning&&'mañana', afternoon&&'tarde', night&&'noche'].filter(Boolean);
   const availability = slots.join(', ');
-
-  // Auto-generate ID for new instructors
-  let id = instId;
-  if (!id) {
-    const maxNum = STATE.instructors.reduce((max, i) => {
-      const m = i.id.match(/(\d+)$/);
-      return m ? Math.max(max, parseInt(m[1])) : max;
-    }, 0);
-    id = 'INS-' + String(maxNum + 1).padStart(2, '0');
-  }
+  const id = instId || cedula;
 
   msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
   const action = instId ? 'updateInstructor' : 'addInstructor';
   await postData(action, { id, name, phone, availability, specialty: '', email: '', photo: '' });
-  await writeLog(`Instructor ${instId ? 'editado' : 'agregado'}: ${name} (${id})`);
+  await writeLog(`Instructor ${instId ? 'editado' : 'agregado'}: ${name} (CC ${id})`);
   document.getElementById('inst-edit-modal').remove();
-  toast(`✅ Instructor ${instId ? 'actualizado' : 'agregado'} — ID: ${id}`, 'success');
+  toast(`✅ Instructor ${instId ? 'actualizado' : 'agregado'}`, 'success');
   await loadData();
   renderAdminInstructors();
   renderCoordInstructors();
