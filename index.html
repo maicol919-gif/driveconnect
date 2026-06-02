@@ -322,7 +322,7 @@
     .btn-connect:hover{filter:brightness(1.1)}
     .btn-disconnect{background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);padding:.6rem .75rem;border-radius:var(--r-sm);font-weight:600;font-size:.78rem;cursor:pointer;transition:var(--t-fast)}
     .btn-disconnect:hover{background:var(--danger);color:white}
-    .script-area{width:100%;height:100px;background:rgba(0,0,0,.4);border:1px solid var(--border-color);border-radius:var(--r-sm);color:#a7f3d0;font-family:monospace;font-size:.7rem;padding:.65rem;resize:vertical;margin-top:.5rem}
+
     .btn-copy{background:rgba(255,255,255,.05);border:1px solid var(--border-color);color:var(--text-secondary);padding:.4rem .75rem;border-radius:var(--r-sm);font-size:.75rem;cursor:pointer;margin-top:.4rem;transition:var(--t-fast)}
     .btn-copy:hover{background:rgba(255,255,255,.1);color:white}
     .steps-guide{font-size:.78rem;color:var(--text-secondary);line-height:1.5}
@@ -824,43 +824,17 @@
         <div style="display:flex;align-items:center;gap:.75rem">
           <span style="font-size:1.5rem">📊</span>
           <div>
-            <div class="cloud-title">Integración con Google Sheets</div>
-            <p class="text-muted" style="font-size:.72rem">Conecta la base de datos en la nube para operar en producción</p>
+            <div class="cloud-title">Conexión Google Sheets</div>
+            <p class="text-muted" style="font-size:.72rem">Estado de la base de datos en la nube</p>
           </div>
         </div>
-        <span class="cloud-badge" id="cloud-badge">Sin configurar</span>
+        <span class="cloud-badge" id="cloud-badge">Verificando...</span>
       </div>
-      <div class="config-grid">
-        <div class="config-box">
-          <h4>🔑 Credenciales de conexión</h4>
-          <label class="config-label">URL del Google Apps Script (Web App)</label>
-          <input type="text" id="cfg-script-url" class="config-input" placeholder="https://script.google.com/macros/s/.../exec">
-          <label class="config-label">Contraseña de Admin</label>
-          <input type="password" id="cfg-admin-pass" class="config-input" placeholder="Contraseña para acceder al panel">
-          <div class="config-actions">
-            <button class="btn-connect" onclick="saveConfig()">Guardar y Conectar</button>
-            <button class="btn-disconnect" onclick="clearConfig()">Desconectar</button>
-          </div>
-        </div>
-        <div>
-          <div class="config-box" style="margin-bottom:1rem">
-            <div class="steps-guide">
-              <h4>📋 Configuración en 5 pasos</h4>
-              <ol>
-                <li>Crea un Google Sheet nuevo en tu Drive</li>
-                <li>Ve a <strong>Extensiones → Apps Script</strong></li>
-                <li>Borra el código existente y pega el de abajo</li>
-                <li>Clic en <strong>Implementar → Nueva implementación</strong> → "Aplicación web" → acceso "Cualquier persona"</li>
-                <li>Copia la URL generada y pégala arriba</li>
-              </ol>
-            </div>
-          </div>
-          <div class="config-box">
-            <div class="config-label" style="margin-bottom:.4rem">Código del Apps Script:</div>
-            <textarea id="apps-script-code" class="script-area" readonly></textarea>
-            <button class="btn-copy" onclick="copyScript()">📋 Copiar código</button>
-          </div>
-        </div>
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <p style="font-size:.82rem;color:var(--text-secondary);flex:1">
+          La URL del script está configurada internamente. Para cambiarla contacta al administrador técnico.
+        </p>
+        <button class="btn-connect" style="width:auto;padding:.55rem 1.25rem" onclick="reloadData()">🔄 Reconectar</button>
       </div>
     </div>
   </section>
@@ -925,105 +899,6 @@ const DOC_LABELS = {
   CE: 'Cédula de Extranjería',
   PA: 'Pasaporte',
 };
-
-// =============================================================================
-// APPS SCRIPT CODE (embedded for copy-paste)
-// =============================================================================
-const APPS_SCRIPT_CODE = `function doGet(e) {
-  setupSheets();
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var instSheet = ss.getSheetByName("Instructores");
-  var alSheet = ss.getSheetByName("Alumnos");
-  var instData = sheetToObjects(instSheet);
-  var alData = sheetToObjects(alSheet);
-  var response = JSON.stringify({ status: "ok", students: alData, instructors: instData });
-  if (e.parameter.callback) {
-    return ContentService.createTextOutput(e.parameter.callback + "(" + response + ")")
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  }
-  return ContentService.createTextOutput(response).setMimeType(ContentService.MimeType.JSON);
-}
-
-function doPost(e) {
-  try {
-    setupSheets();
-    var p = JSON.parse(e.postData.contents);
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var alSheet = ss.getSheetByName("Alumnos");
-    if (p.action === "updateStatus") {
-      updateRow(alSheet, p.docNumber, { state: p.state, contactDate: p.contactDate || "", practiceStartDate: p.practiceStartDate || "" });
-    } else if (p.action === "assignInstructor") {
-      updateRow(alSheet, p.docNumber, { instructorId: p.instructorId, state: "instructor_assigned" });
-    } else if (p.action === "addStudent") {
-      alSheet.appendRow([p.docNumber, p.docType, p.name, "", "theory_passed", "", "", p.theoryPassedDate]);
-      SpreadsheetApp.flush();
-    } else if (p.action === "updatePin") {
-      var instSheet2 = ss.getSheetByName("Instructores");
-      updateRowById(instSheet2, p.instructorId, { pin: p.pin });
-    }
-    return ContentService.createTextOutput(JSON.stringify({ status: "success" })).setMimeType(ContentService.MimeType.JSON);
-  } catch(err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function sheetToObjects(sheet) {
-  var data = sheet.getDataRange().getValues();
-  var headers = data[0]; var rows = [];
-  for (var i = 1; i < data.length; i++) {
-    if (!data[i][0]) continue;
-    var obj = {};
-    for (var j = 0; j < headers.length; j++) obj[headers[j]] = data[i][j];
-    rows.push(obj);
-  }
-  return rows;
-}
-
-function updateRow(sheet, docNumber, updates) {
-  var data = sheet.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    if (data[i][0].toString().trim() === docNumber.toString().trim()) {
-      var headers = data[0];
-      for (var key in updates) {
-        var col = headers.indexOf(key);
-        if (col >= 0) sheet.getRange(i+1, col+1).setValue(updates[key]);
-      }
-      SpreadsheetApp.flush(); return;
-    }
-  }
-}
-
-function updateRowById(sheet, id, updates) {
-  var data = sheet.getDataRange().getValues();
-  var headers = data[0];
-  var idCol = headers.indexOf('id');
-  for (var i = 1; i < data.length; i++) {
-    if (data[i][idCol] && data[i][idCol].toString().trim().toUpperCase() === id.toString().trim().toUpperCase()) {
-      for (var key in updates) {
-        var col = headers.indexOf(key);
-        if (col < 0) { sheet.getRange(1, headers.length+1).setValue(key); col = headers.length; headers.push(key); }
-        sheet.getRange(i+1, col+1).setValue(updates[key]);
-      }
-      SpreadsheetApp.flush(); return;
-    }
-  }
-}
-
-function setupSheets() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var instSheet = ss.getSheetByName("Instructores");
-  if (!instSheet) {
-    instSheet = ss.insertSheet("Instructores");
-    instSheet.appendRow(["id","name","specialty","phone","email","photo","rating","availability"]);
-  }
-  var alSheet = ss.getSheetByName("Alumnos");
-  if (!alSheet) {
-    alSheet = ss.insertSheet("Alumnos");
-    alSheet.appendRow(["docNumber","docType","name","instructorId","state","contactDate","practiceStartDate","theoryPassedDate"]);
-  }
-  var def = ss.getSheetByName("Hoja 1") || ss.getSheetByName("Sheet1");
-  if (def && def.getLastRow() === 0) { try { ss.deleteSheet(def); } catch(e) {} }
-}`;
 
 // =============================================================================
 // API LAYER
@@ -1997,36 +1872,18 @@ async function confirmAssign() {
 // CLOUD CONFIG
 // =============================================================================
 function loadCloudConfigUI() {
-  const url = localStorage.getItem('dc_script_url') || '';
-  const pass = localStorage.getItem('dc_admin_pass') || '';
-  document.getElementById('cfg-script-url').value = url;
-  document.getElementById('cfg-admin-pass').value = pass;
-  document.getElementById('apps-script-code').value = APPS_SCRIPT_CODE;
-  updateCloudBadge(!!url);
+  updateCloudBadge(!!CONFIG.SCRIPT_URL);
 }
 
-function saveConfig() {
-  const url = document.getElementById('cfg-script-url').value.trim();
-  const pass = document.getElementById('cfg-admin-pass').value.trim();
-  if (!url) { toast('Ingresa la URL del script', 'danger'); return; }
-  localStorage.setItem('dc_script_url', url);
-  if (pass) localStorage.setItem('dc_admin_pass', pass);
-  toast('Configuración guardada. Reconectando...', 'success');
-  updateCloudBadge(true);
-  renderAdminPortal();
-}
-
-function clearConfig() {
-  localStorage.removeItem('dc_script_url');
-  localStorage.removeItem('dc_admin_pass');
-  updateCloudBadge(false);
-  toast('Configuración eliminada', 'success');
-}
-
-function copyScript() {
-  const el = document.getElementById('apps-script-code');
-  el.select();
-  navigator.clipboard.writeText(el.value).then(() => toast('Código copiado al portapapeles', 'success'));
+async function reloadData() {
+  toast('Reconectando...', 'info');
+  const ok = await loadData();
+  if (ok) {
+    toast('✅ Datos actualizados', 'success');
+    renderAdminPortal();
+  } else {
+    toast('❌ No se pudo conectar', 'danger');
+  }
 }
 
 // =============================================================================
