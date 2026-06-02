@@ -1986,41 +1986,35 @@ function openInstructorModal(instId) {
   const modal = document.createElement('div');
   modal.id = 'inst-edit-modal'; modal.className = 'modal-overlay active';
   modal.innerHTML = `
-    <div class="modal-content" style="max-width:480px">
+    <div class="modal-content" style="max-width:380px">
       <div class="modal-header">
         <h3>${inst ? 'Editar instructor' : 'Agregar instructor'}</h3>
         <button class="btn-close-modal" onclick="document.getElementById('inst-edit-modal').remove()">&times;</button>
       </div>
-      <div class="modal-body" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-        <div style="grid-column:span 2">
-          <label class="config-label">ID (ej: INS-04)</label>
-          <input id="ie-id" class="config-input" style="margin-bottom:0" value="${inst?.id||''}" ${inst?'readonly':''} placeholder="INS-04">
-        </div>
-        <div style="grid-column:span 2">
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:.75rem">
           <label class="config-label">Nombre completo</label>
           <input id="ie-name" class="config-input" style="margin-bottom:0" value="${inst?.name||''}" placeholder="Nombre Apellido">
         </div>
-        <div>
-          <label class="config-label">Especialidad</label>
-          <input id="ie-specialty" class="config-input" style="margin-bottom:0" value="${inst?.specialty||''}" placeholder="Transmisión Manual">
-        </div>
-        <div>
-          <label class="config-label">Teléfono</label>
+        <div class="form-group" style="margin-bottom:.75rem">
+          <label class="config-label">Teléfono (WhatsApp)</label>
           <input id="ie-phone" class="config-input" style="margin-bottom:0" value="${inst?.phone||''}" placeholder="+573001234567">
         </div>
-        <div>
-          <label class="config-label">Email</label>
-          <input id="ie-email" class="config-input" style="margin-bottom:0" value="${inst?.email||''}" placeholder="correo@email.com">
-        </div>
-        <div>
+        <div class="form-group" style="margin-bottom:.5rem">
           <label class="config-label">Disponibilidad</label>
-          <input id="ie-avail" class="config-input" style="margin-bottom:0" value="${inst?.availability||''}" placeholder="mañana, tarde">
+          <div style="display:flex;gap:.5rem;margin-top:.25rem">
+            <label style="flex:1;display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
+              <input type="checkbox" id="ie-morning" ${(inst?.availability||'').toLowerCase().includes('mañana')?'checked':''}> 🌅 Mañana
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
+              <input type="checkbox" id="ie-afternoon" ${(inst?.availability||'').toLowerCase().includes('tarde')?'checked':''}> ☀️ Tarde
+            </label>
+            <label style="flex:1;display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
+              <input type="checkbox" id="ie-night" ${(inst?.availability||'').toLowerCase().includes('noche')?'checked':''}> 🌙 Noche
+            </label>
+          </div>
         </div>
-        <div style="grid-column:span 2">
-          <label class="config-label">URL Foto (opcional)</label>
-          <input id="ie-photo" class="config-input" style="margin-bottom:0" value="${inst?.photo&&!inst.photo.includes('ui-avatars')?inst.photo:''}" placeholder="https://...">
-        </div>
-        <div id="ie-msg" style="grid-column:span 2;font-size:.78rem;min-height:1rem;color:var(--danger)"></div>
+        <div id="ie-msg" style="font-size:.78rem;min-height:1rem;color:var(--danger);margin-top:.5rem"></div>
       </div>
       <div class="modal-footer">
         <button class="btn-action-cancel" onclick="document.getElementById('inst-edit-modal').remove()">Cancelar</button>
@@ -2028,24 +2022,38 @@ function openInstructorModal(instId) {
       </div>
     </div>`;
   document.body.appendChild(modal);
+  setTimeout(() => document.getElementById('ie-name')?.focus(), 100);
 }
 
 async function saveInstructor(instId) {
-  const id = document.getElementById('ie-id').value.trim().toUpperCase();
   const name = document.getElementById('ie-name').value.trim();
-  const specialty = document.getElementById('ie-specialty').value.trim();
   const phone = document.getElementById('ie-phone').value.trim();
-  const email = document.getElementById('ie-email').value.trim();
-  const availability = document.getElementById('ie-avail').value.trim();
-  const photo = document.getElementById('ie-photo').value.trim();
+  const morning = document.getElementById('ie-morning').checked;
+  const afternoon = document.getElementById('ie-afternoon').checked;
+  const night = document.getElementById('ie-night').checked;
   const msg = document.getElementById('ie-msg');
-  if (!id || !name || !phone) { msg.textContent = '⚠ ID, nombre y teléfono son obligatorios.'; return; }
+
+  if (!name || !phone) { msg.textContent = '⚠ Nombre y teléfono son obligatorios.'; return; }
+
+  const slots = [morning&&'mañana', afternoon&&'tarde', night&&'noche'].filter(Boolean);
+  const availability = slots.join(', ');
+
+  // Auto-generate ID for new instructors
+  let id = instId;
+  if (!id) {
+    const maxNum = STATE.instructors.reduce((max, i) => {
+      const m = i.id.match(/(\d+)$/);
+      return m ? Math.max(max, parseInt(m[1])) : max;
+    }, 0);
+    id = 'INS-' + String(maxNum + 1).padStart(2, '0');
+  }
+
   msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
   const action = instId ? 'updateInstructor' : 'addInstructor';
-  await postData(action, { id, name, specialty, phone, email, availability, photo });
-  await writeLog(instId ? `Instructor editado: ${name}` : `Instructor agregado: ${name} (${id})`);
+  await postData(action, { id, name, phone, availability, specialty: '', email: '', photo: '' });
+  await writeLog(`Instructor ${instId ? 'editado' : 'agregado'}: ${name} (${id})`);
   document.getElementById('inst-edit-modal').remove();
-  toast(`✅ ${instId ? 'Instructor actualizado' : 'Instructor agregado'}`, 'success');
+  toast(`✅ Instructor ${instId ? 'actualizado' : 'agregado'} — ID: ${id}`, 'success');
   await loadData();
   renderAdminInstructors();
 }
@@ -2249,7 +2257,12 @@ async function confirmStateChange(docNumber) {
 
 // ── LOGS ─────────────────────────────────────────────────
 async function writeLog(message) {
-  const entry = `[${new Date().toLocaleString('es-CO')}] ${message}`;
+  const role = STATE.currentUser?.role || 'sistema';
+  const who = role === 'admin' ? 'Superadmin'
+    : role === 'coordinator' ? `Coord. ${STATE.currentUser?.data?.username || ''}`
+    : role === 'instructor' ? `Instructor ${STATE.currentUser?.data?.name || ''}`
+    : 'Sistema';
+  const entry = `[${new Date().toLocaleString('es-CO')}] ${who}: ${message}`;
   await postData('addLog', { entry });
 }
 
