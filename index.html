@@ -564,7 +564,7 @@
         </div>
 
         <div class="timeline-section">
-          <div class="timeline-section-title">Tu Proceso de Aprendizaje</div>
+          <div class="timeline-section-title">Tu proceso</div>
           <div class="timeline-container">
             <div class="timeline-line"></div>
             <div class="timeline-step completed" id="step-theory">
@@ -579,24 +579,16 @@
               <div class="timeline-marker">2</div>
               <div class="timeline-content">
                 <div class="timeline-title">Asignación de Instructor</div>
-                <div class="timeline-desc" id="step-instructor-desc">Buscando instructor disponible.</div>
+                <div class="timeline-desc" id="step-instructor-desc">La academia está buscando tu instructor.</div>
                 <div class="timeline-date" id="student-assign-date"></div>
               </div>
             </div>
             <div class="timeline-step" id="step-contact">
               <div class="timeline-marker">3</div>
               <div class="timeline-content">
-                <div class="timeline-title">Contacto Inicial</div>
-                <div class="timeline-desc" id="step-contact-desc">Esperando primer contacto del instructor.</div>
+                <div class="timeline-title">Primer Contacto</div>
+                <div class="timeline-desc" id="step-contact-desc">Tu instructor se pondrá en contacto contigo pronto.</div>
                 <div class="timeline-date" id="student-contact-date"></div>
-              </div>
-            </div>
-            <div class="timeline-step" id="step-practice">
-              <div class="timeline-marker">4</div>
-              <div class="timeline-content">
-                <div class="timeline-title">Clases Prácticas</div>
-                <div class="timeline-desc">En marcha con tu cronograma de práctica.</div>
-                <div class="timeline-date" id="student-practice-date"></div>
               </div>
             </div>
           </div>
@@ -641,12 +633,13 @@
         <div class="instructor-stats-row">
           <div class="inst-stat-card">
             <div class="inst-stat-val v-active" id="inst-stat-active">0</div>
-            <div class="inst-stat-label">Activos</div>
+            <div class="inst-stat-label">Contactados</div>
           </div>
           <div class="inst-stat-card" style="border-color:var(--warning)">
             <div class="inst-stat-val v-pending" id="inst-stat-pending">0</div>
             <div class="inst-stat-label">Pendientes</div>
           </div>
+          <button class="btn-sec" style="font-size:.78rem" onclick="instChangePIN()">🔑 Mi PIN</button>
           <button class="btn-sec" onclick="logout()">Salir</button>
         </div>
       </div>
@@ -1379,76 +1372,68 @@ function renderStudentPortal() {
   // Alert banner
   const banner = document.getElementById('student-alert-banner');
   const alertCounter = document.getElementById('student-alert-counter');
-  if (!pending) {
+  if (s.state === 'contacted') {
     banner.className = 'alert-card success';
     document.getElementById('student-alert-icon').textContent = '✅';
-    document.getElementById('student-alert-title').textContent = '¡Todo en orden!';
-    document.getElementById('student-alert-desc').textContent = 'Tu instructor ya está en contacto contigo. ¡A practicar!';
+    document.getElementById('student-alert-title').textContent = '¡Tu instructor ya te contactó!';
+    document.getElementById('student-alert-desc').textContent = 'Coordinaste con tu instructor el ' + formatDate(s.contactDate) + '. ¡Mucho éxito en tus clases!';
     alertCounter.style.display = 'none';
   } else if (days >= CONFIG.WAIT_DAYS_CRITICAL) {
     banner.className = 'alert-card danger';
     document.getElementById('student-alert-icon').textContent = '🚨';
     document.getElementById('student-alert-title').textContent = '¡Tiempo de espera superado!';
-    document.getElementById('student-alert-desc').textContent = 'Han pasado más de ' + CONFIG.WAIT_DAYS_CRITICAL + ' días sin contacto. Escríbele directamente a tu instructor a través del botón de WhatsApp.';
+    document.getElementById('student-alert-desc').textContent = 'Han pasado más de ' + CONFIG.WAIT_DAYS_CRITICAL + ' días. Escríbele directamente a tu instructor por WhatsApp.';
     alertCounter.innerHTML = days + '<span>Días</span>';
     alertCounter.style.display = 'block';
   } else if (days >= CONFIG.WAIT_DAYS_WARNING) {
     banner.className = 'alert-card warning';
     document.getElementById('student-alert-icon').textContent = '⏳';
-    document.getElementById('student-alert-title').textContent = 'Tiempo de espera moderado';
-    document.getElementById('student-alert-desc').textContent = 'Han pasado ' + days + ' días. Puedes escribirle directamente a tu instructor para agilizar el inicio de clases.';
+    document.getElementById('student-alert-title').textContent = 'Tu instructor pronto te contactará';
+    document.getElementById('student-alert-desc').textContent = 'Han pasado ' + days + ' días. Si quieres agilizarlo, escríbele directamente por WhatsApp.';
     alertCounter.innerHTML = days + '<span>Días</span>';
     alertCounter.style.display = 'block';
   } else {
     banner.className = 'alert-card success';
     document.getElementById('student-alert-icon').textContent = '😊';
-    document.getElementById('student-alert-title').textContent = 'En espera normal';
-    document.getElementById('student-alert-desc').textContent = 'Aprobaste el teórico hace ' + days + ' día(s). El instructor se pondrá en contacto pronto.';
+    document.getElementById('student-alert-title').textContent = 'Todo en proceso';
+    document.getElementById('student-alert-desc').textContent = pending
+      ? 'Aprobaste el teórico hace ' + days + ' día(s). Tu instructor se pondrá en contacto pronto.'
+      : '¡Ya tienes instructor asignado! Espera su contacto.';
     alertCounter.innerHTML = days + '<span>Días</span>';
     alertCounter.style.display = 'block';
   }
 
-  // Timeline
+  // Timeline — 3 steps
   document.getElementById('student-theory-date').textContent = 'Aprobado el: ' + formatDate(s.theoryPassedDate);
-  const steps = ['step-theory','step-instructor','step-contact','step-practice'];
-  steps.forEach(id => {
+  ['step-theory','step-instructor','step-contact'].forEach(id => {
     const el = document.getElementById(id);
-    el.className = 'timeline-step';
-    el.querySelector('.timeline-marker').textContent = id.replace('step-','')[0].toUpperCase();
+    if (el) { el.className = 'timeline-step'; el.querySelector('.timeline-marker').textContent = id.includes('theory')?'1':id.includes('instructor')?'2':'3'; }
   });
-  document.getElementById('step-theory').classList.add('completed');
-  document.getElementById('step-theory').querySelector('.timeline-marker').textContent = '✓';
+  const theoryEl = document.getElementById('step-theory');
+  if (theoryEl) { theoryEl.classList.add('completed'); theoryEl.querySelector('.timeline-marker').textContent = '✓'; }
 
   const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
 
   if (s.state === 'theory_passed') {
-    document.getElementById('step-instructor').classList.add('active');
-    document.getElementById('step-instructor').querySelector('.timeline-marker').textContent = '2';
+    const el = document.getElementById('step-instructor');
+    if (el) { el.classList.add('active'); el.querySelector('.timeline-marker').textContent = '2'; }
     document.getElementById('step-instructor-desc').textContent = 'La academia está buscando tu instructor.';
-    document.getElementById('student-assign-date').textContent = 'Pendiente';
   } else if (s.state === 'instructor_assigned') {
-    document.getElementById('step-instructor').classList.add('completed');
-    document.getElementById('step-instructor').querySelector('.timeline-marker').textContent = '✓';
-    document.getElementById('step-instructor-desc').textContent = inst ? 'Instructor asignado: ' + inst.name : 'Asignado';
-    document.getElementById('step-contact').classList.add('active');
-    document.getElementById('step-contact').querySelector('.timeline-marker').textContent = '3';
-    document.getElementById('step-contact-desc').textContent = 'Puedes escribirle tú para agilizar el inicio.';
-    document.getElementById('student-contact-date').textContent = 'En espera';
-  } else if (s.state === 'contacted') {
-    document.getElementById('step-instructor').classList.add('completed');
-    document.getElementById('step-instructor').querySelector('.timeline-marker').textContent = '✓';
-    document.getElementById('step-contact').classList.add('completed');
-    document.getElementById('step-contact').querySelector('.timeline-marker').textContent = '✓';
+    const si = document.getElementById('step-instructor');
+    if (si) { si.classList.add('completed'); si.querySelector('.timeline-marker').textContent = '✓'; }
+    document.getElementById('step-instructor-desc').textContent = inst ? inst.name + ' es tu instructor.' : 'Instructor asignado.';
+    const sc = document.getElementById('step-contact');
+    if (sc) { sc.classList.add('active'); sc.querySelector('.timeline-marker').textContent = '3'; }
+    document.getElementById('step-contact-desc').textContent = 'Tu instructor te contactará pronto. También puedes escribirle tú.';
+    document.getElementById('student-contact-date').textContent = '';
+  } else if (s.state === 'contacted' || s.state === 'practice_started') {
+    ['step-instructor','step-contact'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.classList.add('completed'); el.querySelector('.timeline-marker').textContent = '✓'; }
+    });
+    document.getElementById('step-instructor-desc').textContent = inst ? inst.name + ' es tu instructor.' : 'Instructor asignado.';
     document.getElementById('step-contact-desc').textContent = '¡Primer contacto realizado!';
     document.getElementById('student-contact-date').textContent = 'Contactado el: ' + formatDate(s.contactDate);
-    document.getElementById('step-practice').classList.add('active');
-    document.getElementById('step-practice').querySelector('.timeline-marker').textContent = '4';
-  } else if (s.state === 'practice_started') {
-    ['step-instructor','step-contact','step-practice'].forEach(id => {
-      document.getElementById(id).classList.add('completed');
-      document.getElementById(id).querySelector('.timeline-marker').textContent = '✓';
-    });
-    document.getElementById('student-practice-date').textContent = 'Iniciadas el: ' + formatDate(s.practiceStartDate);
   }
 
   renderInstructorCard(s, inst);
@@ -1523,10 +1508,10 @@ function renderInstructorPortal() {
   document.getElementById('inst-photo').src = inst.photo;
   document.getElementById('inst-photo').alt = inst.name;
   document.getElementById('inst-name').textContent = inst.name;
-  document.getElementById('inst-specialty').textContent = inst.specialty + (inst.availability ? ' | ' + inst.availability : '');
+  document.getElementById('inst-specialty').textContent = inst.availability ? '🕐 ' + inst.availability : '';
 
   const myStudents = STATE.students.filter(s => s.instructorId === inst.id);
-  document.getElementById('inst-stat-active').textContent = myStudents.filter(s => s.state === 'practice_started').length;
+  document.getElementById('inst-stat-active').textContent = myStudents.filter(s => s.state === 'contacted').length;
   document.getElementById('inst-stat-pending').textContent = myStudents.filter(s => s.state === 'instructor_assigned').length;
 
   const sorted = [...myStudents].sort((a,b) => {
@@ -1544,27 +1529,21 @@ function renderInstructorPortal() {
 
   sorted.forEach(student => {
     const days = daysWaiting(student);
-    let pClass = 'p-low', pLabel = 'Al día';
+    let pClass = 'p-low', pLabel = 'Contactado';
     if (student.state === 'instructor_assigned') {
-      if (days >= CONFIG.WAIT_DAYS_CRITICAL) { pClass = 'p-high'; pLabel = 'Urgente >' + CONFIG.WAIT_DAYS_CRITICAL + 'd'; }
-      else if (days >= CONFIG.WAIT_DAYS_WARNING) { pClass = 'p-medium'; pLabel = 'Advertencia >' + CONFIG.WAIT_DAYS_WARNING + 'd'; }
-      else { pClass = 'p-low'; pLabel = 'Pendiente nuevo'; }
-    } else if (student.state === 'contacted') {
-      pLabel = 'Contactado';
-    } else if (student.state === 'practice_started') {
-      pLabel = 'En práctica';
+      if (days >= CONFIG.WAIT_DAYS_CRITICAL) { pClass = 'p-high'; pLabel = '🚨 Urgente +' + CONFIG.WAIT_DAYS_CRITICAL + 'd'; }
+      else if (days >= CONFIG.WAIT_DAYS_WARNING) { pClass = 'p-medium'; pLabel = '⚠ +' + CONFIG.WAIT_DAYS_WARNING + 'd sin contacto'; }
+      else { pClass = 'p-low'; pLabel = 'Pendiente contacto'; }
     }
 
-    const waMsg = `Hola ${student.name}, soy tu instructor asignado ${inst.name}. Me comunico para coordinar tu primera clase práctica. ¿Qué disponibilidad tienes esta semana?`;
-    const waUrl = `https://wa.me/${student.phone ? student.phone.replace(/\D/g,'') : ''}?text=${encodeURIComponent(waMsg)}`;
+    const waMsg = `Hola ${student.name}, soy ${inst.name}, tu instructor asignado de la academia. Me comunico para coordinar el inicio de tus clases prácticas. ¿Qué disponibilidad tienes esta semana?`;
+    const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
 
     let actionBtns = '';
     if (student.state === 'instructor_assigned') {
       actionBtns = `<button class="btn-card-action primary" onclick="instMarkContacted('${student.docNumber}')">✓ Marcar contactado</button>`;
-    } else if (student.state === 'contacted') {
-      actionBtns = `<button class="btn-card-action blue" onclick="instStartPractice('${student.docNumber}')">▶ Iniciar clases</button>`;
     } else {
-      actionBtns = `<span class="text-muted" style="font-size:.72rem">En práctica activa</span>`;
+      actionBtns = `<span style="font-size:.75rem;color:var(--success)">✅ Contacto realizado el ${formatDate(student.contactDate)}</span>`;
     }
 
     const card = document.createElement('div');
@@ -1579,13 +1558,14 @@ function renderInstructorPortal() {
       </div>
       <div class="student-card-details">
         <div class="student-det-item"><span>Teórico aprobado</span><strong>${formatDate(student.theoryPassedDate)}</strong></div>
-        <div class="student-det-item"><span>Días en espera</span><strong>${days} días</strong></div>
-        <div class="student-det-item" style="grid-column:span 2"><span>Estado</span><strong>${translateState(student.state)}</strong></div>
+        <div class="student-det-item"><span>Días desde teórico</span><strong>${days}d</strong></div>
       </div>
       <div class="student-card-actions">
         ${actionBtns}
-        ${student.phone ? `<a href="${waUrl}" target="_blank" class="btn-card-action wa">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>WA</a>` : ''}
+        <a href="${waUrl}" target="_blank" class="btn-card-action wa">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          WhatsApp
+        </a>
       </div>`;
     list.appendChild(card);
   });
@@ -1596,17 +1576,14 @@ async function instMarkContacted(docNumber) {
   if (!s) return;
   s.state = 'contacted'; s.contactDate = today();
   renderInstructorPortal();
-  toast('Alumno marcado como contactado', 'success');
+  toast('✅ Alumno marcado como contactado', 'success');
   await postData('updateStatus', { docNumber, state: 'contacted', contactDate: today() });
+  await writeLog(`Instructor ${STATE.currentUser.data.name} marcó contactado a: ${s.name}`);
 }
 
-async function instStartPractice(docNumber) {
-  const s = STATE.students.find(st => st.docNumber === docNumber);
-  if (!s) return;
-  s.state = 'practice_started'; s.practiceStartDate = today();
-  renderInstructorPortal();
-  toast('¡Clases iniciadas registradas!', 'success');
-  await postData('updateStatus', { docNumber, state: 'practice_started', practiceStartDate: today() });
+function instChangePIN() {
+  const inst = STATE.currentUser.data;
+  editPin(inst.id);
 }
 
 // =============================================================================
