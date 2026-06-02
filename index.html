@@ -133,8 +133,10 @@
     }
     .loading-msg{
       background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:var(--brand-light);
-      padding:.75rem 1rem;border-radius:var(--r-sm);font-size:.85rem;margin-top:.75rem;display:none;
+      padding:.85rem 1rem;border-radius:var(--r-sm);font-size:.88rem;margin-top:.75rem;display:none;
+      text-align:center;font-weight:600;animation:pulse 1.5s infinite ease-in-out;
     }
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
     .config-hint{
       margin-top:2rem;padding:1rem;background:rgba(245,158,11,.05);border:1px dashed rgba(245,158,11,.2);
       border-radius:var(--r-sm);font-size:.78rem;color:var(--text-muted);text-align:left;
@@ -1260,6 +1262,8 @@ async function loginCoordinator() {
 
   errEl.style.display = 'none';
   loadEl.style.display = 'block';
+  loadEl.textContent = '⏳ Conectando con la base de datos...';
+  document.querySelector('#group-coordinator .btn-primary').disabled = true;
 
   try {
     const ok = await loadData();
@@ -1272,6 +1276,8 @@ async function loginCoordinator() {
     showError(e.message);
   } finally {
     loadEl.style.display = 'none';
+    loadEl.textContent = '⏳ Consultando base de datos...';
+    document.querySelector('#group-coordinator .btn-primary').disabled = false;
   }
 }
 
