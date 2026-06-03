@@ -956,11 +956,6 @@ const CONFIG = {
   ADMIN_PASS: localStorage.getItem('dc_admin_pass') || 'admin2026',
   WAIT_DAYS_WARNING: 10,
   WAIT_DAYS_CRITICAL: 20,
-  // Cuentas de coordinadores (usuario → contraseña). Edita aquí para cambiarlas.
-  COORDINATORS: {
-    'coordinador1': 'coord2026#A',
-    'coordinador2': 'coord2026#B',
-  },
 };
 
 // =============================================================================
@@ -969,6 +964,7 @@ const CONFIG = {
 let STATE = {
   students: [],
   instructors: [],
+  coordinators: [],
   currentUser: null,
   activeDocType: 'CC',
   activeTab: 'student',
@@ -1060,6 +1056,15 @@ function normalizeInstructor(obj) {
   };
 }
 
+function normalizeCoordinator(obj) {
+  const k = (key) => (obj[key] !== undefined ? obj[key] : '');
+  return {
+    username: String(k('username') || k('usuario') || '').trim().toLowerCase(),
+    password: String(k('password') || k('contraseña') || k('clave') || '').trim(),
+    active: String(k('active') || 'true').trim(),
+  };
+}
+
 // =============================================================================
 // DATA LOADING
 // =============================================================================
@@ -1068,6 +1073,7 @@ async function loadData() {
   if (!raw) return false;
   STATE.students = (raw.students || []).map(normalizeStudent).filter(s => s.docNumber);
   STATE.instructors = (raw.instructors || []).map(normalizeInstructor).filter(i => i.id);
+  STATE.coordinators = (raw.coordinators || []).map(normalizeCoordinator).filter(c => c.username);
   STATE.cloudConnected = true;
   return true;
 }
@@ -1243,28 +1249,26 @@ async function loginCoordinator() {
   if (!user) { showError('Ingresa tu usuario.'); return; }
   if (!pass) { showError('Ingresa tu contraseña.'); return; }
 
-  const expectedPass = CONFIG.COORDINATORS[user];
-  const inactive = JSON.parse(localStorage.getItem('dc_inactive_coords') || '[]');
-  if (!expectedPass || expectedPass !== pass) {
-    showError('Usuario o contraseña incorrectos.');
-    return;
-  }
-  if (inactive.includes(user)) {
-    showError('Este usuario está desactivado. Contacta al administrador.');
-    return;
-  }
-
   const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
   if (!url) { showError('La base de datos no está configurada. Contacta al administrador.'); return; }
 
   errEl.style.display = 'none';
   loadEl.style.display = 'block';
-  loadEl.textContent = '⏳ Conectando con la base de datos...';
+  loadEl.textContent = '⏳ Verificando credenciales...';
   document.querySelector('#group-coordinator .btn-primary').disabled = true;
 
   try {
     const ok = await loadData();
     if (!ok) throw new Error('No se pudo conectar a la base de datos.');
+
+    const coord = (STATE.coordinators || []).find(c =>
+      String(c.username || '').trim().toLowerCase() === user
+    );
+
+    if (!coord) throw new Error('Usuario no encontrado.');
+    if (String(coord.password || '').trim() !== pass) throw new Error('Contraseña incorrecta.');
+    if (String(coord.active || 'true').trim() === 'false') throw new Error('Usuario desactivado. Contacta al administrador.');
+
     STATE.currentUser = { role: 'coordinator', data: { username: user } };
     document.querySelector('.logo-container').classList.add('no-click');
     renderCoordinatorPortal();
@@ -1273,7 +1277,7 @@ async function loginCoordinator() {
     showError(e.message);
   } finally {
     loadEl.style.display = 'none';
-    loadEl.textContent = '⏳ Consultando base de datos...';
+    loadEl.textContent = '⏳ Verificando credenciales...';
     document.querySelector('#group-coordinator .btn-primary').disabled = false;
   }
 }
@@ -2137,29 +2141,28 @@ async function toggleInstructor(instId) {
 function renderAdminCoordinators() {
   const container = document.getElementById('admin-coord-list');
   if (!container) return;
-  const coords = Object.entries(CONFIG.COORDINATORS);
-  const inactive = JSON.parse(localStorage.getItem('dc_inactive_coords') || '[]');
-  container.innerHTML = '';
+  const coords = STATE.coordinators || [];
   if (!coords.length) {
-    container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin coordinadores configurados.</p>';
+    container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin coordinadores. Agrega el primero.</p>';
     return;
   }
-  coords.forEach(([user, pass]) => {
-    const isActive = !inactive.includes(user);
+  container.innerHTML = '';
+  coords.forEach(coord => {
+    const isActive = String(coord.active || 'true').trim() !== 'false';
     const row = document.createElement('div');
     row.className = 'instructor-row-card';
     row.style.opacity = isActive ? '1' : '.5';
     row.innerHTML = `
       <div class="instructor-row-info" style="flex:1">
-        <div style="width:36px;height:36px;border-radius:50%;background:rgba(59,130,246,.2);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--brand-light);flex-shrink:0">${user[0].toUpperCase()}</div>
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(59,130,246,.2);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--brand-light);flex-shrink:0">${coord.username[0].toUpperCase()}</div>
         <div>
-          <div class="instructor-row-name">${user} ${!isActive?'<span class="badge red" style="font-size:.6rem">Inactivo</span>':''}</div>
+          <div class="instructor-row-name">${coord.username} ${!isActive?'<span class="badge red" style="font-size:.6rem">Inactivo</span>':''}</div>
           <div class="text-muted" style="font-size:.7rem">Coordinador</div>
         </div>
       </div>
       <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">
-        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem" onclick="openCoordModal('${user}')">✏️ Editar</button>
-        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem;color:${isActive?'var(--danger)':'var(--success)'}" onclick="toggleCoordinator('${user}')">
+        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem" onclick="openCoordModal('${coord.username}')">✏️ Editar</button>
+        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .65rem;color:${isActive?'var(--danger)':'var(--success)'}" onclick="toggleCoordinator('${coord.username}')">
           ${isActive ? '🚫 Desactivar' : '✅ Activar'}
         </button>
       </div>`;
@@ -2180,9 +2183,9 @@ function openCoordModal(username) {
       </div>
       <div class="modal-body">
         <label class="config-label">Usuario</label>
-        <input id="ce-user" class="config-input" value="${username||''}" ${isEdit?'readonly':''} placeholder="coordinador3">
-        <label class="config-label">Contraseña</label>
-        <input id="ce-pass" type="password" class="config-input" placeholder="${isEdit?'Nueva contraseña (dejar vacío para no cambiar)':'Contraseña'}">
+        <input id="ce-user" class="config-input" value="${username||''}" ${isEdit?'readonly style="opacity:.5;cursor:not-allowed"':''} placeholder="coordinador3">
+        <label class="config-label">Contraseña ${isEdit?'<span style="color:var(--text-muted);font-size:.68rem">(dejar vacío para no cambiar)</span>':''}</label>
+        <input id="ce-pass" type="password" class="config-input" placeholder="Contraseña">
         <div id="ce-msg" style="font-size:.78rem;min-height:1rem;color:var(--danger)"></div>
       </div>
       <div class="modal-footer">
@@ -2191,34 +2194,39 @@ function openCoordModal(username) {
       </div>
     </div>`;
   document.body.appendChild(modal);
+  setTimeout(() => document.getElementById(isEdit ? 'ce-pass' : 'ce-user')?.focus(), 100);
 }
 
-function saveCoordinator(oldUser) {
+async function saveCoordinator(oldUser) {
   const user = document.getElementById('ce-user').value.trim().toLowerCase();
   const pass = document.getElementById('ce-pass').value.trim();
   const msg = document.getElementById('ce-msg');
   if (!user) { msg.textContent = '⚠ El usuario es obligatorio.'; return; }
   if (!oldUser && !pass) { msg.textContent = '⚠ La contraseña es obligatoria.'; return; }
-  if (oldUser) {
-    if (pass) CONFIG.COORDINATORS[oldUser] = pass;
-  } else {
-    if (CONFIG.COORDINATORS[user]) { msg.textContent = '⚠ Ese usuario ya existe.'; return; }
-    CONFIG.COORDINATORS[user] = pass;
+  if (!oldUser && (STATE.coordinators||[]).find(c => c.username === user)) {
+    msg.textContent = '⚠ Ese usuario ya existe.'; return;
   }
+  msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
+  const action = oldUser ? 'updateCoordinator' : 'addCoordinator';
+  await postData(action, { username: oldUser || user, newUsername: user, password: pass, active: 'true' });
+  await writeLog(`Coordinador ${oldUser ? 'editado' : 'agregado'}: ${user}`);
   document.getElementById('coord-edit-modal').remove();
   toast(`✅ Coordinador ${oldUser ? 'actualizado' : 'agregado'}`, 'success');
-  writeLog(`Coordinador ${oldUser ? 'editado' : 'agregado'}: ${user}`);
+  await loadData();
   renderAdminCoordinators();
 }
 
-function toggleCoordinator(user) {
-  const inactive = JSON.parse(localStorage.getItem('dc_inactive_coords') || '[]');
-  const idx = inactive.indexOf(user);
-  if (idx === -1) { inactive.push(user); toast('🚫 Coordinador desactivado', 'warning'); }
-  else { inactive.splice(idx, 1); toast('✅ Coordinador activado', 'success'); }
-  localStorage.setItem('dc_inactive_coords', JSON.stringify(inactive));
-  writeLog(`Coordinador ${idx === -1 ? 'desactivado' : 'activado'}: ${user}`);
+async function toggleCoordinator(username) {
+  const coord = (STATE.coordinators||[]).find(c => c.username === username);
+  if (!coord) return;
+  const isActive = String(coord.active || 'true').trim() !== 'false';
+  const newVal = isActive ? 'false' : 'true';
+  await postData('updateCoordinator', { username, active: newVal });
+  await writeLog(`Coordinador ${isActive ? 'desactivado' : 'activado'}: ${username}`);
+  coord.active = newVal;
+  toast(`${isActive ? '🚫 Coordinador desactivado' : '✅ Coordinador activado'}`, isActive ? 'warning' : 'success');
   renderAdminCoordinators();
+  await loadData();
 }
 
 // ── ALUMNOS ──────────────────────────────────────────────
