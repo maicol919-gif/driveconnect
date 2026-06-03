@@ -384,8 +384,9 @@
 
     /* Coordinator assignment table */
     .assign-table-wrap{overflow-x:auto}
+    .assign-table-wrap.scrollable{overflow-y:auto;max-height:62vh}
     .assign-table{width:100%;border-collapse:collapse;text-align:left;font-size:.82rem}
-    .assign-table th{padding:.6rem 1rem;font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border-color);white-space:nowrap}
+    .assign-table th{padding:.6rem 1rem;font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border-color);white-space:nowrap;position:sticky;top:0;background:var(--bg-secondary);z-index:2}
     .assign-table td{padding:.85rem 1rem;border-bottom:1px solid rgba(255,255,255,.02);vertical-align:middle}
     .assign-table tr:hover td{background:rgba(255,255,255,.015)}
     .student-name-cell{font-weight:600}
@@ -791,20 +792,20 @@
       <div class="report-grid" id="coord-report-cards"></div>
       <div class="glass-panel">
         <div class="panel-header">
-          <h3>Historial completo de alumnos</h3>
-          <div style="display:flex;gap:.5rem;align-items:center">
+          <h3 id="coord-report-title">Historial completo de alumnos</h3>
+          <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
             <input type="text" id="coord-search" class="config-input" style="width:200px;margin-bottom:0;padding:.45rem .75rem;font-size:.8rem" placeholder="Buscar alumno...">
-            <select id="coord-filter-state" class="config-input" style="width:160px;margin-bottom:0;padding:.45rem .6rem;font-size:.8rem">
+            <select id="coord-filter-state" class="config-input" style="width:170px;margin-bottom:0;padding:.45rem .6rem;font-size:.8rem">
               <option value="">Todos los estados</option>
               <option value="theory_passed">Sin instructor</option>
-              <option value="instructor_assigned">Instructor asignado</option>
+              <option value="instructor_assigned">Pendiente contacto</option>
               <option value="contacted">Contactado (sin confirmar)</option>
               <option value="contact_confirmed">Confirmado por alumno</option>
-              <option value="practice_started">En práctica</option>
             </select>
+            <button id="coord-clear-filter" class="btn-sec" style="font-size:.75rem;padding:.4rem .75rem;display:none" onclick="coordClearFilter()">✕ Limpiar filtro</button>
           </div>
         </div>
-        <div class="assign-table-wrap">
+        <div class="assign-table-wrap scrollable">
           <table class="assign-table">
             <thead>
               <tr>
@@ -1758,41 +1759,49 @@ function switchCoordTab(tab) {
 }
 
 function coordMetricClick(type) {
-  // Switch to report tab
   switchCoordTab('report');
-
-  // After renderCoordReport sets up the filter, apply it
   setTimeout(() => {
     const searchEl  = document.getElementById('coord-search');
     const filterEl  = document.getElementById('coord-filter-state');
+    const clearBtn  = document.getElementById('coord-clear-filter');
+    const titleEl   = document.getElementById('coord-report-title');
     if (!searchEl || !filterEl) return;
 
-    // Reset search
     searchEl.value = '';
+    clearBtn.style.display = 'flex';
 
     if (type === 'all') {
       filterEl.value = '';
+      if (titleEl) titleEl.textContent = 'Todos los alumnos';
+      renderCoordReportTable();
     } else if (type === 'unassigned') {
       filterEl.value = 'theory_passed';
-    } else if (type === 'alerts') {
-      // All pending states — filter programmatically after render
-      filterEl.value = '';
-    } else if (type === 'waiting') {
-      // Pending contact
-      filterEl.value = 'instructor_assigned';
-    }
-
-    // Trigger re-render with filter
-    if (type === 'alerts') {
-      // Custom filter: show only students waiting >15d
-      renderCoordReportTableFiltered(s => {
-        const pending = s.state === 'theory_passed' || s.state === 'instructor_assigned';
-        return pending && daysWaiting(s) >= 15;
-      }, '🚨 Alertas: más de 15 días sin contacto');
-    } else {
+      if (titleEl) titleEl.textContent = '⏰ Sin instructor';
       renderCoordReportTable();
+    } else if (type === 'waiting') {
+      filterEl.value = 'instructor_assigned';
+      if (titleEl) titleEl.textContent = '👤 Pendientes de contacto';
+      renderCoordReportTable();
+    } else if (type === 'alerts') {
+      filterEl.value = '';
+      renderCoordReportTableFiltered(
+        s => ['theory_passed','instructor_assigned'].includes(s.state) && daysWaiting(s) >= 15,
+        '🚨 Alertas: más de 15 días sin contacto'
+      );
     }
   }, 50);
+}
+
+function coordClearFilter() {
+  const searchEl = document.getElementById('coord-search');
+  const filterEl = document.getElementById('coord-filter-state');
+  const clearBtn = document.getElementById('coord-clear-filter');
+  const titleEl  = document.getElementById('coord-report-title');
+  if (searchEl) searchEl.value = '';
+  if (filterEl) filterEl.value = '';
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (titleEl)  titleEl.textContent = 'Historial completo de alumnos';
+  renderCoordReportTable();
 }
 
 function renderCoordInstructors() {
@@ -1961,8 +1970,16 @@ function renderCoordReport() {
 
   renderCoordReportTable();
 
-  document.getElementById('coord-search').addEventListener('input', renderCoordReportTable);
-  document.getElementById('coord-filter-state').addEventListener('change', renderCoordReportTable);
+  document.getElementById('coord-search').addEventListener('input', () => {
+    document.getElementById('coord-report-title').textContent = 'Historial completo de alumnos';
+    document.getElementById('coord-clear-filter').style.display = document.getElementById('coord-search').value ? 'flex' : (document.getElementById('coord-filter-state').value ? 'flex' : 'none');
+    renderCoordReportTable();
+  });
+  document.getElementById('coord-filter-state').addEventListener('change', () => {
+    document.getElementById('coord-report-title').textContent = 'Historial completo de alumnos';
+    document.getElementById('coord-clear-filter').style.display = document.getElementById('coord-filter-state').value ? 'flex' : (document.getElementById('coord-search').value ? 'flex' : 'none');
+    renderCoordReportTable();
+  });
 }
 
 function renderCoordReportTable() {
@@ -2002,12 +2019,8 @@ function renderCoordReportTable() {
 }
 
 function renderCoordReportTableFiltered(filterFn, label) {
-  // Show a temporary label above the table
-  const panelHeader = document.querySelector('#coord-view-report .glass-panel .panel-header h3');
-  if (panelHeader) {
-    panelHeader.textContent = label || 'Historial completo de alumnos';
-    setTimeout(() => { if (panelHeader) panelHeader.textContent = 'Historial completo de alumnos'; }, 8000);
-  }
+  const titleEl = document.getElementById('coord-report-title');
+  if (titleEl) titleEl.textContent = label || 'Historial completo de alumnos';
 
   const tbody = document.getElementById('coord-report-body');
   tbody.innerHTML = '';
