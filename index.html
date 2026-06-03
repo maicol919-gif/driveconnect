@@ -1656,6 +1656,7 @@ function renderInstructorPortal() {
 
   sorted.forEach(student => {
     const days = daysWaiting(student);
+    const badgeCls = days > 15 ? 'danger' : days >= 8 ? 'warning' : 'success';
     let pClass = 'p-low', pLabel = 'Contactado';
     if (student.state === 'instructor_assigned') {
       if (days >= CONFIG.WAIT_DAYS_CRITICAL) { pClass = 'p-high'; pLabel = '🚨 Urgente +' + CONFIG.WAIT_DAYS_CRITICAL + 'd'; }
@@ -1664,18 +1665,18 @@ function renderInstructorPortal() {
     }
 
     const waMsg = `Hola ${student.name}, soy ${inst.name}, tu instructor asignado de la academia de conducción. Me comunico para coordinar el inicio de tus clases prácticas. ¿Qué disponibilidad tienes esta semana? 😊\n\nRecuerda entrar a la plataforma y confirmar que ya te contacté. ¡Gracias!`;
-    const waUrl = `https://wa.me/${student.docNumber ? inst.phone.replace(/\D/g,'') : inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+    const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
 
     const assignedDate = student.assignedDate || student.theoryPassedDate;
     const daysSinceAssign = assignedDate ? daysBetween(assignedDate, today()) : daysWaiting(student);
 
     let actionBtns = '';
     if (student.state === 'instructor_assigned') {
-      actionBtns = `<span style="font-size:.75rem;color:var(--warning);font-weight:600">⏳ Pendiente — escríbele por WhatsApp</span>`;
+      actionBtns = `<span style="font-size:.75rem;color:var(--warning);font-weight:600">⏳ Escríbele — aún no ha confirmado contacto</span>`;
     } else if (student.state === 'contacted') {
-      actionBtns = `<span style="font-size:.75rem;color:var(--brand-light)">📞 Contactado — esperando confirmación del alumno</span>`;
+      actionBtns = `<span style="font-size:.75rem;color:var(--brand-light)">📲 Contactado — esperando que confirme en el portal</span>`;
     } else if (student.state === 'ready_to_graduate') {
-      actionBtns = `<span style="font-size:.75rem;color:var(--success)">🎓 Marcado como listo — esperando cierre del coordinador</span>`;
+      actionBtns = `<span style="font-size:.75rem;color:var(--success)">🎓 Listo — coordinación cerrará su expediente</span>`;
     } else {
       actionBtns = `<button class="btn-sec" style="font-size:.72rem;padding:.3rem .65rem;border-color:var(--success);color:var(--success)" onclick="instMarkReady('${student.docNumber}')">🎓 Alumno terminó clases</button>`;
     }
@@ -1688,11 +1689,14 @@ function renderInstructorPortal() {
           <h4>${student.name}</h4>
           <div class="student-card-dni">${getDocLabel(student.docType)} ${student.docNumber}</div>
         </div>
-        <span class="prio-pill">${pLabel}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem">
+          <span class="wait-badge ${badgeCls}" style="font-size:.8rem;padding:.2rem .6rem">${days}d</span>
+          <span class="prio-pill">${pLabel}</span>
+        </div>
       </div>
       <div class="student-card-details">
         <div class="student-det-item"><span>Asignado el</span><strong>${formatDate(assignedDate)}</strong></div>
-        <div class="student-det-item"><span>Días desde asignación</span><strong>${daysSinceAssign}d</strong></div>
+        <div class="student-det-item"><span>Días de espera</span><strong style="color:var(--${badgeCls === 'success' ? 'success' : badgeCls === 'warning' ? 'warning' : 'danger'})">${daysSinceAssign}d</strong></div>
       </div>
       <div class="student-card-actions">
         ${actionBtns}
