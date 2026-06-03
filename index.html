@@ -735,24 +735,24 @@
 
       <!-- 4 CARDS MÉTRICAS -->
       <div class="admin-metrics-grid" style="margin-bottom:1.5rem;grid-template-columns:repeat(4,1fr)">
-        <div class="metric-card" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('all')" title="Ver todos">
-          <div class="metric-icon-wrap">👥</div>
-          <div class="metric-info"><h4>Total Activos</h4><div class="metric-val" id="cmetric-total">0</div></div>
+        <div class="metric-card" id="mcard-total" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('all')">
+          <div class="metric-icon-wrap" id="mcard-total-icon">👥</div>
+          <div class="metric-info"><h4 id="mcard-total-label">Total Activos</h4><div class="metric-val" id="cmetric-total">0</div></div>
           <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
         </div>
-        <div class="metric-card warning" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('unassigned')" title="Sin instructor">
-          <div class="metric-icon-wrap">⏰</div>
+        <div class="metric-card" id="mcard-unassigned" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('unassigned')">
+          <div class="metric-icon-wrap" id="mcard-unassigned-icon">⏰</div>
           <div class="metric-info"><h4>Sin Instructor</h4><div class="metric-val" id="cmetric-unassigned">0</div></div>
           <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
         </div>
-        <div class="metric-card" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('waiting')" title="Pendientes de contacto">
-          <div class="metric-icon-wrap">👤</div>
+        <div class="metric-card" id="mcard-waiting" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('waiting')">
+          <div class="metric-icon-wrap" id="mcard-waiting-icon">👤</div>
           <div class="metric-info"><h4>Pend. Contacto</h4><div class="metric-val" id="cmetric-waiting">0</div></div>
           <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
         </div>
-        <div class="metric-card danger" style="cursor:pointer;transition:var(--t-fast);border-width:2px" onclick="coordMetricClick('alerts')" title="Alertas >15d">
-          <div class="metric-icon-wrap" style="font-size:1.3rem">🚨</div>
-          <div class="metric-info"><h4 style="font-weight:800">Alertas &gt;15d</h4><div class="metric-val" id="cmetric-alerts" style="font-size:2rem">0</div></div>
+        <div class="metric-card" id="mcard-alerts" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('alerts')">
+          <div class="metric-icon-wrap" id="mcard-alerts-icon">🚨</div>
+          <div class="metric-info"><h4>Alertas &gt;15d</h4><div class="metric-val" id="cmetric-alerts" style="font-size:2rem">0</div></div>
           <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
         </div>
       </div>
@@ -784,7 +784,7 @@
           <table class="assign-table">
             <thead>
               <tr>
-                <th>Alumno</th><th>Documento</th><th>Estado</th><th>Instructor</th>
+                <th>Alumno</th><th>Documento</th><th>Instructor</th>
                 <th>Teórico</th><th>Días espera</th><th>Acciones</th>
               </tr>
             </thead>
@@ -1863,18 +1863,9 @@ function renderCoordTable() {
   list.sort((a,b) => daysWaiting(b) - daysWaiting(a));
 
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary" style="padding:2rem">Sin resultados para este filtro 🎉</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary" style="padding:2rem">Sin resultados para este filtro 🎉</td></tr>';
     return;
   }
-
-  const stateLabels = {
-    theory_passed:       '⚠️ Asignar instructor ya',
-    instructor_assigned: '📲 Pendiente — debe contactar',
-    contacted:           '⏳ Esperando confirmación',
-    contact_confirmed:   '🚗 Iniciar clases prácticas',
-    practice_started:    '✅ En clases — marcar al terminar',
-    ready_to_graduate:   '🎓 Listo — confirmar cierre',
-  };
 
   list.forEach(s => {
     const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
@@ -1886,7 +1877,6 @@ function renderCoordTable() {
     tr.innerHTML = `
       <td><div class="student-name-cell">${s.name}</div></td>
       <td><code style="font-size:.72rem">${s.docType} ${s.docNumber}</code></td>
-      <td style="font-size:.78rem">${stateLabels[s.state] || s.state}</td>
       <td style="font-size:.8rem">${inst ? inst.name : '<span class="text-muted">—</span>'}</td>
       <td style="font-size:.78rem">${formatDate(s.theoryPassedDate)}</td>
       <td><span class="wait-badge ${cls}">${days}d</span></td>
@@ -1963,6 +1953,24 @@ async function renderCoordinatorPortal() {
   document.getElementById('cmetric-waiting').textContent = waiting;
   document.getElementById('cmetric-alerts').textContent = critical;
   document.getElementById('cmetric-avg').textContent = avg + 'd';
+
+  // Color cards dynamically based on value
+  function paintCard(cardId, val, threshWarn, threshDanger) {
+    const el = document.getElementById(cardId);
+    if (!el) return;
+    el.classList.remove('success','warning','danger');
+    if (val === 0) { /* neutral */ }
+    else if (val >= threshDanger) el.classList.add('danger');
+    else if (val >= threshWarn)   el.classList.add('warning');
+    else                           el.classList.add('success');
+  }
+  // Total: neutral always (it's just context)
+  // Sin instructor: 1+ = warning, 3+ = danger
+  paintCard('mcard-unassigned', unassigned, 1, 3);
+  // Pendiente contacto: 1+ = warning, 5+ = danger
+  paintCard('mcard-waiting', waiting, 1, 5);
+  // Alertas >15d: 1+ = warning, 3+ = danger (always urgent)
+  paintCard('mcard-alerts', critical, 1, 3);
 
   // Ready to graduate banner
   const banner = document.getElementById('coord-ready-banner');
