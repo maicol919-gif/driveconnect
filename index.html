@@ -1829,8 +1829,6 @@ function coordMetricClick(type) {
   }
 
   renderCoordTable();
-  // Scroll to table
-  document.getElementById('coord-table-body').closest('.glass-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function coordClearFilter() {
@@ -1870,18 +1868,18 @@ function renderCoordTable() {
   }
 
   const stateLabels = {
-    theory_passed:       '⏳ Sin instructor',
-    instructor_assigned: '👤 Pend. contacto',
-    contacted:           '📞 Contactado',
-    contact_confirmed:   '✅ Confirmado',
-    practice_started:    '🚗 En práctica',
-    ready_to_graduate:   '🎓 Listo para cerrar',
+    theory_passed:       '⚠️ Asignar instructor ya',
+    instructor_assigned: '📲 Pendiente — debe contactar',
+    contacted:           '⏳ Esperando confirmación',
+    contact_confirmed:   '🚗 Iniciar clases prácticas',
+    practice_started:    '✅ En clases — marcar al terminar',
+    ready_to_graduate:   '🎓 Listo — confirmar cierre',
   };
 
   list.forEach(s => {
     const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
     const days = daysWaiting(s);
-    const cls  = days >= 20 ? 'danger' : days >= 10 ? 'warning' : 'success';
+    const cls  = days > 15 ? 'danger' : days >= 8 ? 'warning' : 'success';
     const isReady = s.state === 'ready_to_graduate';
     const tr = document.createElement('tr');
     if (isReady) tr.style.background = 'rgba(16,185,129,.05)';
@@ -2420,7 +2418,7 @@ function renderAdminStudents() {
   list.forEach(s => {
     const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
     const days = daysWaiting(s);
-    const cls = days >= 20 ? 'danger' : days >= 10 ? 'warning' : 'success';
+    const cls = days > 15 ? 'danger' : days >= 8 ? 'warning' : 'success';
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${s.name}</strong></td>
@@ -2783,7 +2781,7 @@ function openStudentProfile(docNumber) {
   const chipEl = document.getElementById('profile-wait-chip');
   const numEl  = document.getElementById('profile-wait-num');
   numEl.textContent = days;
-  chipEl.className = 'profile-wait-chip ' + (days >= 20 ? 'crit' : days >= 10 ? 'warn' : 'ok');
+  chipEl.className = 'profile-wait-chip ' + (days > 15 ? 'crit' : days >= 8 ? 'warn' : 'ok');
 
   // Meta chips
   const chips = document.getElementById('profile-meta-chips');
