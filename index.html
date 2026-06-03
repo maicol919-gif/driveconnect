@@ -1970,10 +1970,10 @@ function renderCoordReport() {
       <div class="report-val" style="color:var(--success)">${byState.contacted}</div>
       <div class="report-sub">En coordinación</div>
     </div>
-    <div class="report-card" style="cursor:pointer" onclick="coordMetricClick('all')" title="Ver todos">
-      <div class="report-card-header"><span class="report-icon">✅</span><div class="report-title">Confirmados</div></div>
-      <div class="report-val" style="color:var(--success)">${byState.contact_confirmed || 0}</div>
-      <div class="report-sub">Contacto verificado</div>
+    <div class="report-card" style="cursor:pointer" onclick="coordMetricClick('alerts')" title="Ver alertas >15d">
+      <div class="report-card-header"><span class="report-icon">🚨</span><div class="report-title">Alertas &gt;15d</div></div>
+      <div class="report-val" style="color:var(--danger)">${STATE.students.filter(s => ['theory_passed','instructor_assigned'].includes(s.state) && daysWaiting(s) >= 15).length}</div>
+      <div class="report-sub">Urgencia alta</div>
     </div>`;
 
   renderCoordReportTable();
