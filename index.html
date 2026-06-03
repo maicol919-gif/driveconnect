@@ -778,6 +778,10 @@
 
     <!-- SUB-VIEW: INSTRUCTORES -->
     <div id="coord-view-instructors" style="display:none">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+        <button class="btn-sec" style="font-size:.8rem;padding:.45rem .9rem;display:flex;align-items:center;gap:.4rem" onclick="switchCoordTab('assign')">← Asignaciones</button>
+        <span style="font-size:.75rem;color:var(--text-muted)">Instructores</span>
+      </div>
       <div class="glass-panel">
         <div class="panel-header">
           <h3>Instructores</h3>
@@ -789,6 +793,10 @@
 
     <!-- SUB-VIEW: REPORTES -->
     <div id="coord-view-report" style="display:none">
+      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
+        <button class="btn-sec" style="font-size:.8rem;padding:.45rem .9rem;display:flex;align-items:center;gap:.4rem" onclick="switchCoordTab('assign')">← Asignaciones</button>
+        <span style="font-size:.75rem;color:var(--text-muted)">Reportes</span>
+      </div>
       <div class="report-grid" id="coord-report-cards"></div>
       <div class="glass-panel">
         <div class="panel-header">
@@ -1947,25 +1955,25 @@ function renderCoordReport() {
   };
 
   document.getElementById('coord-report-cards').innerHTML = `
-    <div class="report-card">
+    <div class="report-card" style="cursor:pointer" onclick="coordMetricClick('unassigned')" title="Ver sin instructor">
       <div class="report-card-header"><span class="report-icon">📋</span><div class="report-title">Sin instructor</div></div>
       <div class="report-val" style="color:var(--warning)">${byState.theory_passed}</div>
       <div class="report-sub">Esperan asignación</div>
     </div>
-    <div class="report-card">
+    <div class="report-card" style="cursor:pointer" onclick="coordMetricClick('waiting')" title="Ver pendientes de contacto">
       <div class="report-card-header"><span class="report-icon">👤</span><div class="report-title">Instructor asignado</div></div>
       <div class="report-val" style="color:var(--brand-light)">${byState.instructor_assigned}</div>
       <div class="report-sub">Pendientes de contacto</div>
     </div>
-    <div class="report-card">
+    <div class="report-card" style="cursor:pointer" onclick="coordMetricClick('alerts')" title="Ver alertas >15d">
       <div class="report-card-header"><span class="report-icon">💬</span><div class="report-title">Contactados</div></div>
       <div class="report-val" style="color:var(--success)">${byState.contacted}</div>
       <div class="report-sub">En coordinación</div>
     </div>
-    <div class="report-card">
-      <div class="report-card-header"><span class="report-icon">🚗</span><div class="report-title">En práctica</div></div>
-      <div class="report-val" style="color:var(--success)">${byState.practice_started}</div>
-      <div class="report-sub">Clases activas</div>
+    <div class="report-card" style="cursor:pointer" onclick="coordMetricClick('all')" title="Ver todos">
+      <div class="report-card-header"><span class="report-icon">✅</span><div class="report-title">Confirmados</div></div>
+      <div class="report-val" style="color:var(--success)">${byState.contact_confirmed || 0}</div>
+      <div class="report-sub">Contacto verificado</div>
     </div>`;
 
   renderCoordReportTable();
