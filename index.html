@@ -417,6 +417,56 @@
     /* TOAST */
     #dc-toast{position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;padding:.85rem 1.25rem;border-radius:var(--r-sm);font-weight:600;color:white;box-shadow:0 10px 25px rgba(0,0,0,.5);display:flex;align-items:center;gap:.5rem;pointer-events:none}
 
+    /* STUDENT PROFILE MODAL */
+    .profile-modal-content{background:var(--bg-secondary);border:1px solid var(--border-color);box-shadow:0 20px 60px rgba(0,0,0,.6);border-radius:var(--r-lg);width:100%;max-width:620px;overflow:hidden;transform:scale(.95);transition:var(--t-norm)}
+    .modal-overlay.active .profile-modal-content{transform:scale(1)}
+    .profile-header{position:relative;padding:2rem 1.75rem 1.5rem;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(16,185,129,.06));border-bottom:1px solid var(--border-color)}
+    .profile-header-top{display:flex;align-items:flex-start;gap:1.25rem;margin-bottom:1.25rem}
+    .profile-avatar{width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-light));display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.6rem;font-weight:800;color:white;flex-shrink:0;box-shadow:0 0 0 3px rgba(59,130,246,.3)}
+    .profile-name{font-family:var(--font-title);font-size:1.4rem;font-weight:800;line-height:1.2;margin-bottom:.3rem}
+    .profile-doc{font-size:.82rem;color:var(--text-muted)}
+    .profile-state-pill{display:inline-flex;align-items:center;gap:.4rem;padding:.3rem .75rem;border-radius:9999px;font-size:.75rem;font-weight:700;margin-top:.5rem}
+    .profile-state-pill.s-pending{background:rgba(245,158,11,.15);color:var(--warning);border:1px solid rgba(245,158,11,.25)}
+    .profile-state-pill.s-assigned{background:rgba(59,130,246,.15);color:var(--brand-light);border:1px solid rgba(59,130,246,.25)}
+    .profile-state-pill.s-contacted{background:rgba(139,92,246,.15);color:#a78bfa;border:1px solid rgba(139,92,246,.25)}
+    .profile-state-pill.s-confirmed{background:rgba(16,185,129,.15);color:var(--success);border:1px solid rgba(16,185,129,.25)}
+    .profile-state-pill.s-practice{background:rgba(16,185,129,.2);color:var(--success);border:1px solid rgba(16,185,129,.3)}
+    .profile-wait-chip{position:absolute;top:1.25rem;right:1.5rem;text-align:center;background:rgba(0,0,0,.3);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .85rem}
+    .profile-wait-num{font-family:var(--font-title);font-size:1.75rem;font-weight:800;line-height:1}
+    .profile-wait-label{font-size:.62rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px}
+    .profile-wait-chip.crit .profile-wait-num{color:var(--danger)}
+    .profile-wait-chip.warn .profile-wait-num{color:var(--warning)}
+    .profile-wait-chip.ok .profile-wait-num{color:var(--success)}
+    .profile-meta-chips{display:flex;flex-wrap:wrap;gap:.5rem}
+    .profile-chip{display:inline-flex;align-items:center;gap:.4rem;background:rgba(255,255,255,.04);border:1px solid var(--border-color);border-radius:9999px;padding:.25rem .65rem;font-size:.72rem;color:var(--text-secondary)}
+    .profile-body{padding:1.5rem 1.75rem;max-height:60vh;overflow-y:auto}
+    .profile-section{margin-bottom:1.5rem}
+    .profile-section-title{font-size:.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:.85rem;display:flex;align-items:center;gap:.4rem}
+    .profile-timeline{display:flex;flex-direction:column;gap:0}
+    .profile-tl-step{display:flex;gap:.85rem;position:relative}
+    .profile-tl-step:not(:last-child)::before{content:'';position:absolute;left:14px;top:28px;bottom:-4px;width:2px;background:var(--border-color)}
+    .profile-tl-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0;margin-top:2px}
+    .profile-tl-dot.done{background:rgba(16,185,129,.15);border:2px solid var(--success);color:var(--success)}
+    .profile-tl-dot.active{background:var(--brand-glow);border:2px solid var(--brand);color:white;animation:pulseBorder 2s infinite}
+    .profile-tl-dot.pending{background:rgba(255,255,255,.03);border:2px solid var(--border-color);color:var(--text-muted)}
+    .profile-tl-content{flex:1;padding-bottom:1.1rem}
+    .profile-tl-title{font-size:.88rem;font-weight:700;margin-bottom:.15rem}
+    .profile-tl-date{font-size:.72rem;color:var(--text-muted)}
+    .profile-instructor-box{display:flex;align-items:center;gap:1rem;background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.2);border-radius:var(--r-md);padding:1rem}
+    .profile-inst-photo{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid rgba(59,130,246,.3)}
+    .profile-inst-name{font-weight:700;font-size:.95rem;margin-bottom:.1rem}
+    .profile-inst-meta{font-size:.75rem;color:var(--text-secondary)}
+    .profile-inst-actions{display:flex;gap:.5rem;margin-top:.65rem}
+    .profile-footer{padding:1rem 1.75rem;border-top:1px solid var(--border-color);display:flex;gap:.65rem;flex-wrap:wrap;justify-content:flex-end;background:rgba(0,0,0,.1)}
+    .profile-btn-action{padding:.55rem 1rem;border-radius:var(--r-sm);font-weight:600;font-size:.82rem;cursor:pointer;transition:var(--t-fast);display:flex;align-items:center;gap:.4rem;border:1px solid var(--border-color)}
+    .profile-btn-action.secondary{background:rgba(255,255,255,.03);color:var(--text-secondary)}
+    .profile-btn-action.secondary:hover{background:rgba(255,255,255,.08);color:white}
+    .profile-btn-action.primary{background:var(--brand);color:white;border-color:var(--brand);box-shadow:0 4px 10px var(--brand-glow)}
+    .profile-btn-action.primary:hover{filter:brightness(1.1)}
+    .profile-btn-action.danger{background:rgba(244,63,94,.08);color:var(--danger);border-color:rgba(244,63,94,.3)}
+    .profile-btn-action.danger:hover{background:var(--danger);color:white}
+    .profile-no-inst{text-align:center;padding:1.25rem;background:rgba(255,255,255,.02);border:1px dashed var(--border-color);border-radius:var(--r-md);color:var(--text-muted);font-size:.82rem}
+
     /* MOBILE */
     @media(max-width:640px){
       main{padding:1rem}
@@ -753,7 +803,7 @@
             <thead>
               <tr>
                 <th>Alumno</th><th>Documento</th><th>Estado</th><th>Instructor</th>
-                <th>Teórico</th><th>Contacto</th><th>Práctica</th><th>Días espera</th>
+                <th>Teórico</th><th>Contacto</th><th>Práctica</th><th>Días espera</th><th>Acción</th>
               </tr>
             </thead>
             <tbody id="coord-report-body"></tbody>
@@ -939,6 +989,45 @@
     <div class="modal-footer">
       <button class="btn-action-cancel" onclick="closeModal()">Cancelar</button>
       <button class="btn-action-confirm" onclick="confirmAssign()">Confirmar asignación</button>
+    </div>
+  </div>
+</div>
+
+<!-- STUDENT PROFILE MODAL -->
+<div class="modal-overlay" id="student-profile-modal">
+  <div class="profile-modal-content">
+    <div class="profile-header">
+      <button class="btn-close-modal" onclick="closeStudentProfile()" style="position:absolute;top:1rem;left:1rem;font-size:1.2rem">×</button>
+      <div class="profile-wait-chip" id="profile-wait-chip">
+        <div class="profile-wait-num" id="profile-wait-num">—</div>
+        <div class="profile-wait-label">días espera</div>
+      </div>
+      <div class="profile-header-top" style="padding-left:2.25rem">
+        <div class="profile-avatar" id="profile-avatar">?</div>
+        <div>
+          <div class="profile-name" id="profile-name">—</div>
+          <div class="profile-doc" id="profile-doc">—</div>
+          <div class="profile-state-pill" id="profile-state-pill">—</div>
+        </div>
+      </div>
+      <div class="profile-meta-chips" id="profile-meta-chips" style="padding-left:2.25rem"></div>
+    </div>
+    <div class="profile-body">
+      <!-- Timeline -->
+      <div class="profile-section">
+        <div class="profile-section-title">📅 Línea de tiempo</div>
+        <div class="profile-timeline" id="profile-timeline"></div>
+      </div>
+      <!-- Instructor -->
+      <div class="profile-section" id="profile-inst-section">
+        <div class="profile-section-title">👤 Instructor asignado</div>
+        <div id="profile-inst-box"></div>
+      </div>
+    </div>
+    <div class="profile-footer">
+      <button class="profile-btn-action secondary" onclick="closeStudentProfile()">Cerrar</button>
+      <button class="profile-btn-action secondary" id="profile-btn-reassign" onclick="profileReassign()">🔄 Reasignar instructor</button>
+      <button class="profile-btn-action primary" id="profile-btn-state" onclick="profileChangeState()">✏️ Cambiar estado</button>
     </div>
   </div>
 </div>
@@ -1844,7 +1933,7 @@ function renderCoordReportTable() {
   list.sort((a,b) => daysWaiting(b) - daysWaiting(a));
 
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary" style="padding:1.5rem">Sin resultados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary" style="padding:1.5rem">Sin resultados</td></tr>';
     return;
   }
   list.forEach(s => {
@@ -1853,6 +1942,7 @@ function renderCoordReportTable() {
     const cls = days >= 20 ? 'danger' : days >= 10 ? 'warning' : 'success';
     const stateLabels = { theory_passed:'⏳ Sin instructor', instructor_assigned:'👤 Pendiente contacto', contacted:'📞 Contactado (sin confirmar)', contact_confirmed:'✅ Confirmado', practice_started:'📞 Contactado (sin confirmar)' };
     const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
     tr.innerHTML = `
       <td><div class="student-name-cell">${s.name}</div></td>
       <td><code style="font-size:.72rem">${s.docType} ${s.docNumber}</code></td>
@@ -1861,7 +1951,8 @@ function renderCoordReportTable() {
       <td style="font-size:.78rem">${formatDate(s.theoryPassedDate)}</td>
       <td style="font-size:.78rem">${formatDate(s.contactDate)}</td>
       <td style="font-size:.78rem">${formatDate(s.practiceStartDate)}</td>
-      <td><span class="wait-badge ${cls}">${days}d</span></td>`;
+      <td><span class="wait-badge ${cls}">${days}d</span></td>
+      <td><button class="btn-sec" style="font-size:.72rem;padding:.25rem .6rem;white-space:nowrap" onclick="openStudentProfile('${s.docNumber}')">🗂 Perfil</button></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -2255,6 +2346,7 @@ function renderAdminStudents() {
       <td style="font-size:.78rem">${inst?inst.name:'<span class="text-muted">—</span>'}</td>
       <td><span class="wait-badge ${cls}">${days}d</span></td>
       <td style="display:flex;gap:.35rem;flex-wrap:wrap">
+        <button class="btn-sec" style="font-size:.7rem;padding:.25rem .5rem" onclick="openStudentProfile('${s.docNumber}')">🗂 Perfil</button>
         <button class="btn-sec" style="font-size:.7rem;padding:.25rem .5rem" onclick="openModal('${s.docNumber}')">🔄 Reasignar</button>
         <button class="btn-sec" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminChangeState('${s.docNumber}')">✏️ Estado</button>
       </td>`;
@@ -2570,6 +2662,157 @@ async function confirmAssign() {
 }
 
 
+
+// =============================================================================
+// STUDENT PROFILE MODAL (Coordinator / Admin)
+// =============================================================================
+let _profileDocNumber = null;
+
+function openStudentProfile(docNumber) {
+  _profileDocNumber = docNumber;
+  const s = STATE.students.find(st => st.docNumber === docNumber);
+  if (!s) return;
+  const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
+  const days = daysWaiting(s);
+
+  // Avatar initials
+  const initials = s.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  document.getElementById('profile-avatar').textContent = initials;
+
+  // Name / doc
+  document.getElementById('profile-name').textContent = s.name;
+  document.getElementById('profile-doc').textContent = getDocLabel(s.docType) + ' ' + s.docNumber;
+
+  // State pill
+  const stateMap = {
+    theory_passed:        { label:'⏳ Sin instructor',          cls:'s-pending' },
+    instructor_assigned:  { label:'👤 Pendiente contacto',      cls:'s-assigned' },
+    contacted:            { label:'📞 Contactado (sin confirmar)',cls:'s-contacted' },
+    contact_confirmed:    { label:'✅ Contacto confirmado',      cls:'s-confirmed' },
+    practice_started:     { label:'🚗 En práctica',              cls:'s-practice' },
+  };
+  const st = stateMap[s.state] || { label: s.state, cls: 's-pending' };
+  const pill = document.getElementById('profile-state-pill');
+  pill.textContent = st.label;
+  pill.className = 'profile-state-pill ' + st.cls;
+
+  // Wait chip
+  const chipEl = document.getElementById('profile-wait-chip');
+  const numEl  = document.getElementById('profile-wait-num');
+  numEl.textContent = days;
+  chipEl.className = 'profile-wait-chip ' + (days >= 20 ? 'crit' : days >= 10 ? 'warn' : 'ok');
+
+  // Meta chips
+  const chips = document.getElementById('profile-meta-chips');
+  chips.innerHTML = '';
+  const addChip = (icon, text) => {
+    if (!text) return;
+    const c = document.createElement('span');
+    c.className = 'profile-chip';
+    c.innerHTML = `${icon} ${text}`;
+    chips.appendChild(c);
+  };
+  addChip('📋', s.docType);
+  if (s.theoryPassedDate) addChip('🎓', 'Teórico: ' + formatDate(s.theoryPassedDate));
+  if (s.preferredSchedule) addChip('🕐', s.preferredSchedule);
+
+  // Timeline
+  const tl = document.getElementById('profile-timeline');
+  tl.innerHTML = '';
+  const steps = [
+    {
+      label: 'Examen teórico aprobado',
+      date: s.theoryPassedDate,
+      done: true,
+      active: false,
+    },
+    {
+      label: 'Instructor asignado',
+      date: inst ? (s.contactDate ? null : null) : null,
+      extraLabel: inst ? inst.name : null,
+      done: !!s.instructorId && s.state !== 'theory_passed',
+      active: s.state === 'theory_passed',
+    },
+    {
+      label: 'Primer contacto',
+      date: s.contactDate,
+      done: ['contacted','contact_confirmed','practice_started'].includes(s.state),
+      active: s.state === 'instructor_assigned',
+    },
+    {
+      label: 'Contacto confirmado por alumno',
+      date: s.state === 'contact_confirmed' ? s.contactDate : null,
+      done: ['contact_confirmed','practice_started'].includes(s.state),
+      active: s.state === 'contacted',
+    },
+    {
+      label: 'Clases prácticas iniciadas',
+      date: s.practiceStartDate,
+      done: s.state === 'practice_started',
+      active: false,
+    },
+  ];
+  steps.forEach(step => {
+    const dotClass = step.done ? 'done' : step.active ? 'active' : 'pending';
+    const dotIcon  = step.done ? '✓' : step.active ? '●' : '○';
+    const div = document.createElement('div');
+    div.className = 'profile-tl-step';
+    div.innerHTML = `
+      <div class="profile-tl-dot ${dotClass}">${dotIcon}</div>
+      <div class="profile-tl-content">
+        <div class="profile-tl-title" style="color:${step.done ? 'var(--text-secondary)' : step.active ? 'white' : 'var(--text-muted)'}">${step.label}${step.extraLabel ? ` — <strong style="color:var(--brand-light)">${step.extraLabel}</strong>` : ''}</div>
+        ${step.date ? `<div class="profile-tl-date">${formatDate(step.date)}</div>` : step.active ? `<div class="profile-tl-date" style="color:var(--brand-light);font-style:italic">Etapa actual · ${days}d esperando</div>` : ''}
+      </div>`;
+    tl.appendChild(div);
+  });
+
+  // Instructor box
+  const instBox = document.getElementById('profile-inst-box');
+  if (inst) {
+    const waMsg = `Hola ${inst.name}, te contacto de parte de la coordinación. El alumno ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}) lleva ${days} día(s) esperando contacto.`;
+    const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+    instBox.innerHTML = `
+      <div class="profile-instructor-box">
+        <img src="${inst.photo}" alt="${inst.name}" class="profile-inst-photo"
+          onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(inst.name)}&background=1e293b&color=60a5fa&size=100'">
+        <div style="flex:1">
+          <div class="profile-inst-name">${inst.name}</div>
+          <div class="profile-inst-meta">📞 ${inst.phone}</div>
+          ${inst.availability ? `<div class="profile-inst-meta" style="margin-top:.15rem">🕐 ${inst.availability}</div>` : ''}
+          <div class="profile-inst-actions">
+            <a href="${waUrl}" target="_blank" class="btn-whatsapp" style="padding:.45rem .85rem;font-size:.75rem">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              WhatsApp instructor
+            </a>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    instBox.innerHTML = `<div class="profile-no-inst">🚗 Aún no se ha asignado instructor a este alumno.<br><button class="btn-primary" style="width:auto;padding:.5rem 1.1rem;font-size:.8rem;margin-top:.75rem;display:inline-flex" onclick="closeStudentProfile();openModal('${s.docNumber}')">+ Asignar instructor ahora</button></div>`;
+  }
+
+  // Show/hide reassign based on whether instructor exists
+  document.getElementById('profile-btn-reassign').style.display = inst ? 'flex' : 'none';
+
+  document.getElementById('student-profile-modal').classList.add('active');
+}
+
+function closeStudentProfile() {
+  document.getElementById('student-profile-modal').classList.remove('active');
+  _profileDocNumber = null;
+}
+
+function profileReassign() {
+  const doc = _profileDocNumber;
+  closeStudentProfile();
+  if (doc) openModal(doc);
+}
+
+function profileChangeState() {
+  const doc = _profileDocNumber;
+  closeStudentProfile();
+  if (doc) adminChangeState(doc);
+}
 
 // =============================================================================
 // FAQ
