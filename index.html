@@ -525,13 +525,25 @@
             <span class="input-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </span>
-            <input type="text" id="student-id" class="form-input" placeholder="Ingresa tu número de documento" autocomplete="off">
+            <input type="text" id="student-id" class="form-input" placeholder="Ingresa tu número de documento" autocomplete="off" inputmode="numeric">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>PIN de acceso</label>
+          <div class="input-wrapper">
+            <span class="input-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            <input type="password" id="student-pin" class="form-input" placeholder="••••" maxlength="4" autocomplete="off" inputmode="numeric">
           </div>
         </div>
         <button class="btn-primary" onclick="loginStudent()">
-          <span>Consultar mi Instructor</span>
+          <span>Ingresar al Portal</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
+        <p style="text-align:center;margin-top:1rem;font-size:.78rem;color:var(--text-muted)">
+          ¿Primera vez? <a href="#" onclick="showRegisterView()" style="color:var(--brand-light);text-decoration:none;font-weight:600">Regístrate aquí →</a>
+        </p>
       </div>
 
       <!-- INSTRUCTOR -->
@@ -722,6 +734,16 @@
 
     <!-- ===== VISTA PRINCIPAL UNIFICADA ===== -->
     <div id="coord-view-main">
+
+      <!-- ALERTA DE PENDIENTES DE APROBACIÓN -->
+      <div id="coord-pending-banner" style="display:none;margin-bottom:1.25rem;padding:.9rem 1.25rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-md);display:flex;align-items:center;gap:.75rem">
+        <span style="font-size:1.1rem">📋</span>
+        <div style="flex:1">
+          <strong style="font-size:.9rem">Registros pendientes de aprobación</strong>
+          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem"><span id="coord-pending-count">0</span> alumno(s) se registraron y esperan que los actives.</p>
+        </div>
+        <button class="btn-primary" style="width:auto;padding:.45rem 1rem;font-size:.8rem;flex-shrink:0" onclick="coordShowPending()">Revisar</button>
+      </div>
 
       <!-- ALERTA DE LISTOS PARA CERRAR -->
       <div id="coord-ready-banner" style="display:none;margin-bottom:1.25rem;padding:.9rem 1.25rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:var(--r-md);display:flex;align-items:center;gap:.75rem">
@@ -999,6 +1021,19 @@
   </div>
 </div>
 
+<!-- PENDING APPROVAL MODAL -->
+<div class="modal-overlay" id="pending-modal">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-header">
+      <h3>📋 Registros pendientes de aprobación</h3>
+      <button class="btn-close-modal" onclick="closePendingModal()">×</button>
+    </div>
+    <div class="modal-body" style="max-height:60vh;overflow-y:auto">
+      <div id="pending-list"></div>
+    </div>
+  </div>
+</div>
+
 <!-- STUDENT PROFILE MODAL -->
 <div class="modal-overlay" id="student-profile-modal">
   <div class="profile-modal-content">
@@ -1032,11 +1067,133 @@
     </div>
     <div class="profile-footer">
       <button class="profile-btn-action secondary" onclick="closeStudentProfile()">Cerrar</button>
+      <button class="profile-btn-action danger" id="profile-btn-temppin" onclick="adminSetTempPin(_profileDocNumber)">🔑 PIN temporal</button>
       <button class="profile-btn-action secondary" id="profile-btn-reassign" onclick="profileReassign()">🔄 Reasignar instructor</button>
       <button class="profile-btn-action primary" id="profile-btn-state" onclick="profileChangeState()">✏️ Cambiar estado</button>
     </div>
   </div>
 </div>
+
+<!-- ===== REGISTRO ALUMNO ===== -->
+<section id="view-register" class="view-section">
+  <div class="auth-container glass-panel">
+    <div class="auth-header">
+      <button onclick="showView('view-login')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.85rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.3rem">← Volver</button>
+      <h1>Registro de Alumno</h1>
+      <p>Completa tus datos para acceder al portal. Solo toma un minuto.</p>
+    </div>
+    <div id="register-form">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Tipo de documento</label>
+          <select id="reg-docType" class="config-input" style="margin-bottom:0">
+            <option value="CC">Cédula de Ciudadanía</option>
+            <option value="TI">Tarjeta de Identidad</option>
+            <option value="CE">Cédula de Extranjería</option>
+            <option value="PA">Pasaporte</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Número de documento</label>
+          <input type="text" id="reg-docNumber" class="form-input" placeholder="Sin puntos ni espacios" inputmode="numeric" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Nombre completo</label>
+        <input type="text" id="reg-name" class="form-input" placeholder="Como aparece en tu documento" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>WhatsApp</label>
+        <div class="input-wrapper">
+          <span class="input-icon" style="font-size:.85rem">🇨🇴</span>
+          <input type="text" id="reg-phone" class="form-input" placeholder="3001234567" inputmode="numeric" maxlength="10" autocomplete="off">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Tipo de licencia</label>
+          <select id="reg-license" class="config-input" style="margin-bottom:0">
+            <option value="B1">B1 — Automóvil</option>
+            <option value="B2">B2 — Camioneta/Bus</option>
+            <option value="A1">A1 — Moto hasta 125cc</option>
+            <option value="A2">A2 — Moto más de 125cc</option>
+            <option value="C1">C1 — Camión</option>
+            <option value="C2">C2 — Tractocamión</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Disponibilidad horaria</label>
+          <select id="reg-schedule" class="config-input" style="margin-bottom:0">
+            <option value="morning">Mañanas</option>
+            <option value="afternoon">Tardes</option>
+            <option value="evening">Noches</option>
+            <option value="weekend">Fines de semana</option>
+            <option value="flexible">Flexible</option>
+          </select>
+        </div>
+      </div>
+      <div id="register-error" class="error-msg" style="display:none;margin-top:.75rem"></div>
+      <div id="register-loading" class="loading-msg" style="display:none;margin-top:.75rem">⏳ Registrando...</div>
+      <button class="btn-primary" style="margin-top:1.25rem" onclick="registerStudent()">
+        <span>Crear mi cuenta</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+
+    <!-- PANTALLA DE PIN GENERADO -->
+    <div id="register-success" style="display:none;text-align:center">
+      <div style="font-size:3rem;margin-bottom:1rem">🎉</div>
+      <h2 style="font-family:var(--font-title);font-size:1.4rem;margin-bottom:.5rem">¡Registro exitoso!</h2>
+      <p style="color:var(--text-secondary);font-size:.85rem;margin-bottom:1.75rem">Tu cuenta fue creada. Guarda tu PIN — es personal e intransferible.</p>
+      <div style="background:rgba(59,130,246,.08);border:2px solid var(--brand);border-radius:var(--r-md);padding:1.5rem;margin-bottom:1rem">
+        <div style="font-size:.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Tu PIN de acceso</div>
+        <div id="reg-pin-display" style="font-family:var(--font-title);font-size:3.5rem;font-weight:800;letter-spacing:.5rem;color:var(--brand-light)">----</div>
+      </div>
+      <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--r-sm);padding:.85rem;margin-bottom:1.5rem;font-size:.8rem;color:var(--warning);text-align:left">
+        ⚠️ <strong>Este PIN solo se muestra una vez.</strong> Tómale foto o guárdalo ahora. Si lo pierdes, deberás ir a la academia para que te asignen uno nuevo.
+      </div>
+      <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:1.25rem">Tu cuenta está pendiente de aprobación por el coordinador. Una vez aprobada podrás ingresar al portal.</p>
+      <button class="btn-primary" onclick="showView('view-login')">
+        <span>Entendido, ya lo guardé</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CAMBIO DE PIN OBLIGATORIO ===== -->
+<section id="view-change-pin" class="view-section">
+  <div class="auth-container glass-panel">
+    <div class="auth-header">
+      <div style="font-size:2rem;margin-bottom:.5rem">🔐</div>
+      <h1>Cambia tu PIN</h1>
+      <p>Estás usando un PIN temporal. Debes crear uno nuevo antes de continuar.</p>
+    </div>
+    <div class="form-group">
+      <label>Nuevo PIN (4 dígitos numéricos)</label>
+      <div class="input-wrapper">
+        <span class="input-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        <input type="password" id="new-pin-1" class="form-input" placeholder="••••" maxlength="4" inputmode="numeric" autocomplete="off">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Confirmar nuevo PIN</label>
+      <div class="input-wrapper">
+        <span class="input-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </span>
+        <input type="password" id="new-pin-2" class="form-input" placeholder="••••" maxlength="4" inputmode="numeric" autocomplete="off">
+      </div>
+    </div>
+    <div id="change-pin-error" class="error-msg" style="display:none"></div>
+    <div id="change-pin-loading" class="loading-msg" style="display:none">⏳ Guardando...</div>
+    <button class="btn-primary" onclick="submitNewPin()">
+      <span>Guardar nuevo PIN</span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+</section>
 
 <footer>
   <p>© 2026 DriveConnect — Academia de Conducción. Todos los derechos reservados.</p>
@@ -1133,6 +1290,10 @@ function normalizeStudent(obj) {
     practiceStartDate: String(k('practiceStartDate') || k('fecha_practica') || '').trim() || null,
     theoryPassedDate: String(k('theoryPassedDate') || k('fecha_teorico') || '').trim() || null,
     preferredSchedule: String(k('preferredSchedule') || k('horario') || k('schedule') || '').trim() || null,
+    pin: String(k('pin') || '').trim(),
+    tempPin: String(k('tempPin') || k('temp_pin') || 'false').trim(),
+    phone: String(k('phone') || k('whatsapp') || k('celular') || '').trim(),
+    license: String(k('license') || k('licencia') || '').trim(),
   };
 }
 
@@ -1267,12 +1428,73 @@ function setDocType(btn, type) {
   document.getElementById('doc-label').textContent = 'Número de ' + DOC_LABELS[type];
 }
 
+function showRegisterView() {
+  document.getElementById('register-form').style.display = 'block';
+  document.getElementById('register-success').style.display = 'none';
+  showView('view-register');
+}
+
+function generatePIN() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+async function registerStudent() {
+  const docType   = document.getElementById('reg-docType').value;
+  const docNumber = document.getElementById('reg-docNumber').value.trim();
+  const name      = document.getElementById('reg-name').value.trim();
+  const phone     = document.getElementById('reg-phone').value.trim();
+  const license   = document.getElementById('reg-license').value;
+  const schedule  = document.getElementById('reg-schedule').value;
+  const errEl     = document.getElementById('register-error');
+  const loadEl    = document.getElementById('register-loading');
+
+  errEl.style.display = 'none';
+
+  if (!docNumber) { errEl.textContent = 'Ingresa tu número de documento.'; errEl.style.display = 'block'; return; }
+  if (!name)      { errEl.textContent = 'Ingresa tu nombre completo.'; errEl.style.display = 'block'; return; }
+  if (!phone || phone.length < 10) { errEl.textContent = 'Ingresa un número de WhatsApp válido (10 dígitos).'; errEl.style.display = 'block'; return; }
+
+  loadEl.style.display = 'block';
+
+  try {
+    const ok = await loadData();
+    if (!ok) throw new Error('No se pudo conectar. Intenta de nuevo.');
+    const exists = STATE.students.find(s => s.docNumber === docNumber);
+    if (exists) throw new Error('Este documento ya está registrado. Si tienes problemas para ingresar, acércate a la academia.');
+
+    const pin = generatePIN();
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'registerStudent',
+        docNumber, docType, name, phone, license, schedule,
+        pin, state: 'pending'
+      })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al registrar. Intenta de nuevo.');
+
+    // Show PIN screen
+    document.getElementById('register-form').style.display = 'none';
+    document.getElementById('reg-pin-display').textContent = pin;
+    document.getElementById('register-success').style.display = 'block';
+
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  } finally {
+    loadEl.style.display = 'none';
+  }
+}
+
 async function loginStudent() {
   const docNum = document.getElementById('student-id').value.trim();
-  const errEl = document.getElementById('login-error');
+  const pin    = document.getElementById('student-pin').value.trim();
+  const errEl  = document.getElementById('login-error');
   const loadEl = document.getElementById('login-loading');
 
   if (!docNum) { showError('Ingresa tu número de documento.'); return; }
+  if (!pin)    { showError('Ingresa tu PIN de acceso.'); return; }
 
   const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
   if (!url) {
@@ -1288,10 +1510,26 @@ async function loginStudent() {
   try {
     const ok = await loadData();
     if (!ok) throw new Error('No se pudo conectar a la base de datos.');
+
     const student = STATE.students.find(s => s.docNumber === docNum);
-    if (!student) throw new Error('Documento no encontrado. Verifica el número ingresado o contacta a la academia.');
+    if (!student) throw new Error('Documento no encontrado. Verifica el número o regístrate si es tu primera vez.');
+
+    // Check state
+    if (student.state === 'pending') throw new Error('Tu registro está pendiente de aprobación. La academia te notificará cuando esté activo.');
+
+    // Validate PIN
+    if (!student.pin) throw new Error('Tu cuenta no tiene PIN configurado. Acércate a la academia.');
+    if (student.pin !== pin) throw new Error('PIN incorrecto. Intenta de nuevo.');
+
     STATE.currentUser = { role: 'student', data: student };
     document.querySelector('.logo-container').classList.add('no-click');
+
+    // Check if PIN is temporary — must change
+    if (student.tempPin === 'true' || student.tempPin === true) {
+      showView('view-change-pin');
+      return;
+    }
+
     renderStudentPortal();
     showView('view-student');
   } catch(e) {
@@ -1299,6 +1537,48 @@ async function loginStudent() {
   } finally {
     loadEl.style.display = 'none';
     document.querySelector('#group-student .btn-primary').disabled = false;
+  }
+}
+
+async function submitNewPin() {
+  const pin1  = document.getElementById('new-pin-1').value.trim();
+  const pin2  = document.getElementById('new-pin-2').value.trim();
+  const errEl = document.getElementById('change-pin-error');
+  const loadEl= document.getElementById('change-pin-loading');
+
+  errEl.style.display = 'none';
+
+  if (!pin1 || pin1.length !== 4 || !/^\d{4}$/.test(pin1)) {
+    errEl.textContent = 'El PIN debe ser de exactamente 4 dígitos numéricos.';
+    errEl.style.display = 'block'; return;
+  }
+  if (pin1 !== pin2) {
+    errEl.textContent = 'Los PINs no coinciden. Intenta de nuevo.';
+    errEl.style.display = 'block'; return;
+  }
+
+  const student = STATE.currentUser?.data;
+  if (!student) { showView('view-login'); return; }
+
+  loadEl.style.display = 'block';
+  try {
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateStudentPin', docNumber: student.docNumber, pin: pin1, tempPin: 'false' })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error al guardar el PIN.');
+
+    student.pin = pin1;
+    student.tempPin = 'false';
+    showToast('✓ PIN actualizado exitosamente.', 'success');
+    renderStudentPortal();
+    showView('view-student');
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  } finally {
+    loadEl.style.display = 'none';
   }
 }
 
@@ -1975,6 +2255,16 @@ async function renderCoordinatorPortal() {
   paintCard('mcard-waiting', waiting, 1, 5);
   // Alertas >15d: 1+ = warning, 3+ = danger (always urgent)
   paintCard('mcard-alerts', critical, 1, 3);
+
+  // Pending registrations banner
+  const pending_students = STATE.students.filter(s => s.state === 'pending');
+  const pendingBanner = document.getElementById('coord-pending-banner');
+  if (pending_students.length > 0) {
+    pendingBanner.style.display = 'flex';
+    document.getElementById('coord-pending-count').textContent = pending_students.length;
+  } else {
+    pendingBanner.style.display = 'none';
+  }
 
   // Ready to graduate banner
   const banner = document.getElementById('coord-ready-banner');
@@ -2755,6 +3045,104 @@ async function confirmAssign() {
 }
 
 
+
+// =============================================================================
+// PENDING APPROVAL FUNCTIONS
+// =============================================================================
+const LICENSE_LABELS = { B1:'B1 — Automóvil', B2:'B2 — Camioneta/Bus', A1:'A1 — Moto hasta 125cc', A2:'A2 — Moto +125cc', C1:'C1 — Camión', C2:'C2 — Tractocamión' };
+const SCHEDULE_LABELS = { morning:'Mañanas', afternoon:'Tardes', evening:'Noches', weekend:'Fines de semana', flexible:'Flexible' };
+
+function coordShowPending() {
+  renderPendingList();
+  document.getElementById('pending-modal').classList.add('active');
+}
+
+function closePendingModal() {
+  document.getElementById('pending-modal').classList.remove('active');
+}
+
+function renderPendingList() {
+  const list = document.getElementById('pending-list');
+  const pending = STATE.students.filter(s => s.state === 'pending');
+
+  if (pending.length === 0) {
+    list.innerHTML = '<p class="text-center text-muted" style="padding:2rem">Sin registros pendientes 🎉</p>';
+    return;
+  }
+
+  list.innerHTML = '';
+  pending.forEach(s => {
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:1rem;border:1px solid var(--border-color);border-radius:var(--r-sm);margin-bottom:.75rem;background:rgba(255,255,255,.02)';
+    div.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:700;font-size:.95rem">${s.name}</div>
+          <div style="font-size:.75rem;color:var(--text-muted);margin-top:.15rem">${getDocLabel(s.docType)} ${s.docNumber}</div>
+          <div style="font-size:.75rem;color:var(--text-secondary);margin-top:.35rem;display:flex;gap:1rem;flex-wrap:wrap">
+            ${s.phone ? `<span>📱 ${s.phone}</span>` : ''}
+            ${s.license ? `<span>🚗 ${LICENSE_LABELS[s.license] || s.license}</span>` : ''}
+            ${s.preferredSchedule ? `<span>🕐 ${SCHEDULE_LABELS[s.preferredSchedule] || s.preferredSchedule}</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-shrink:0">
+          <button class="btn-sec" style="font-size:.75rem;padding:.35rem .7rem;color:var(--danger);border-color:rgba(244,63,94,.3)" onclick="rejectStudent('${s.docNumber}')">✕ Rechazar</button>
+          <button class="btn-primary" style="font-size:.75rem;padding:.35rem .7rem;width:auto" onclick="approveStudent('${s.docNumber}')">✓ Aprobar</button>
+        </div>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+async function approveStudent(docNumber) {
+  if (!confirm('¿Aprobar el registro de este alumno?')) return;
+  showToast('Aprobando registro...', 'info');
+  try {
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateStudent', docNumber, field: 'state', value: 'theory_passed' })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error');
+    const s = STATE.students.find(x => x.docNumber === docNumber);
+    if (s) s.state = 'theory_passed';
+    showToast('✓ Alumno aprobado. Ya puede ingresar al portal.', 'success');
+    renderPendingList();
+    renderCoordinatorPortal();
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function rejectStudent(docNumber) {
+  if (!confirm('¿Rechazar y eliminar este registro? Esta acción no se puede deshacer.')) return;
+  showToast('Rechazando registro...', 'info');
+  try {
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deleteStudent', docNumber })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error');
+    STATE.students = STATE.students.filter(s => s.docNumber !== docNumber);
+    showToast('Registro rechazado y eliminado.', 'success');
+    renderPendingList();
+    renderCoordinatorPortal();
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function adminSetTempPin(docNumber) {
+  const tempPin = generatePIN();
+  if (!confirm(`Se asignará el PIN temporal ${tempPin} al alumno. ¿Continuar?\n\nDáselo en mano al alumno. Al ingresar deberá cambiarlo.`)) return;
+  showToast('Asignando PIN temporal...', 'info');
+  try {
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateStudentPin', docNumber, pin: tempPin, tempPin: 'true' })
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Error');
+    showToast(`PIN temporal asignado: ${tempPin} — Entrégalo al alumno.`, 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
 
 // =============================================================================
 // STUDENT PROFILE MODAL (Coordinator / Admin)
