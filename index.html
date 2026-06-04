@@ -470,6 +470,10 @@
     .profile-btn-action.danger:hover{background:var(--danger);color:white}
     .profile-no-inst{text-align:center;padding:1.25rem;background:rgba(255,255,255,.02);border:1px dashed var(--border-color);border-radius:var(--r-md);color:var(--text-muted);font-size:.82rem}
 
+    .reg-pill{padding:.4rem .85rem;border-radius:9999px;border:1px solid var(--border-color);background:rgba(255,255,255,.03);color:var(--text-secondary);font-size:.78rem;cursor:pointer;transition:var(--t-fast);font-family:var(--font-body)}
+    .reg-pill:hover{border-color:var(--brand);color:var(--brand-light)}
+    .reg-pill.selected{background:rgba(59,130,246,.15);border-color:var(--brand);color:var(--brand-light);font-weight:600}
+
     /* MOBILE */
     @media(max-width:640px){
       main{padding:1rem}
@@ -1109,27 +1113,25 @@
           <input type="text" id="reg-phone" class="form-input" placeholder="3001234567" inputmode="numeric" maxlength="10" autocomplete="off">
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
-        <div class="form-group" style="margin-bottom:0">
-          <label>Tipo de licencia</label>
-          <select id="reg-license" class="config-input" style="margin-bottom:0">
-            <option value="B1">B1 — Automóvil</option>
-            <option value="B2">B2 — Camioneta/Bus</option>
-            <option value="A1">A1 — Moto hasta 125cc</option>
-            <option value="A2">A2 — Moto más de 125cc</option>
-            <option value="C1">C1 — Camión</option>
-            <option value="C2">C2 — Tractocamión</option>
-          </select>
+      <div class="form-group">
+        <label>Tipo de licencia <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">(puedes elegir varias)</span></label>
+        <div id="reg-license-pills" style="display:flex;flex-wrap:wrap;gap:.5rem">
+          <button type="button" class="reg-pill" data-val="B1" onclick="togglePill(this,'reg-license-pills')">B1 — Automóvil</button>
+          <button type="button" class="reg-pill" data-val="B2" onclick="togglePill(this,'reg-license-pills')">B2 — Camioneta</button>
+          <button type="button" class="reg-pill" data-val="A1" onclick="togglePill(this,'reg-license-pills')">A1 — Moto -125cc</button>
+          <button type="button" class="reg-pill" data-val="A2" onclick="togglePill(this,'reg-license-pills')">A2 — Moto +125cc</button>
+          <button type="button" class="reg-pill" data-val="C1" onclick="togglePill(this,'reg-license-pills')">C1 — Camión</button>
+          <button type="button" class="reg-pill" data-val="C2" onclick="togglePill(this,'reg-license-pills')">C2 — Tractocamión</button>
         </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label>Disponibilidad horaria</label>
-          <select id="reg-schedule" class="config-input" style="margin-bottom:0">
-            <option value="morning">Mañanas</option>
-            <option value="afternoon">Tardes</option>
-            <option value="evening">Noches</option>
-            <option value="weekend">Fines de semana</option>
-            <option value="flexible">Flexible</option>
-          </select>
+      </div>
+      <div class="form-group">
+        <label>Disponibilidad horaria <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">(puedes elegir varias)</span></label>
+        <div id="reg-schedule-pills" style="display:flex;flex-wrap:wrap;gap:.5rem">
+          <button type="button" class="reg-pill" data-val="morning" onclick="togglePill(this,'reg-schedule-pills')">🌅 Mañanas</button>
+          <button type="button" class="reg-pill" data-val="afternoon" onclick="togglePill(this,'reg-schedule-pills')">☀️ Tardes</button>
+          <button type="button" class="reg-pill" data-val="evening" onclick="togglePill(this,'reg-schedule-pills')">🌙 Noches</button>
+          <button type="button" class="reg-pill" data-val="weekend" onclick="togglePill(this,'reg-schedule-pills')">📅 Fines de semana</button>
+          <button type="button" class="reg-pill" data-val="flexible" onclick="togglePill(this,'reg-schedule-pills')">🔄 Flexible</button>
         </div>
       </div>
       <div id="register-error" class="error-msg" style="display:none;margin-top:.75rem"></div>
@@ -1428,9 +1430,20 @@ function setDocType(btn, type) {
   document.getElementById('doc-label').textContent = 'Número de ' + DOC_LABELS[type];
 }
 
+function togglePill(btn, groupId) {
+  btn.classList.toggle('selected');
+}
+
+function getPillValues(groupId) {
+  return Array.from(document.querySelectorAll('#' + groupId + ' .reg-pill.selected'))
+    .map(b => b.dataset.val).join(',');
+}
+
 function showRegisterView() {
   document.getElementById('register-form').style.display = 'block';
   document.getElementById('register-success').style.display = 'none';
+  // Reset pills
+  document.querySelectorAll('.reg-pill').forEach(p => p.classList.remove('selected'));
   showView('view-register');
 }
 
@@ -1443,16 +1456,16 @@ async function registerStudent() {
   const docNumber = document.getElementById('reg-docNumber').value.trim();
   const name      = document.getElementById('reg-name').value.trim();
   const phone     = document.getElementById('reg-phone').value.trim();
-  const license   = document.getElementById('reg-license').value;
-  const schedule  = document.getElementById('reg-schedule').value;
+  const license   = getPillValues('reg-license-pills');
+  const schedule  = getPillValues('reg-schedule-pills');
   const errEl     = document.getElementById('register-error');
   const loadEl    = document.getElementById('register-loading');
-
-  errEl.style.display = 'none';
 
   if (!docNumber) { errEl.textContent = 'Ingresa tu número de documento.'; errEl.style.display = 'block'; return; }
   if (!name)      { errEl.textContent = 'Ingresa tu nombre completo.'; errEl.style.display = 'block'; return; }
   if (!phone || phone.length < 10) { errEl.textContent = 'Ingresa un número de WhatsApp válido (10 dígitos).'; errEl.style.display = 'block'; return; }
+  if (!license)   { errEl.textContent = 'Selecciona al menos un tipo de licencia.'; errEl.style.display = 'block'; return; }
+  if (!schedule)  { errEl.textContent = 'Selecciona al menos una disponibilidad horaria.'; errEl.style.display = 'block'; return; }
 
   loadEl.style.display = 'block';
 
@@ -1463,15 +1476,22 @@ async function registerStudent() {
     if (exists) throw new Error('Este documento ya está registrado. Si tienes problemas para ingresar, acércate a la academia.');
 
     const pin = generatePIN();
-    const res = await fetch(CONFIG.API_URL, {
+    const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
+    const res = await fetch(url, {
       method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'registerStudent',
-        docNumber, docType, name, phone, license, schedule,
-        pin, state: 'pending'
+        docNumber, docType, name, phone, license, schedule, pin, state: 'pending'
       })
     });
-    const data = await res.json();
+
+    // Handle HTML error responses from Apps Script
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch(e) { throw new Error('Error del servidor. Verifica que el script esté bien implementado con acceso "Cualquier persona, incluso anónimos".'); }
+
     if (!data.success) throw new Error(data.error || 'Error al registrar. Intenta de nuevo.');
 
     // Show PIN screen
