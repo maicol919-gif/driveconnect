@@ -1983,6 +1983,8 @@ function renderStudentPortal() {
     const el = document.getElementById(id);
     if (el) { el.className = 'timeline-step'; el.querySelector('.timeline-marker').textContent = id.includes('theory')?'1':id.includes('instructor')?'2':'3'; }
   });
+
+  const theoryEl = document.getElementById('step-theory');
   if (theoryEl) {
     theoryEl.classList.add('completed');
     theoryEl.querySelector('.timeline-marker').textContent = '✓';
