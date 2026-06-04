@@ -1184,7 +1184,10 @@
       <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--r-sm);padding:.85rem;margin-bottom:1.5rem;font-size:.8rem;color:var(--warning);text-align:left">
         ⚠️ <strong>Este PIN solo se muestra una vez.</strong> Tómale foto o guárdalo ahora. Si lo pierdes, deberás ir a la academia para que te asignen uno nuevo.
       </div>
-      <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:1.25rem">Tu cuenta está pendiente de aprobación por el coordinador. Una vez aprobada podrás ingresar al portal.</p>
+      <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:1.25rem">Tu cuenta está pendiente de aprobación por la administración. Una vez aprobada podrás ingresar al portal.</p>
+      <div style="background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.75rem 1rem;margin-bottom:1.25rem;font-size:.75rem;color:var(--text-muted);text-align:left">
+        📅 Si aprobaste el examen teórico antes de hoy, repórtalo a la administración para que actualicen tu fecha de inicio.
+      </div>
       <button class="btn-primary" onclick="showView('view-login')">
         <span>Entendido, ya lo guardé</span>
       </button>
@@ -1526,10 +1529,14 @@ function daysWaiting(student) {
   return businessDaysBetween(iso, ref);
 }
 
-function formatDate(dateStr) {
+function formatDate(dateStr, long = false) {
   const iso = parseToISO(dateStr);
   if (!iso) return '—';
   const [yr, mo, dy] = iso.split('-');
+  if (long) {
+    const months = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    return `${parseInt(dy)} de ${months[parseInt(mo)-1]} de ${yr}`;
+  }
   return `${dy}/${mo}/${yr}`;
 }
   
@@ -1971,13 +1978,22 @@ function renderStudentPortal() {
   }
 
   // Timeline — 3 steps
-  document.getElementById('student-theory-date').textContent = 'Aprobado el: ' + formatDate(s.theoryPassedDate);
+  document.getElementById('student-theory-date').textContent = 'Aprobado el: ' + formatDate(s.theoryPassedDate, true);
   ['step-theory','step-instructor','step-contact'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.className = 'timeline-step'; el.querySelector('.timeline-marker').textContent = id.includes('theory')?'1':id.includes('instructor')?'2':'3'; }
   });
-  const theoryEl = document.getElementById('step-theory');
-  if (theoryEl) { theoryEl.classList.add('completed'); theoryEl.querySelector('.timeline-marker').textContent = '✓'; }
+  if (theoryEl) {
+    theoryEl.classList.add('completed');
+    theoryEl.querySelector('.timeline-marker').textContent = '✓';
+    const dateEl = document.getElementById('student-theory-date');
+    if (dateEl) dateEl.innerHTML = `Aprobado el: <strong>${formatDate(s.theoryPassedDate, true)}</strong>
+      <span style="display:block;margin-top:.3rem;font-size:.72rem;color:var(--text-muted)">
+        ¿Esta no es tu fecha? 
+        <a href="#" onclick="event.preventDefault()" style="color:var(--brand-light);text-decoration:none" 
+           title="Reporta a la administración para que la corrijan">Repórtala a la administración →</a>
+      </span>`;
+  }
 
   const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
 
@@ -2023,21 +2039,21 @@ function renderInstructorCard(student, instructor) {
       <div class="no-instructor-state">
         <div class="no-instructor-icon">⚠️</div>
         <h4>Plazo vencido sin instructor</h4>
-        <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem">Han pasado <strong>${days} días hábiles</strong> desde tu examen teórico y aún no tienes instructor asignado. Comunícate con la coordinación.</p>
+        <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem">Han pasado <strong>${days} días hábiles</strong> desde tu examen teórico y aún no tienes instructor asignado. Comunícate con la administración.</p>
         ${waUrl
           ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp">
                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-               Escribir a Coordinación
+               Escribir a la Administración
              </a>`
           : `<p style="font-size:.78rem;color:var(--text-muted)">Comunícate directamente con la academia para resolver tu caso.</p>`}
       </div>` : `
       <div class="no-instructor-state">
         <div class="no-instructor-icon">🚗</div>
         <h4>Asignando tu instructor</h4>
-        <p class="mb-2">Tu examen teórico fue aprobado el <strong>${formatDate(student.theoryPassedDate)}</strong>.</p>
+        <p class="mb-2">Tu examen teórico fue aprobado el <strong>${formatDate(student.theoryPassedDate, true)}</strong>.</p>
         <p style="font-size:.8rem;color:var(--text-muted)">La academia está asignándote el instructor más adecuado. Normalmente tarda menos de 48 horas. Vuelve a consultar pronto.</p>
         <div style="margin-top:1rem;padding:.7rem 1rem;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);font-size:.75rem;color:var(--text-muted)">
-          📅 ¿Aprobaste el teórico antes del <strong>${formatDate(student.theoryPassedDate)}</strong>? Repórtalo a la coordinación para que actualicen tu fecha.
+          📅 ¿Aprobaste el teórico antes del <strong>${formatDate(student.theoryPassedDate)}</strong>? Repórtalo a la administración para que actualicen tu fecha.
         </div>
       </div>`;
     return;
@@ -2111,7 +2127,7 @@ async function studentConfirmContact(confirmed) {
     student.contactDate = null;
     STATE.currentUser.data = student;
     renderStudentPortal();
-    toast('⚠ Reporte enviado a la coordinación', 'warning');
+    toast('⚠ Reporte enviado a la administración', 'warning');
     await postData('updateStatus', { docNumber: student.docNumber, state: 'instructor_assigned', contactDate: '' });
     await writeLog(`⚠ ALERTA: Alumno reportó NO haber sido contactado: ${student.name} (${student.docNumber})`);
   }
@@ -2166,7 +2182,7 @@ function renderInstructorPortal() {
     } else if (student.state === 'contacted') {
       actionBtns = `<span style="font-size:.75rem;color:var(--brand-light)">📲 Contactado — esperando que confirme en el portal</span>`;
     } else if (student.state === 'ready_to_graduate') {
-      actionBtns = `<span style="font-size:.75rem;color:var(--success)">🎓 Listo — coordinación cerrará su expediente</span>`;
+      actionBtns = `<span style="font-size:.75rem;color:var(--success)">🎓 Listo — administración cerrará su expediente</span>`;
     } else {
       actionBtns = `<button class="btn-sec" style="font-size:.72rem;padding:.3rem .65rem;border-color:var(--success);color:var(--success)" onclick="instMarkReady('${student.docNumber}')">🎓 Alumno terminó clases</button>`;
     }
