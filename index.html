@@ -694,7 +694,10 @@
       </div>
 
       <div class="glass-panel instructor-card" id="instructor-info-panel">
-        <!-- Dynamic content -->
+        <!-- Dynamic content license 1 -->
+      </div>
+      <div class="glass-panel instructor-card" id="instructor-info-panel-2" style="display:none">
+        <!-- Dynamic content license 2 -->
       </div>
     </div>
   </section>
@@ -1143,15 +1146,16 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Tipo de licencia <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">(puedes elegir varias)</span></label>
+        <label>Tipo de licencia <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">(máximo 2)</span></label>
         <div id="reg-license-pills" style="display:flex;flex-wrap:wrap;gap:.5rem">
-          <button type="button" class="reg-pill" data-val="B1" onclick="togglePill(this,'reg-license-pills')">B1 — Automóvil</button>
-          <button type="button" class="reg-pill" data-val="B2" onclick="togglePill(this,'reg-license-pills')">B2 — Camioneta</button>
-          <button type="button" class="reg-pill" data-val="A1" onclick="togglePill(this,'reg-license-pills')">A1 — Moto -125cc</button>
-          <button type="button" class="reg-pill" data-val="A2" onclick="togglePill(this,'reg-license-pills')">A2 — Moto +125cc</button>
-          <button type="button" class="reg-pill" data-val="C1" onclick="togglePill(this,'reg-license-pills')">C1 — Camión</button>
-          <button type="button" class="reg-pill" data-val="C2" onclick="togglePill(this,'reg-license-pills')">C2 — Tractocamión</button>
+          <button type="button" class="reg-pill" data-val="B1" onclick="toggleLicense(this)">🚗 B1 — Carro particular</button>
+          <button type="button" class="reg-pill" data-val="C1" onclick="toggleLicense(this)">🚌 C1 — Carro público</button>
+          <button type="button" class="reg-pill" data-val="C2" onclick="toggleLicense(this)">🚛 C2 — Carro público pesado</button>
+          <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this)">🏍 A2 — Moto +125cc</button>
+          <button type="button" class="reg-pill" data-val="A1" onclick="toggleLicense(this)">🛵 A1 — Moto -125cc</button>
+          <button type="button" class="reg-pill" data-val="B2" onclick="toggleLicense(this)">🚐 B2 — Camioneta/Bus</button>
         </div>
+        <div id="reg-license-hint" style="font-size:.72rem;color:var(--text-muted);margin-top:.4rem;min-height:1rem"></div>
       </div>
       <div class="form-group">
         <label>Disponibilidad horaria <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">(puedes elegir varias)</span></label>
@@ -1347,6 +1351,10 @@ function normalizeStudent(obj) {
     tempPin: String(k('tempPin') || k('temp_pin') || 'false').trim(),
     phone: String(k('phone') || k('whatsapp') || k('celular') || '').trim(),
     license: String(k('license') || k('licencia') || '').trim(),
+    license2: String(k('license2') || k('licencia2') || '').trim(),
+    instructorId2: String(k('instructorId2') || k('instructor_id2') || '').trim() || null,
+    state2: String(k('state2') || '').trim() || null,
+    contactDate2: String(k('contactDate2') || '').trim() || null,
   };
   // Auto-fix: si tiene instructor asignado pero state sigue en theory_passed, corregir
   if (student.instructorId && student.state === 'theory_passed') {
@@ -1616,6 +1624,24 @@ function setDocType(btn, type) {
   document.getElementById('doc-label').textContent = 'Número de ' + DOC_LABELS[type];
 }
 
+function toggleLicense(btn) {
+  const selected = document.querySelectorAll('#reg-license-pills .reg-pill.selected');
+  const hint = document.getElementById('reg-license-hint');
+  if (btn.classList.contains('selected')) {
+    btn.classList.remove('selected');
+    hint.textContent = '';
+  } else {
+    if (selected.length >= 2) {
+      hint.textContent = '⚠ Máximo 2 licencias por registro.';
+      hint.style.color = 'var(--warning)';
+      return;
+    }
+    btn.classList.add('selected');
+    hint.textContent = selected.length === 1 ? '✓ Dos licencias seleccionadas' : '';
+    hint.style.color = 'var(--success)';
+  }
+}
+
 function togglePill(btn, groupId) {
   btn.classList.toggle('selected');
 }
@@ -1642,8 +1668,10 @@ async function registerStudent() {
   const docNumber = document.getElementById('reg-docNumber').value.trim();
   const name      = document.getElementById('reg-name').value.trim();
   const phone     = document.getElementById('reg-phone').value.trim();
-  const license   = getPillValues('reg-license-pills');
-  const schedule  = getPillValues('reg-schedule-pills');
+  const licenseVals = Array.from(document.querySelectorAll('#reg-license-pills .reg-pill.selected')).map(b => b.dataset.val);
+  const license  = licenseVals[0] || '';
+  const license2 = licenseVals[1] || '';
+  const schedule = getPillValues('reg-schedule-pills');
   const errEl     = document.getElementById('register-error');
   const loadEl    = document.getElementById('register-loading');
 
@@ -1664,7 +1692,7 @@ async function registerStudent() {
     const pin = generatePIN();
     const data = await apiCall({
       action: 'registerStudent',
-      docNumber, docType, name, phone, license, schedule, pin, state: 'pending'
+      docNumber, docType, name, phone, license, license2, schedule, pin, state: 'pending'
     });
 
     if (!data.success) throw new Error(data.error || 'Error al registrar. Intenta de nuevo.');
@@ -2000,10 +2028,9 @@ function renderStudentPortal() {
   }
 
   const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
+  const inst2 = s.instructorId2 ? STATE.instructors.find(i => i.id === s.instructorId2) : null;
 
   if (s.state === 'theory_passed') {
-    const el = document.getElementById('step-instructor');
-    if (el) { el.classList.add('active'); el.querySelector('.timeline-marker').textContent = '2'; }
     document.getElementById('step-instructor-desc').textContent = 'La academia está buscando tu instructor.';
   } else if (s.state === 'instructor_assigned') {
     const si = document.getElementById('step-instructor');
@@ -2027,11 +2054,26 @@ function renderStudentPortal() {
     document.getElementById('student-contact-date').textContent = formatDate(s.contactDate);
   }
 
-  renderInstructorCard(s, inst);
+  // Render instructor panels
+  renderInstructorCard(s, inst, 1);
+  const panel2 = document.getElementById('instructor-info-panel-2');
+  if (s.license2) {
+    panel2.style.display = 'block';
+    renderInstructorCard(s, inst2, 2);
+  } else {
+    panel2.style.display = 'none';
+  }
 }
 
-function renderInstructorCard(student, instructor) {
-  const panel = document.getElementById('instructor-info-panel');
+function renderInstructorCard(student, instructor, slot) {
+  const panelId = slot === 2 ? 'instructor-info-panel-2' : 'instructor-info-panel';
+  const panel = document.getElementById(panelId);
+  const license = slot === 2 ? student.license2 : student.license;
+  const state   = slot === 2 ? (student.state2 || 'theory_passed') : student.state;
+  const contactDate = slot === 2 ? student.contactDate2 : student.contactDate;
+
+  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta/Bus' };
+  const licenseLabel = LICENSE_LABELS[license] || license;
   if (!instructor) {
     const days = daysWaiting(student);
     const overdue = days >= CONFIG.WAIT_DAYS_CRITICAL;
@@ -2067,35 +2109,36 @@ function renderInstructorCard(student, instructor) {
     return;
   }
 
-  const waMsg = `Hola ${instructor.name}, soy ${student.name} (${getDocLabel(student.docType)} ${student.docNumber}). Aprobé mi examen teórico y el sistema me indica que eres mi instructor asignado. Me gustaría coordinar el inicio de mis clases prácticas. ¡Muchas gracias!`;
+  const waMsg = `Hola ${instructor.name}, soy ${student.name} (${getDocLabel(student.docType)} ${student.docNumber}). Estoy registrado para ${licenseLabel} y el sistema me indica que eres mi instructor asignado. Me gustaría coordinar el inicio de mis clases prácticas. ¡Muchas gracias!`;
   const waUrl = `https://wa.me/${instructor.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
 
-  // Confirmation button logic
   let confirmBtn = '';
-  if (student.state === 'contacted') {
+  if (state === 'contacted') {
     confirmBtn = `
       <div style="margin-top:.75rem;border:1px solid rgba(245,158,11,.3);border-radius:var(--r-sm);padding:1rem;background:rgba(245,158,11,.05)">
         <p style="font-size:.8rem;color:var(--warning);font-weight:600;margin-bottom:.65rem">📞 Tu instructor reportó haberte contactado</p>
         <div style="display:flex;gap:.5rem">
-          <button class="btn-success-action" style="margin-top:0;flex:1;padding:.65rem" onclick="studentConfirmContact(true)">
+          <button class="btn-success-action" style="margin-top:0;flex:1;padding:.65rem" onclick="studentConfirmContact(true,${slot})">
             ✅ Sí, ya me contactó
           </button>
-          <button onclick="studentConfirmContact(false)" style="flex:1;padding:.65rem;background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-sm);font-weight:700;cursor:pointer;font-size:.82rem">
+          <button onclick="studentConfirmContact(false,${slot})" style="flex:1;padding:.65rem;background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-sm);font-weight:700;cursor:pointer;font-size:.82rem">
             ❌ Aún no me han contactado
           </button>
         </div>
       </div>`;
-  } else if (student.state === 'contact_confirmed') {
-    confirmBtn = `<div style="margin-top:.75rem;padding:.75rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-sm);font-size:.82rem;color:var(--success);text-align:center">✅ Confirmaste el contacto el ${formatDate(student.contactDate)}</div>`;
+  } else if (state === 'contact_confirmed') {
+    confirmBtn = `<div style="margin-top:.75rem;padding:.75rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-sm);font-size:.82rem;color:var(--success);text-align:center">✅ Confirmaste el contacto el ${formatDate(contactDate, true)}</div>`;
   }
 
   const days = daysWaiting(student);
-  const canContact = days >= CONFIG.WAIT_DAYS_CRITICAL || student.state === 'contacted' || student.state === 'contact_confirmed';
+  const canContact = days >= CONFIG.WAIT_DAYS_CRITICAL || state === 'contacted' || state === 'contact_confirmed';
 
   const initials = instructor.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const gradients = ['linear-gradient(135deg,var(--brand),#6366f1)', 'linear-gradient(135deg,#059669,#0891b2)'];
   panel.innerHTML = `
+    <div style="font-size:.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem">${licenseLabel}</div>
     <div class="instructor-card-header">
-      <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.4rem;font-weight:800;color:white;flex-shrink:0;box-shadow:0 0 0 3px rgba(59,130,246,.2)">${initials}</div>
+      <div style="width:64px;height:64px;border-radius:50%;background:${gradients[(slot||1)-1]};display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.4rem;font-weight:800;color:white;flex-shrink:0;box-shadow:0 0 0 3px rgba(59,130,246,.2)">${initials}</div>
       <div class="instructor-meta">
         <span class="instructor-badge">Tu Instructor Asignado</span>
         <h3>${instructor.name}</h3>
@@ -2116,25 +2159,27 @@ function renderInstructorCard(student, instructor) {
     </div>`;
 }
 
-async function studentConfirmContact(confirmed) {
+async function studentConfirmContact(confirmed, slot = 1) {
   const student = STATE.currentUser.data;
+  const isSlot2 = slot === 2;
+  const stateField = isSlot2 ? 'state2' : 'state';
+  const dateField  = isSlot2 ? 'contactDate2' : 'contactDate';
+
   if (confirmed) {
-    student.state = 'contact_confirmed';
-    student.contactDate = student.contactDate || today();
+    student[stateField] = 'contact_confirmed';
+    student[dateField]  = student[dateField] || today();
     STATE.currentUser.data = student;
     renderStudentPortal();
-    toast('✅ ¡Gracias por confirmar!', 'success');
-    await postData('updateStatus', { docNumber: student.docNumber, state: 'contact_confirmed', contactDate: student.contactDate });
-    await writeLog(`Alumno confirmó contacto con instructor: ${student.name} (${student.docNumber})`);
+    showToast('✅ ¡Gracias por confirmar!', 'success');
+    await apiCall({ action: 'updateStudent', docNumber: student.docNumber, field: stateField, value: 'contact_confirmed' });
+    await apiCall({ action: 'updateStudent', docNumber: student.docNumber, field: dateField, value: student[dateField] });
   } else {
-    // Student says they were NOT contacted — flag it
-    student.state = 'instructor_assigned';
-    student.contactDate = null;
+    student[stateField] = 'instructor_assigned';
+    student[dateField]  = null;
     STATE.currentUser.data = student;
     renderStudentPortal();
-    toast('⚠ Reporte enviado a la administración', 'warning');
-    await postData('updateStatus', { docNumber: student.docNumber, state: 'instructor_assigned', contactDate: '' });
-    await writeLog(`⚠ ALERTA: Alumno reportó NO haber sido contactado: ${student.name} (${student.docNumber})`);
+    showToast('⚠ Reporte enviado a la administración', 'warning');
+    await apiCall({ action: 'updateStudent', docNumber: student.docNumber, field: stateField, value: 'instructor_assigned' });
   }
 }
 
