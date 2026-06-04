@@ -619,15 +619,6 @@
 
   <!-- ===== PORTAL ALUMNO ===== -->
   <section id="view-student" class="view-section">
-    <div id="student-alert-banner" class="alert-card danger">
-      <div class="alert-icon" id="student-alert-icon">⚠️</div>
-      <div class="alert-content">
-        <div class="alert-title" id="student-alert-title">Cargando...</div>
-        <div class="alert-desc" id="student-alert-desc"></div>
-      </div>
-      <div class="alert-counter" id="student-alert-counter" style="display:none">0<span>Días</span></div>
-    </div>
-
     <div class="student-grid">
       <!-- COLUMNA IZQUIERDA: fija -->
       <div>
@@ -1993,56 +1984,13 @@ let _studentActiveLicense = null;
 function renderStudentPortal() {
   const s = STATE.currentUser.data;
   const procs = getStudentProcesos(s.docNumber).filter(p => p.state !== 'completed');
-  const pendingProcs = procs.filter(p => ['theory_passed','instructor_assigned'].includes(p.state));
-  const days = pendingProcs.length > 0 ? Math.max(...pendingProcs.map(p => daysWaiting(p, s))) : 0;
 
   document.getElementById('student-name-title').textContent = 'Hola, ' + s.name.split(' ')[0];
   document.getElementById('student-doc-subtitle').textContent = getDocLabel(s.docType) + ' ' + s.docNumber;
 
   const dateEl = document.getElementById('student-theory-date');
-  if (dateEl) dateEl.innerHTML = '¡Felicitaciones! Aprobado el <strong>' + formatDate(s.theoryPassedDate, true) + '</strong><span style="display:block;margin-top:.25rem;font-size:.72rem;color:var(--text-muted)">¿Esta no es tu fecha? Acércate a la administración para corregirla.</span>';
-
-  const banner = document.getElementById('student-alert-banner');
-  const alertCounter = document.getElementById('student-alert-counter');
-  const overdue     = procs.filter(p => ['theory_passed','instructor_assigned'].includes(p.state) && daysWaiting(p, s) >= CONFIG.WAIT_DAYS_CRITICAL);
-  const warned      = procs.filter(p => ['theory_passed','instructor_assigned'].includes(p.state) && daysWaiting(p, s) >= CONFIG.WAIT_DAYS_WARNING && daysWaiting(p, s) < CONFIG.WAIT_DAYS_CRITICAL);
-  const needConfirm = procs.filter(p => p.state === 'contacted');
-  const allConfirmed = procs.length > 0 && procs.every(p => ['contact_confirmed','practice_started','ready_to_graduate'].includes(p.state));
-
-  if (allConfirmed) {
-    banner.className = 'alert-card success';
-    document.getElementById('student-alert-icon').textContent = '✅';
-    document.getElementById('student-alert-title').textContent = '¡Todo confirmado!';
-    document.getElementById('student-alert-desc').textContent = '¡Felicitaciones! Tu(s) instructor(es) ya te contactaron. ¡Mucho éxito en tus clases!';
-    alertCounter.style.display = 'none';
-  } else if (needConfirm.length > 0) {
-    banner.className = 'alert-card warning';
-    document.getElementById('student-alert-icon').textContent = '📞';
-    document.getElementById('student-alert-title').textContent = needConfirm.length > 1 ? '¿Ya te contactaron tus instructores?' : '¿Ya te contactó tu instructor?';
-    document.getElementById('student-alert-desc').textContent = 'Confirma el contacto desde la licencia correspondiente.';
-    alertCounter.style.display = 'none';
-  } else if (overdue.length > 0) {
-    banner.className = 'alert-card danger';
-    document.getElementById('student-alert-icon').textContent = '🚨';
-    document.getElementById('student-alert-title').textContent = 'Han pasado 20 días hábiles';
-    document.getElementById('student-alert-desc').textContent = 'Se cumplió el plazo en ' + overdue.length + ' proceso(s). Puedes contactar desde la licencia correspondiente.';
-    alertCounter.innerHTML = days + '<span>Días</span>';
-    alertCounter.style.display = 'block';
-  } else if (warned.length > 0) {
-    banner.className = 'alert-card warning';
-    document.getElementById('student-alert-icon').textContent = '⏳';
-    document.getElementById('student-alert-title').textContent = 'Tu instructor te contactará pronto';
-    document.getElementById('student-alert-desc').textContent = 'Llevas ' + days + ' días hábiles. Faltan ' + (CONFIG.WAIT_DAYS_CRITICAL - days) + ' para el límite.';
-    alertCounter.innerHTML = days + '<span>Días</span>';
-    alertCounter.style.display = 'block';
-  } else {
-    banner.className = 'alert-card success';
-    document.getElementById('student-alert-icon').textContent = '😊';
-    document.getElementById('student-alert-title').textContent = '¡Todo en proceso!';
-    document.getElementById('student-alert-desc').textContent = procs.some(p => p.instructorId) ? '¡Ya tienes instructor(es) asignado(s)! Te contactarán pronto.' : 'Pronto te asignaremos un instructor. ¡Estamos en ello!';
-    alertCounter.innerHTML = days + '<span>Días</span>';
-    alertCounter.style.display = days > 0 ? 'block' : 'none';
-  }
+  if (dateEl) dateEl.innerHTML = `¡Felicitaciones! Aprobado el <strong>${formatDate(s.theoryPassedDate, true)}</strong>
+    <span style="display:block;margin-top:.25rem;font-size:.72rem;color:var(--text-muted)">¿Esta no es tu fecha? Acércate a la administración para corregirla.</span>`;
 
   const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const tabsEl = document.getElementById('student-license-tabs');
@@ -2055,15 +2003,22 @@ function renderStudentPortal() {
   }
 
   procsToShow.forEach(proc => {
-    const isActive = proc.license === _studentActiveLicense;
-    const procDays = daysWaiting(proc, s);
-    const hasAlert = procDays >= CONFIG.WAIT_DAYS_CRITICAL && ['theory_passed','instructor_assigned'].includes(proc.state);
+    const isActive  = proc.license === _studentActiveLicense;
+    const procDays  = daysWaiting(proc, s);
+    const isOverdue = procDays >= CONFIG.WAIT_DAYS_CRITICAL && ['theory_passed','instructor_assigned'].includes(proc.state);
+    const isWarning = procDays >= CONFIG.WAIT_DAYS_WARNING && !isOverdue && ['theory_passed','instructor_assigned'].includes(proc.state);
     const needsConfirm = proc.state === 'contacted';
+    const isOk = ['contact_confirmed','practice_started','ready_to_graduate'].includes(proc.state);
+
+    let badge = '';
+    if (isOverdue)      badge = ' <span style="background:var(--danger);color:white;border-radius:9999px;padding:.1rem .45rem;font-size:.65rem;font-weight:800">!</span>';
+    else if (needsConfirm) badge = ' <span style="background:var(--warning);color:white;border-radius:9999px;padding:.1rem .45rem;font-size:.65rem;font-weight:800">?</span>';
+    else if (isWarning) badge = ' <span style="background:var(--warning);color:white;border-radius:9999px;padding:.1rem .45rem;font-size:.65rem;font-weight:800">·</span>';
+    else if (isOk)      badge = ' <span style="color:var(--success);font-size:.75rem">✓</span>';
+
     const btn = document.createElement('button');
-    btn.style.cssText = 'padding:.55rem 1.25rem;border-radius:var(--r-md);font-size:.88rem;font-weight:700;cursor:pointer;transition:var(--t-fast);display:flex;align-items:center;gap:.4rem;border:2px solid ' + (isActive ? 'var(--brand)' : 'var(--border-color)') + ';background:' + (isActive ? 'rgba(59,130,246,.15)' : 'rgba(255,255,255,.03)') + ';color:' + (isActive ? 'white' : 'var(--text-secondary)');
-    btn.innerHTML = (LICENSE_FULL[proc.license] || proc.license || 'Mi proceso') +
-      (hasAlert ? ' <span style="background:var(--danger);color:white;border-radius:9999px;padding:.1rem .4rem;font-size:.65rem;font-weight:700">!</span>' : '') +
-      (needsConfirm ? ' <span style="background:var(--warning);color:white;border-radius:9999px;padding:.1rem .4rem;font-size:.65rem;font-weight:700">!</span>' : '');
+    btn.style.cssText = `padding:.55rem 1.25rem;border-radius:var(--r-md);font-size:.88rem;font-weight:700;cursor:pointer;transition:var(--t-fast);display:flex;align-items:center;gap:.35rem;border:2px solid ${isActive ? 'var(--brand)' : 'var(--border-color)'};background:${isActive ? 'rgba(59,130,246,.15)' : 'rgba(255,255,255,.03)'};color:${isActive ? 'white' : 'var(--text-secondary)'}`;
+    btn.innerHTML = (LICENSE_FULL[proc.license] || proc.license || 'Mi proceso') + badge;
     btn.onclick = () => { _studentActiveLicense = proc.license; renderStudentPortal(); };
     tabsEl.appendChild(btn);
   });
@@ -2130,7 +2085,39 @@ function renderStudentProcessPanel(s, proc) {
   rightPanel.style.overflow = 'hidden';
 
   let rightHTML = `<div style="position:absolute;top:0;left:0;right:0;height:3px;background:${barColor}"></div>`;
+  // Mini-banner contextual por licencia
+  const procDays2 = procDays; // alias
+  let miniBanner = '';
+  if (proc.state === 'contacted') {
+    miniBanner = `<div style="margin-bottom:1rem;padding:.65rem .85rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--r-sm);display:flex;align-items:center;gap:.6rem">
+      <span style="font-size:1.1rem">📞</span>
+      <div><strong style="font-size:.82rem;color:var(--warning)">Tu instructor te contactó</strong><br><span style="font-size:.72rem;color:var(--text-muted)">Confirma si ya fue o no desde abajo</span></div>
+    </div>`;
+  } else if (proc.state === 'contact_confirmed') {
+    miniBanner = `<div style="margin-bottom:1rem;padding:.65rem .85rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-sm);display:flex;align-items:center;gap:.6rem">
+      <span style="font-size:1.1rem">✅</span>
+      <div><strong style="font-size:.82rem;color:var(--success)">¡Contacto confirmado!</strong><br><span style="font-size:.72rem;color:var(--text-muted)">Ya coordinaste con tu instructor</span></div>
+    </div>`;
+  } else if (procDays2 >= CONFIG.WAIT_DAYS_CRITICAL && ['theory_passed','instructor_assigned'].includes(proc.state)) {
+    miniBanner = `<div style="margin-bottom:1rem;padding:.65rem .85rem;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:space-between;gap:.6rem">
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <span style="font-size:1.1rem">🚨</span>
+        <div><strong style="font-size:.82rem;color:var(--danger)">Han pasado ${procDays2} días hábiles</strong><br><span style="font-size:.72rem;color:var(--text-muted)">Se cumplió el plazo — toma acción</span></div>
+      </div>
+      <span style="font-family:var(--font-title);font-size:1.5rem;font-weight:800;color:var(--danger)">${procDays2}<span style="font-size:.65rem;font-weight:400;color:var(--text-muted)">d</span></span>
+    </div>`;
+  } else if (procDays2 >= CONFIG.WAIT_DAYS_WARNING && ['theory_passed','instructor_assigned'].includes(proc.state)) {
+    miniBanner = `<div style="margin-bottom:1rem;padding:.65rem .85rem;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:space-between;gap:.6rem">
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <span style="font-size:1.1rem">⏳</span>
+        <div><strong style="font-size:.82rem;color:var(--warning)">Tu instructor te contactará pronto</strong><br><span style="font-size:.72rem;color:var(--text-muted)">Faltan ${CONFIG.WAIT_DAYS_CRITICAL - procDays2} días hábiles para el límite</span></div>
+      </div>
+      <span style="font-family:var(--font-title);font-size:1.5rem;font-weight:800;color:var(--warning)">${procDays2}<span style="font-size:.65rem;font-weight:400;color:var(--text-muted)">d</span></span>
+    </div>`;
+  }
+
   rightHTML += `<div style="font-size:.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1rem;padding-top:.25rem">${licenseLabel}</div>`;
+  rightHTML += miniBanner;
 
   if (!inst) {
     const coordPhone = CONFIG.COORD_PHONE;
