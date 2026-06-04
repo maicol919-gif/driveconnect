@@ -1991,9 +1991,7 @@ function renderStudentPortal() {
     const dateEl = document.getElementById('student-theory-date');
     if (dateEl) dateEl.innerHTML = `Aprobado el: <strong>${formatDate(s.theoryPassedDate, true)}</strong>
       <span style="display:block;margin-top:.3rem;font-size:.72rem;color:var(--text-muted)">
-        ¿Esta no es tu fecha? 
-        <a href="#" onclick="event.preventDefault()" style="color:var(--brand-light);text-decoration:none" 
-           title="Reporta a la administración para que la corrijan">Repórtala a la administración →</a>
+        ¿Esta no es tu fecha? Acércate a la administración para corregirla.
       </span>`;
   }
 
@@ -2049,13 +2047,17 @@ function renderInstructorCard(student, instructor) {
              </a>`
           : `<p style="font-size:.78rem;color:var(--text-muted)">Comunícate directamente con la academia para resolver tu caso.</p>`}
       </div>` : `
-      <div class="no-instructor-state">
-        <div class="no-instructor-icon">🚗</div>
-        <h4>Asignando tu instructor</h4>
-        <p class="mb-2">Tu examen teórico fue aprobado el <strong>${formatDate(student.theoryPassedDate, true)}</strong>.</p>
-        <p style="font-size:.8rem;color:var(--text-muted)">La academia está asignándote el instructor más adecuado. Normalmente tarda menos de 48 horas. Vuelve a consultar pronto.</p>
-        <div style="margin-top:1rem;padding:.7rem 1rem;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);font-size:.75rem;color:var(--text-muted)">
-          📅 ¿Aprobaste el teórico antes del <strong>${formatDate(student.theoryPassedDate)}</strong>? Repórtalo a la administración para que actualicen tu fecha.
+      <div style="text-align:center;padding:1.5rem 1rem">
+        <div style="font-size:4rem;margin-bottom:1rem;line-height:1">⏳</div>
+        <h3 style="font-family:var(--font-title);font-size:1.3rem;font-weight:800;margin-bottom:.5rem">Estamos en ello</h3>
+        <p style="font-size:.88rem;color:var(--text-secondary);margin-bottom:1.5rem">Tu instructor está siendo asignado. Pronto recibirás su contacto.</p>
+        <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--r-md);padding:1rem">
+          <div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Días hábiles de espera</div>
+          <div style="font-family:var(--font-title);font-size:2.5rem;font-weight:800;color:${days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand-light)'}">${days}</div>
+          <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem">de ${CONFIG.WAIT_DAYS_CRITICAL} días hábiles máximos</div>
+          <div style="margin-top:.75rem;background:rgba(255,255,255,.05);border-radius:9999px;height:6px;overflow:hidden">
+            <div style="height:100%;border-radius:9999px;width:${Math.min(100,Math.round(days/CONFIG.WAIT_DAYS_CRITICAL*100))}%;background:${days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand)'};transition:width .5s"></div>
+          </div>
         </div>
       </div>`;
     return;
