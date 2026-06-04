@@ -2621,35 +2621,31 @@ function renderInstructorLoadPanel() {
   const container = document.getElementById('coord-instructors-load');
   if (!container) return;
   container.innerHTML = '';
-  const maxLoad = Math.max(...STATE.instructors.map(i => STATE.students.filter(s => s.instructorId === i.id).length), 1);
+  const maxLoad = Math.max(...STATE.instructors.map(i => STATE.procesos.filter(p => p.instructorId === i.id && p.state !== 'completed').length), 1);
 
   STATE.instructors.forEach(inst => {
-    const myStudents = STATE.students.filter(s => s.instructorId === inst.id);
-    const slots = parseSchedule(inst.availability || '');
-    const active = myStudents.filter(s => s.state === 'practice_started' || s.state === 'contacted').length;
-    const pend = myStudents.filter(s => s.state === 'instructor_assigned').length;
-    const fillPct = Math.round((myStudents.length / Math.max(maxLoad, 1)) * 100);
-    const pillsHtml = slots.length
-      ? slots.map(sl => { const d = SCHEDULE_SLOTS.find(x=>x.key===sl); return d ? `<span class="pill ${d.css}">${d.icon} ${d.label}</span>` : ''; }).join('')
-      : '<span class="pill pill-any">Flexible</span>';
+    const myProcs = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed');
+    const active  = myProcs.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
+    const pend    = myProcs.filter(p => p.state === 'instructor_assigned').length;
+    const fillPct = Math.round((myProcs.length / Math.max(maxLoad, 1)) * 100);
     const barColor = fillPct > 75 ? 'var(--danger)' : fillPct > 45 ? 'var(--warning)' : 'var(--success)';
+    const initials = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
 
     const div = document.createElement('div');
     div.className = 'instructor-row-card';
-    div.style.flexWrap = 'wrap';
-    div.style.gap = '.75rem';
+    div.style.cssText = 'flex-wrap:wrap;gap:.75rem';
     div.innerHTML = `
       <div class="instructor-row-info" style="flex:1;min-width:200px">
-        <img src="${inst.photo}" alt="${inst.name}" class="instructor-row-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(inst.name)}&background=1e293b&color=60a5fa&size=80'">
+        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:.85rem;font-weight:800;color:white;flex-shrink:0">${initials}</div>
         <div>
           <div class="instructor-row-name">${inst.name}</div>
-          <div class="schedule-pills" style="margin-top:.3rem">${pillsHtml}</div>
+          <div style="font-size:.72rem;color:var(--text-muted);margin-top:.15rem">${myProcs.length} proceso(s) activo(s)</div>
         </div>
       </div>
       <div style="flex:1;min-width:180px">
         <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-muted);margin-bottom:.3rem">
-          <span>Carga: <strong style="color:white">${myStudents.length}</strong> alumnos</span>
-          <span style="font-size:.68rem">Activos: <strong style="color:var(--success)">${active}</strong> | Pendientes: <strong style="color:var(--warning)">${pend}</strong></span>
+          <span>Carga: <strong style="color:white">${myProcs.length}</strong></span>
+          <span>Confirmados: <strong style="color:var(--success)">${active}</strong> | Pendientes: <strong style="color:var(--warning)">${pend}</strong></span>
         </div>
         <div class="inst-load-bar-bg"><div class="inst-load-bar-fill" style="width:${fillPct}%;background:${barColor}"></div></div>
       </div>`;
@@ -3041,36 +3037,39 @@ async function toggleCoordinator(username) {
 // ── ALUMNOS ──────────────────────────────────────────────
 function renderAdminStudents() {
   const search = (document.getElementById('admin-st-search')?.value || '').toLowerCase();
-  let list = [...STATE.students];
+  let list = [...STATE.students].filter(s => s.active !== 'false');
   if (search) list = list.filter(s => s.name.toLowerCase().includes(search) || s.docNumber.includes(search));
-  list.sort((a,b) => daysWaiting(b) - daysWaiting(a));
+  list.sort((a,b) => {
+    const pa = getStudentProcesos(a.docNumber), pb = getStudentProcesos(b.docNumber);
+    const da = pa.length ? Math.max(...pa.map(p => daysWaiting(p,a))) : 0;
+    const db = pb.length ? Math.max(...pb.map(p => daysWaiting(p,b))) : 0;
+    return db - da;
+  });
   const tbody = document.getElementById('admin-st-tbody');
   if (!tbody) return;
   tbody.innerHTML = '';
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary" style="padding:2rem">Sin resultados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary" style="padding:2rem">Sin resultados</td></tr>';
     return;
   }
-  const stateLabels = { theory_passed:'⏳ Sin instructor', instructor_assigned:'👤 Pendiente contacto', contacted:'📞 Contactado (sin confirmar)', contact_confirmed:'✅ Confirmado', practice_started:'📞 Contactado (sin confirmar)' };
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
   list.forEach(s => {
-    const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
-    const days = daysWaiting(s);
-    const cls = days > 15 ? 'danger' : days >= 8 ? 'warning' : 'success';
+    const procs = getStudentProcesos(s.docNumber).filter(p => p.state !== 'completed');
+    const maxDays = procs.length ? Math.max(...procs.map(p => daysWaiting(p, s))) : 0;
+    const cls = maxDays > CONFIG.WAIT_DAYS_CRITICAL ? 'danger' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'warning' : 'success';
+    const licsBadges = procs.map(p => `<span style="font-size:.65rem;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .4rem;color:var(--brand-light)">${LICENSE_LABELS[p.license]||p.license}</span>`).join(' ');
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${s.name}</strong></td>
+      <td><strong>${s.name}</strong><div style="margin-top:.2rem">${licsBadges}</div></td>
       <td><code style="font-size:.72rem">${s.docType} ${s.docNumber}</code></td>
-      <td style="font-size:.78rem">${stateLabels[s.state]||s.state}</td>
-      <td style="font-size:.78rem">${inst?inst.name:'<span class="text-muted">—</span>'}</td>
-      <td><span class="wait-badge ${cls}">${days}d</span></td>
+      <td style="font-size:.78rem">${formatDate(s.theoryPassedDate, true)}</td>
+      <td><span class="wait-badge ${cls}">${maxDays}d</span></td>
       <td style="display:flex;gap:.35rem;flex-wrap:wrap">
         <button class="btn-sec" style="font-size:.7rem;padding:.25rem .5rem" onclick="openStudentProfile('${s.docNumber}')">🗂 Perfil</button>
-        <button class="btn-sec" style="font-size:.7rem;padding:.25rem .5rem" onclick="openModal('${s.docNumber}')">🔄 Reasignar</button>
-        <button class="btn-sec" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminChangeState('${s.docNumber}')">✏️ Estado</button>
+        <button class="btn-sec" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminSetTempPin('${s.docNumber}')">🔑 PIN</button>
       </td>`;
     tbody.appendChild(tr);
   });
-  // Wire search
   const searchEl = document.getElementById('admin-st-search');
   if (searchEl && !searchEl.dataset.wired) {
     searchEl.dataset.wired = '1';
@@ -3098,23 +3097,33 @@ async function adminAddStudent() {
   setTimeout(() => { msg.textContent = ''; }, 4000);
 }
 
-function adminChangeState(docNumber) {
+function adminChangeState(docNumber, license) {
   const s = STATE.students.find(st => st.docNumber === docNumber);
   if (!s) return;
+  const procs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
+  if (!procs.length) { showToast('Este alumno no tiene procesos activos.', 'warning'); return; }
+
   const ex = document.getElementById('state-modal'); if (ex) ex.remove();
-  const states = ['theory_passed','instructor_assigned','contacted','practice_started'];
-  const labels = { theory_passed:'Sin instructor', instructor_assigned:'Pendiente contacto', contacted:'Contactado sin confirmar', contact_confirmed:'Confirmado por alumno', practice_started:'Contactado sin confirmar' };
+  const states = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','ready_to_graduate'];
+  const labels = { theory_passed:'Sin instructor', instructor_assigned:'Pendiente contacto', contacted:'Contactado sin confirmar', contact_confirmed:'Confirmado por alumno', practice_started:'En práctica', ready_to_graduate:'Listo para cerrar' };
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+
+  const procOptions = procs.map(p => `<option value="${p.license}" ${p.license===license?'selected':''}>${LICENSE_LABELS[p.license]||p.license}</option>`).join('');
+  const selProc = license ? procs.find(p => p.license === license) : procs[0];
+
   const modal = document.createElement('div');
   modal.id = 'state-modal'; modal.className = 'modal-overlay active';
   modal.innerHTML = `
-    <div class="modal-content" style="max-width:360px">
+    <div class="modal-content" style="max-width:380px">
       <div class="modal-header"><h3>Cambiar estado — ${s.name}</h3>
         <button class="btn-close-modal" onclick="document.getElementById('state-modal').remove()">&times;</button></div>
-      <div class="modal-body">
-        <label class="config-label">Nuevo estado</label>
-        <select id="new-state-sel" class="config-input">
-          ${states.map(st => `<option value="${st}" ${s.state===st?'selected':''}>${labels[st]}</option>`).join('')}
-        </select>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:.75rem">
+        ${procs.length > 1 ? `<div><label class="config-label">Licencia</label>
+          <select id="state-lic-sel" class="config-input" style="margin-bottom:0">${procOptions}</select></div>` : `<input type="hidden" id="state-lic-sel" value="${procs[0].license}">`}
+        <div><label class="config-label">Nuevo estado</label>
+          <select id="new-state-sel" class="config-input" style="margin-bottom:0">
+            ${states.map(st => `<option value="${st}" ${selProc?.state===st?'selected':''}>${labels[st]}</option>`).join('')}
+          </select></div>
       </div>
       <div class="modal-footer">
         <button class="btn-action-cancel" onclick="document.getElementById('state-modal').remove()">Cancelar</button>
@@ -3126,13 +3135,21 @@ function adminChangeState(docNumber) {
 
 async function confirmStateChange(docNumber) {
   const newState = document.getElementById('new-state-sel').value;
-  const s = STATE.students.find(st => st.docNumber === docNumber);
+  const license  = document.getElementById('state-lic-sel').value;
   document.getElementById('state-modal').remove();
-  await postData('updateStatus', { docNumber, state: newState, contactDate: s.contactDate||'', practiceStartDate: s.practiceStartDate||'' });
-  await writeLog(`Estado cambiado: ${s.name} → ${newState}`);
-  s.state = newState;
-  toast('✅ Estado actualizado', 'success');
-  renderAdminStudents();
+
+  const proc = getProceso(docNumber, license);
+  if (proc) proc.state = newState;
+
+  const data = await apiCall({ action: 'updateProceso', docNumber, license, field: 'state', value: newState });
+  if (data?.success) {
+    showToast('✅ Estado actualizado', 'success');
+  } else {
+    showToast('Error al actualizar estado', 'error');
+  }
+  // Refresh
+  if (STATE.currentUser?.role === 'admin') renderAdminStudents();
+  else renderCoordinatorPortal();
 }
 
 // ── LOGS ─────────────────────────────────────────────────
@@ -3478,26 +3495,28 @@ function openStudentProfile(docNumber) {
   _profileDocNumber = docNumber;
   const s = STATE.students.find(st => st.docNumber === docNumber);
   if (!s) return;
-  const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
-  const days = daysWaiting(s);
+  const procs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
+  const maxDays = procs.length ? Math.max(...procs.map(p => daysWaiting(p, s))) : 0;
+  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
 
-  // Avatar initials
   const initials = s.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
   document.getElementById('profile-avatar').textContent = initials;
-
-  // Name / doc
   document.getElementById('profile-name').textContent = s.name;
   document.getElementById('profile-doc').textContent = getDocLabel(s.docType) + ' ' + s.docNumber;
 
-  // State pill
+  // State pill — most urgent proceso
+  const urgentProc = procs.sort((a,b) => {
+    const order = ['theory_passed','instructor_assigned','contacted','contact_confirmed','ready_to_graduate'];
+    return order.indexOf(a.state) - order.indexOf(b.state);
+  })[0];
   const stateMap = {
-    theory_passed:        { label:'⏳ Sin instructor',          cls:'s-pending' },
-    instructor_assigned:  { label:'👤 Pendiente contacto',      cls:'s-assigned' },
-    contacted:            { label:'📞 Contactado (sin confirmar)',cls:'s-contacted' },
-    contact_confirmed:    { label:'✅ Contacto confirmado',      cls:'s-confirmed' },
-    practice_started:     { label:'🚗 En práctica',              cls:'s-practice' },
+    theory_passed:       { label:'⏳ Sin instructor',           cls:'s-pending' },
+    instructor_assigned: { label:'👤 Pendiente contacto',       cls:'s-assigned' },
+    contacted:           { label:'📞 Contactado (sin confirmar)',cls:'s-contacted' },
+    contact_confirmed:   { label:'✅ Contacto confirmado',       cls:'s-confirmed' },
+    ready_to_graduate:   { label:'🎓 Listo para cerrar',         cls:'s-confirmed' },
   };
-  const st = stateMap[s.state] || { label: s.state, cls: 's-pending' };
+  const st = urgentProc ? (stateMap[urgentProc.state] || { label: urgentProc.state, cls:'s-pending' }) : { label:'Sin procesos', cls:'s-pending' };
   const pill = document.getElementById('profile-state-pill');
   pill.textContent = st.label;
   pill.className = 'profile-state-pill ' + st.cls;
@@ -3505,8 +3524,8 @@ function openStudentProfile(docNumber) {
   // Wait chip
   const chipEl = document.getElementById('profile-wait-chip');
   const numEl  = document.getElementById('profile-wait-num');
-  numEl.textContent = days;
-  chipEl.className = 'profile-wait-chip ' + (days > 15 ? 'crit' : days >= 8 ? 'warn' : 'ok');
+  numEl.textContent = maxDays;
+  chipEl.className = 'profile-wait-chip ' + (maxDays > CONFIG.WAIT_DAYS_CRITICAL ? 'crit' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'warn' : 'ok');
 
   // Meta chips
   const chips = document.getElementById('profile-meta-chips');
@@ -3519,86 +3538,88 @@ function openStudentProfile(docNumber) {
     chips.appendChild(c);
   };
   addChip('📋', s.docType);
-  if (s.theoryPassedDate) addChip('🎓', 'Teórico: ' + formatDate(s.theoryPassedDate));
-  if (s.preferredSchedule) addChip('🕐', s.preferredSchedule);
+  if (s.theoryPassedDate) addChip('🎓', 'Teórico: ' + formatDate(s.theoryPassedDate, true));
+  if (s.phone) addChip('📱', s.phone);
+  procs.forEach(p => addChip('🚗', LICENSE_LABELS[p.license] || p.license));
 
-  // Timeline
+  // Timeline — one per proceso
   const tl = document.getElementById('profile-timeline');
   tl.innerHTML = '';
-  const steps = [
-    {
-      label: 'Examen teórico aprobado',
-      date: s.theoryPassedDate,
-      done: true,
-      active: false,
-    },
-    {
-      label: 'Instructor asignado',
-      date: inst ? (s.contactDate ? null : null) : null,
-      extraLabel: inst ? inst.name : null,
-      done: !!s.instructorId && s.state !== 'theory_passed',
-      active: s.state === 'theory_passed',
-    },
-    {
-      label: 'Primer contacto',
-      date: s.contactDate,
-      done: ['contacted','contact_confirmed','practice_started'].includes(s.state),
-      active: s.state === 'instructor_assigned',
-    },
-    {
-      label: 'Contacto confirmado por alumno',
-      date: s.state === 'contact_confirmed' ? s.contactDate : null,
-      done: ['contact_confirmed','practice_started'].includes(s.state),
-      active: s.state === 'contacted',
-    },
-    {
-      label: 'Clases prácticas iniciadas',
-      date: s.practiceStartDate,
-      done: s.state === 'practice_started',
-      active: false,
-    },
-  ];
-  steps.forEach(step => {
-    const dotClass = step.done ? 'done' : step.active ? 'active' : 'pending';
-    const dotIcon  = step.done ? '✓' : step.active ? '●' : '○';
-    const div = document.createElement('div');
-    div.className = 'profile-tl-step';
-    div.innerHTML = `
-      <div class="profile-tl-dot ${dotClass}">${dotIcon}</div>
-      <div class="profile-tl-content">
-        <div class="profile-tl-title" style="color:${step.done ? 'var(--text-secondary)' : step.active ? 'white' : 'var(--text-muted)'}">${step.label}${step.extraLabel ? ` — <strong style="color:var(--brand-light)">${step.extraLabel}</strong>` : ''}</div>
-        ${step.date ? `<div class="profile-tl-date">${formatDate(step.date)}</div>` : step.active ? `<div class="profile-tl-date" style="color:var(--brand-light);font-style:italic">Etapa actual · ${days}d esperando</div>` : ''}
-      </div>`;
-    tl.appendChild(div);
+
+  // Theory step (shared)
+  const theoryDiv = document.createElement('div');
+  theoryDiv.className = 'profile-tl-step';
+  theoryDiv.innerHTML = `<div class="profile-tl-dot done">✓</div>
+    <div class="profile-tl-content">
+      <div class="profile-tl-title" style="color:var(--text-secondary)">Examen teórico aprobado</div>
+      <div class="profile-tl-date">${formatDate(s.theoryPassedDate, true)}</div>
+    </div>`;
+  tl.appendChild(theoryDiv);
+
+  // Per-proceso steps
+  procs.forEach(proc => {
+    const inst = proc.instructorId ? STATE.instructors.find(i => i.id === proc.instructorId) : null;
+    const procDays = daysWaiting(proc, s);
+    const licLabel = LICENSE_LABELS[proc.license] || proc.license;
+
+    const header = document.createElement('div');
+    header.style.cssText = 'margin-top:.75rem;margin-bottom:.35rem;font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding-left:2rem';
+    header.textContent = licLabel;
+    tl.appendChild(header);
+
+    [
+      { label: 'Instructor asignado', extraLabel: inst?.name, done: !!proc.instructorId, active: !proc.instructorId },
+      { label: 'Primer contacto', date: proc.contactDate, done: ['contacted','contact_confirmed','ready_to_graduate'].includes(proc.state), active: proc.state === 'instructor_assigned', days: procDays },
+      { label: 'Confirmado por alumno', date: proc.state === 'contact_confirmed' ? proc.contactDate : null, done: ['contact_confirmed','ready_to_graduate'].includes(proc.state), active: proc.state === 'contacted' },
+    ].forEach(step => {
+      const dotClass = step.done ? 'done' : step.active ? 'active' : 'pending';
+      const dotIcon  = step.done ? '✓' : step.active ? '●' : '○';
+      const div = document.createElement('div');
+      div.className = 'profile-tl-step';
+      div.innerHTML = `
+        <div class="profile-tl-dot ${dotClass}">${dotIcon}</div>
+        <div class="profile-tl-content">
+          <div class="profile-tl-title" style="color:${step.done?'var(--text-secondary)':step.active?'white':'var(--text-muted)'}">${step.label}${step.extraLabel?` — <strong style="color:var(--brand-light)">${step.extraLabel}</strong>`:''}
+          </div>
+          ${step.date ? `<div class="profile-tl-date">${formatDate(step.date, true)}</div>` : step.active && step.days ? `<div class="profile-tl-date" style="color:var(--brand-light);font-style:italic">Etapa actual · ${step.days}d hábiles</div>` : ''}
+        </div>`;
+      tl.appendChild(div);
+    });
   });
 
-  // Instructor box
+  // Instructor boxes — one per proceso with instructor
   const instBox = document.getElementById('profile-inst-box');
-  if (inst) {
-    const waMsg = `Hola ${inst.name}, te contacto de parte de la coordinación. El alumno ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}) lleva ${days} día(s) esperando contacto.`;
-    const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
-    const instInitials2 = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-    instBox.innerHTML = `
-      <div class="profile-instructor-box">
-        <div style="width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.1rem;font-weight:800;color:white;flex-shrink:0">${instInitials2}</div>
+  const withInst = procs.filter(p => p.instructorId);
+  if (withInst.length === 0) {
+    instBox.innerHTML = `<div class="profile-no-inst">🚗 Sin instructor asignado aún.</div>`;
+  } else {
+    instBox.innerHTML = '';
+    withInst.forEach(proc => {
+      const inst = STATE.instructors.find(i => i.id === proc.instructorId);
+      if (!inst) return;
+      const waMsg = `Hola ${inst.name}, te contacto de parte de la coordinación sobre el alumno ${s.name} (${s.docNumber}) — proceso ${LICENSE_LABELS[proc.license]||proc.license}.`;
+      const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+      const instInitials = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const div = document.createElement('div');
+      div.className = 'profile-instructor-box';
+      div.style.marginBottom = '.65rem';
+      div.innerHTML = `
+        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1rem;font-weight:800;color:white;flex-shrink:0">${instInitials}</div>
         <div style="flex:1">
-          <div class="profile-inst-name">${inst.name}</div>
+          <div class="profile-inst-name">${inst.name} <span style="font-size:.7rem;color:var(--text-muted);font-weight:400">(${LICENSE_LABELS[proc.license]||proc.license})</span></div>
           <div class="profile-inst-meta">📞 ${inst.phone}</div>
           <div class="profile-inst-actions">
-            <a href="${waUrl}" target="_blank" class="btn-whatsapp" style="padding:.45rem .85rem;font-size:.75rem">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-              WhatsApp instructor
+            <a href="${waUrl}" target="_blank" class="btn-whatsapp" style="padding:.35rem .75rem;font-size:.72rem">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+              WhatsApp
             </a>
           </div>
-        </div>
-      </div>`;
-  } else {
-    instBox.innerHTML = `<div class="profile-no-inst">🚗 Aún no se ha asignado instructor a este alumno.<br><button class="btn-primary" style="width:auto;padding:.5rem 1.1rem;font-size:.8rem;margin-top:.75rem;display:inline-flex" onclick="closeStudentProfile();openModal('${s.docNumber}')">+ Asignar instructor ahora</button></div>`;
+        </div>`;
+      instBox.appendChild(div);
+    });
   }
 
-  // Show/hide reassign based on whether instructor exists
-  document.getElementById('profile-btn-reassign').style.display = inst ? 'flex' : 'none';
-
+  document.getElementById('profile-btn-reassign').style.display = withInst.length ? 'flex' : 'none';
   document.getElementById('student-profile-modal').classList.add('active');
 }
 
@@ -3632,20 +3653,7 @@ function toggleFaq(btn) {
 // =============================================================================
 // TOAST
 // =============================================================================
-function toast(msg, type = 'info') {
-  const prev = document.getElementById('dc-toast');
-  if (prev) prev.remove();
-  const el = document.createElement('div');
-  el.id = 'dc-toast';
-  const colors = { success: 'var(--success)', danger: 'var(--danger)', warning: 'var(--warning)', info: 'var(--brand)' };
-  el.style.cssText = `position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;padding:.85rem 1.25rem;border-radius:8px;font-weight:600;color:${type==='warning'?'#000':'white'};background:${colors[type]||colors.info};box-shadow:0 10px 25px rgba(0,0,0,.5);animation:slideIn .3s ease;font-size:.88rem`;
-  el.textContent = msg;
-  document.body.appendChild(el);
-  const style = document.createElement('style');
-  style.textContent = '@keyframes slideIn{from{transform:translateY(80px);opacity:0}to{transform:translateY(0);opacity:1}}';
-  document.head.appendChild(style);
-  setTimeout(() => el.remove(), 4000);
-}
+function toast(msg, type = 'info') { showToast(msg, type); }
 
 // =============================================================================
 // INIT
