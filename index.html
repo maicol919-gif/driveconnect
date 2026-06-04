@@ -2495,7 +2495,7 @@ function renderCoordInstructors() {
   }
   container.innerHTML = '';
   STATE.instructors.forEach(inst => {
-    const load = STATE.students.filter(s => s.instructorId === inst.id).length;
+    const load = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== "completed").length;
     const isActive = inst.active !== 'false' && inst.active !== false;
     const slots = parseSchedule(inst.availability || '');
     const pillsHtml = slots.length
@@ -2506,7 +2506,7 @@ function renderCoordInstructors() {
     row.style.cssText = 'flex-wrap:wrap;gap:.75rem;opacity:' + (isActive ? '1' : '.5');
     row.innerHTML = `
       <div class="instructor-row-info" style="flex:1;min-width:200px">
-        <img src="${inst.photo}" class="instructor-row-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(inst.name)}&background=1e293b&color=60a5fa&size=80'">
+        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:.8rem;font-weight:800;color:white;flex-shrink:0">${inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()}</div>
         <div>
           <div class="instructor-row-name">${inst.name} ${!isActive?'<span class="badge red" style="font-size:.6rem">Inactivo</span>':''}</div>
           <div class="text-muted" style="font-size:.7rem">📞 ${inst.phone}</div>
@@ -2681,19 +2681,23 @@ async function renderAdminPortal() {
   document.getElementById('admin-last-sync').textContent = STATE.cloudConnected ? 'Último sync: ' + now : 'Sin datos — presiona Verificar conexión';
 
   // Only render metrics if we have data
-  const total = STATE.students.length;
-  const unassigned = STATE.students.filter(s => !s.instructorId || s.state === 'theory_passed').length;
-  const critical = STATE.students.filter(s => {
-    const p = s.state === 'theory_passed' || s.state === 'instructor_assigned';
-    return p && daysWaiting(s) >= 15;
+  const activeStudents = STATE.students.filter(s => s.active !== 'false');
+  const activeProcs    = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
+  const unassigned     = STATE.procesos.filter(p => p.state === 'theory_passed').length;
+  const critical       = activeProcs.filter(p => {
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    return ['theory_passed','instructor_assigned'].includes(p.state) && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
   }).length;
-  const pending = STATE.students.filter(s => s.state === 'theory_passed' || s.state === 'instructor_assigned');
-  const avg = pending.length ? Math.round(pending.reduce((a,s) => a + daysWaiting(s), 0) / pending.length) : 0;
+  const pendingProcs = activeProcs.filter(p => ['theory_passed','instructor_assigned'].includes(p.state));
+  const avg = pendingProcs.length ? Math.round(pendingProcs.reduce((a,p) => {
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    return a + daysWaiting(p, st);
+  }, 0) / pendingProcs.length) : 0;
 
-  document.getElementById('metric-total').textContent = total || '—';
+  document.getElementById('metric-total').textContent = activeStudents.length || '—';
   document.getElementById('metric-unassigned').textContent = unassigned || '—';
   document.getElementById('metric-alerts').textContent = critical || '—';
-  document.getElementById('metric-avg').textContent = total ? avg + 'd' : '—';
+  document.getElementById('metric-avg').textContent = activeStudents.length ? avg + 'd' : '—';
 
   const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
   const urlDisplay = document.getElementById('bd-url-display');
@@ -2818,7 +2822,7 @@ function renderAdminInstructors() {
   }
   container.innerHTML = '';
   STATE.instructors.forEach(inst => {
-    const load = STATE.students.filter(s => s.instructorId === inst.id).length;
+    const load = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== "completed").length;
     const isActive = inst.active !== 'false' && inst.active !== false;
     const slots = parseSchedule(inst.availability || '');
     const pillsHtml = slots.length
@@ -2829,7 +2833,7 @@ function renderAdminInstructors() {
     row.style.cssText = 'flex-wrap:wrap;gap:.75rem;opacity:' + (isActive ? '1' : '.5');
     row.innerHTML = `
       <div class="instructor-row-info" style="flex:1;min-width:220px">
-        <img src="${inst.photo}" class="instructor-row-photo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(inst.name)}&background=1e293b&color=60a5fa&size=80'">
+        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:.8rem;font-weight:800;color:white;flex-shrink:0">${inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase()}</div>
         <div>
           <div class="instructor-row-name">${inst.name} ${!isActive ? '<span class="badge red" style="font-size:.6rem">Inactivo</span>' : ''}</div>
           <div class="text-muted" style="font-size:.7rem">${inst.specialty} · ${inst.phone}</div>
@@ -3323,7 +3327,7 @@ function openModal(docNumber) {
 
   // Build instructor options sorted: compatible + less load first
   const withMeta = STATE.instructors.map(i => {
-    const load = STATE.students.filter(s => s.instructorId === i.id).length;
+    const load = STATE.procesos.filter(p => p.instructorId === i.id && p.state !== 'completed').length;
     const iSlots = parseSchedule(i.availability || '');
     const match = scheduleMatch(iSlots, studSlots); // true / false / null
     return { ...i, load, iSlots, match };
