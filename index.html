@@ -1460,6 +1460,37 @@ function businessDaysBetween(d1Str, d2Str) {
   return count;
 }
 
+function parseToISO(dateVal) {
+  if (!dateVal) return null;
+  const s = String(dateVal).trim();
+  if (!s || s === '0' || s === '') return null;
+
+  // Ya es YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+
+  // Número serial de Google Sheets (días desde 1899-12-30)
+  if (/^\d{5}$/.test(s)) {
+    const d = new Date(Date.UTC(1899, 11, 30) + parseInt(s) * 86400000);
+    return d.toISOString().split('T')[0];
+  }
+
+  // Formatos D/M/YYYY o M/D/YYYY — en Sheets Colombia usa D/M/YYYY
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    const day = slash[1].padStart(2,'0');
+    const mon = slash[2].padStart(2,'0');
+    const yr  = slash[3];
+    return `${yr}-${mon}-${day}`;
+  }
+
+  // Último recurso — dejar que JS lo parsee
+  try {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  } catch(e) {}
+  return null;
+}
+
 function daysBetween(d1, d2) {
   const a = new Date(d1), b = new Date(d2);
   a.setHours(0,0,0,0); b.setHours(0,0,0,0);
@@ -1467,27 +1498,20 @@ function daysBetween(d1, d2) {
 }
 
 function daysWaiting(student) {
-  if (!student.theoryPassedDate) return 0;
+  const raw = student.theoryPassedDate;
+  const iso = parseToISO(raw);
+  if (!iso) return 0;
   const ref = (['theory_passed','instructor_assigned'].includes(student.state))
     ? today()
-    : (student.contactDate || today());
-  return businessDaysBetween(student.theoryPassedDate, ref);
+    : parseToISO(student.contactDate) || today();
+  return businessDaysBetween(iso, ref);
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  try {
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) {
-      const day = String(d.getUTCDate()).padStart(2, '0');
-      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-      const year = d.getUTCFullYear();
-      return `${day}/${month}/${year}`;
-    }
-  } catch(e) {}
-  const parts = String(dateStr).split('-');
-  if (parts.length === 3) return `${parts[2].substring(0,2)}/${parts[1]}/${parts[0]}`;
-  return dateStr;
+  const iso = parseToISO(dateStr);
+  if (!iso) return '—';
+  const [yr, mo, dy] = iso.split('-');
+  return `${dy}/${mo}/${yr}`;
 }
   
 function translateState(state) {
