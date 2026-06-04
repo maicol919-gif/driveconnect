@@ -634,6 +634,7 @@
           <div>
             <h2 id="student-name-title" style="font-family:var(--font-title);font-size:1.6rem;font-weight:800"></h2>
             <p class="text-secondary" id="student-doc-subtitle" style="font-size:.86rem"></p>
+            <div id="student-license-badges" style="display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap"></div>
           </div>
           <button class="btn-sec" onclick="logout()" style="padding:.45rem .75rem;font-size:.78rem">Salir</button>
         </div>
@@ -693,11 +694,13 @@
         </div>
       </div>
 
-      <div class="glass-panel instructor-card" id="instructor-info-panel">
-        <!-- Dynamic content license 1 -->
-      </div>
-      <div class="glass-panel instructor-card" id="instructor-info-panel-2" style="display:none">
-        <!-- Dynamic content license 2 -->
+      <div id="instructor-panels-col" style="display:flex;flex-direction:column;gap:1.5rem">
+        <div class="glass-panel instructor-card" id="instructor-info-panel">
+          <!-- Dynamic content license 1 -->
+        </div>
+        <div class="glass-panel instructor-card" id="instructor-info-panel-2" style="display:none">
+          <!-- Dynamic content license 2 -->
+        </div>
       </div>
     </div>
   </section>
@@ -1965,6 +1968,19 @@ function renderStudentPortal() {
   const s = STATE.currentUser.data;
   document.getElementById('student-name-title').textContent = 'Hola, ' + s.name.split(' ')[0];
   document.getElementById('student-doc-subtitle').textContent = getDocLabel(s.docType) + ' ' + s.docNumber;
+
+  // License badges
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+  const badgesEl = document.getElementById('student-license-badges');
+  if (badgesEl) {
+    badgesEl.innerHTML = '';
+    [s.license, s.license2].filter(Boolean).forEach(lic => {
+      const span = document.createElement('span');
+      span.style.cssText = 'background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);border-radius:9999px;padding:.2rem .65rem;font-size:.72rem;font-weight:600;color:var(--brand-light)';
+      span.textContent = LICENSE_LABELS[lic] || lic;
+      badgesEl.appendChild(span);
+    });
+  }
 
   const days = daysWaiting(s);
   const pending = s.state === 'theory_passed' || s.state === 'instructor_assigned';
