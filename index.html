@@ -676,7 +676,7 @@
               <button class="faq-question" onclick="toggleFaq(this)">
                 <span>¿Cuándo me contacta el instructor?</span><span class="faq-arrow">▼</span>
               </button>
-              <div class="faq-answer"><p>Tu instructor tiene un plazo máximo de 20 días desde que fue asignado para contactarte. En la mayoría de los casos ocurre mucho antes. Si pasan los 20 días sin que te contacte, el sistema te habilitará su WhatsApp para que lo contactes tú directamente.</p></div>
+              <div class="faq-answer"><p>Tu instructor tiene un plazo máximo de <strong>20 días hábiles</strong> contados desde que aprobaste el examen teórico para contactarte. Los días hábiles no incluyen sábados, domingos ni festivos colombianos. En la mayoría de los casos ocurre mucho antes.</p></div>
             </div>
             <div class="faq-item">
               <button class="faq-question" onclick="toggleFaq(this)">
@@ -688,7 +688,7 @@
               <button class="faq-question" onclick="toggleFaq(this)">
                 <span>¿Qué hago si el instructor no me ha contactado?</span><span class="faq-arrow">▼</span>
               </button>
-              <div class="faq-answer"><p>Si han pasado menos de 20 días, ten paciencia — el instructor te contactará. Si superaron los 20 días, el sistema te mostrará una alerta roja y podrás escribirle directamente por WhatsApp desde esta misma pantalla.</p></div>
+              <div class="faq-answer"><p>Si no han pasado los 20 días hábiles desde que aprobaste el teórico, ten paciencia — el instructor te contactará. Una vez cumplido ese plazo, el sistema te mostrará una alerta y podrás escribirle directamente por WhatsApp desde esta pantalla.</p></div>
             </div>
           </div>
         </div>
@@ -1905,15 +1905,15 @@ function renderStudentPortal() {
   } else if (days >= CONFIG.WAIT_DAYS_CRITICAL) {
     banner.className = 'alert-card danger';
     document.getElementById('student-alert-icon').textContent = '🚨';
-    document.getElementById('student-alert-title').textContent = 'Han pasado más de 20 días — contáctalo tú';
-    document.getElementById('student-alert-desc').textContent = 'Tu instructor aún no te ha contactado. Puedes escribirle directamente por WhatsApp desde esta pantalla.';
+    document.getElementById('student-alert-title').textContent = 'Han pasado 20 días hábiles — contáctalo tú';
+    document.getElementById('student-alert-desc').textContent = 'Se cumplió el plazo desde que aprobaste el teórico. Puedes escribirle directamente por WhatsApp desde esta pantalla.';
     alertCounter.innerHTML = days + '<span>Días</span>';
     alertCounter.style.display = 'block';
   } else if (days >= CONFIG.WAIT_DAYS_WARNING) {
     banner.className = 'alert-card warning';
     document.getElementById('student-alert-icon').textContent = '⏳';
     document.getElementById('student-alert-title').textContent = 'Tu instructor te contactará pronto';
-    document.getElementById('student-alert-desc').textContent = 'Llevas ' + days + ' días esperando. El instructor tiene hasta 20 días para contactarte. ¡Ya falta poco!';
+    document.getElementById('student-alert-desc').textContent = 'Llevas ' + days + ' días hábiles desde que aprobaste el teórico. El plazo máximo es 20 días hábiles — faltan ' + (CONFIG.WAIT_DAYS_CRITICAL - days) + '.';
     alertCounter.innerHTML = days + '<span>Días</span>';
     alertCounter.style.display = 'block';
   } else {
@@ -1921,8 +1921,8 @@ function renderStudentPortal() {
     document.getElementById('student-alert-icon').textContent = '😊';
     document.getElementById('student-alert-title').textContent = '¡Todo en proceso!';
     document.getElementById('student-alert-desc').textContent = s.state === 'theory_passed'
-      ? 'Pronto te asignaremos un instructor. Te contactará directamente.'
-      : '¡Ya tienes instructor asignado! Él te contactará en los próximos días.';
+      ? 'Pronto te asignaremos un instructor. Tienes ' + (CONFIG.WAIT_DAYS_CRITICAL - days) + ' días hábiles restantes de espera.'
+      : '¡Ya tienes instructor asignado! Él te contactará antes de cumplirse los 20 días hábiles desde tu examen teórico.';
     alertCounter.innerHTML = days + '<span>Días</span>';
     alertCounter.style.display = 'block';
   }
@@ -2026,7 +2026,7 @@ function renderInstructorCard(student, instructor) {
            </a>`
         : `<div style="padding:.85rem;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:var(--r-sm);text-align:center">
              <p style="font-size:.82rem;color:var(--success);font-weight:600;margin-bottom:.25rem">✅ Tu instructor te contactará</p>
-             <p style="font-size:.75rem;color:var(--text-muted)">Tiene hasta <strong>${CONFIG.WAIT_DAYS_CRITICAL - days} días más</strong> para hacerlo. Si pasan los 20 días, podrás escribirle directamente.</p>
+             <p style="font-size:.75rem;color:var(--text-muted)">Tiene hasta <strong>${CONFIG.WAIT_DAYS_CRITICAL - days} días hábiles más</strong> contados desde tu examen teórico. Si se cumple el plazo sin contacto, podrás escribirle directamente.</p>
            </div>`}
       ${confirmBtn}
     </div>`;
