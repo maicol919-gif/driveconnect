@@ -1277,6 +1277,24 @@ async function postData(action, params) {
   } catch(e) { return false; }
 }
 
+// apiCall — envía acciones por JSONP (GET) para evitar restricciones de autenticación
+function apiCall(params) {
+  const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
+  return new Promise((resolve, reject) => {
+    const cbName = '_dc_api_' + Date.now();
+    const qs = Object.entries(params)
+      .map(([k,v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v)))
+      .join('&');
+    const script = document.createElement('script');
+    script.src = url + '?' + qs + '&callback=' + cbName;
+    const timer = setTimeout(() => { cleanup(); reject(new Error('Tiempo de espera agotado.')); }, 12000);
+    window[cbName] = (data) => { clearTimeout(timer); cleanup(); resolve(data); };
+    script.onerror = () => { clearTimeout(timer); cleanup(); reject(new Error('Error de conexión.')); };
+    function cleanup() { if (script.parentNode) script.parentNode.removeChild(script); delete window[cbName]; }
+    document.body.appendChild(script);
+  });
+}
+
 // =============================================================================
 // DATA NORMALIZATION
 // =============================================================================
@@ -1476,21 +1494,10 @@ async function registerStudent() {
     if (exists) throw new Error('Este documento ya está registrado. Si tienes problemas para ingresar, acércate a la academia.');
 
     const pin = generatePIN();
-    const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'registerStudent',
-        docNumber, docType, name, phone, license, schedule, pin, state: 'pending'
-      })
+    const data = await apiCall({
+      action: 'registerStudent',
+      docNumber, docType, name, phone, license, schedule, pin, state: 'pending'
     });
-
-    // Handle HTML error responses from Apps Script
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); }
-    catch(e) { throw new Error('Error del servidor. Verifica que el script esté bien implementado con acceso "Cualquier persona, incluso anónimos".'); }
 
     if (!data.success) throw new Error(data.error || 'Error al registrar. Intenta de nuevo.');
 
@@ -1582,11 +1589,7 @@ async function submitNewPin() {
 
   loadEl.style.display = 'block';
   try {
-    const res = await fetch(CONFIG.API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'updateStudentPin', docNumber: student.docNumber, pin: pin1, tempPin: 'false' })
-    });
-    const data = await res.json();
+    const data = await apiCall({ action: 'updateStudentPin', docNumber: student.docNumber, pin: pin1, tempPin: 'false' });
     if (!data.success) throw new Error(data.error || 'Error al guardar el PIN.');
 
     student.pin = pin1;
@@ -2013,11 +2016,7 @@ async function instMarkReady(docNumber) {
   if (!confirm('¿Confirmas que este alumno terminó todas sus clases prácticas?\nEsto notificará al coordinador para cerrar el expediente.')) return;
   showToast('Marcando alumno como listo...', 'info');
   try {
-    const res = await fetch(CONFIG.API_URL, {
-      method:'POST',
-      body: JSON.stringify({ action:'updateStudent', docNumber, field:'state', value:'ready_to_graduate' })
-    });
-    const data = await res.json();
+    const data = await apiCall({ action:'updateStudent', docNumber, field:'state', value:'ready_to_graduate' });
     if (data.success) {
       const s = STATE.students.find(st => st.docNumber === docNumber);
       if (s) s.state = 'ready_to_graduate';
@@ -2032,11 +2031,7 @@ async function confirmGraduate(docNumber) {
   if (!confirm(`¿Confirmas cerrar el expediente de ${s?.name}?\nEl alumno pasará a "Completado" y saldrá del panel activo.`)) return;
   showToast('Cerrando expediente...', 'info');
   try {
-    const res = await fetch(CONFIG.API_URL, {
-      method:'POST',
-      body: JSON.stringify({ action:'updateStudent', docNumber, field:'state', value:'completed' })
-    });
-    const data = await res.json();
+    const data = await apiCall({ action:'updateStudent', docNumber, field:'state', value:'completed' });
     if (data.success) {
       const st = STATE.students.find(x => x.docNumber === docNumber);
       if (st) st.state = 'completed';
@@ -3118,11 +3113,7 @@ async function approveStudent(docNumber) {
   if (!confirm('¿Aprobar el registro de este alumno?')) return;
   showToast('Aprobando registro...', 'info');
   try {
-    const res = await fetch(CONFIG.API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'updateStudent', docNumber, field: 'state', value: 'theory_passed' })
-    });
-    const data = await res.json();
+    const data = await apiCall({ action: 'updateStudent', docNumber, field: 'state', value: 'theory_passed' });
     if (!data.success) throw new Error(data.error || 'Error');
     const s = STATE.students.find(x => x.docNumber === docNumber);
     if (s) s.state = 'theory_passed';
@@ -3136,11 +3127,7 @@ async function rejectStudent(docNumber) {
   if (!confirm('¿Rechazar y eliminar este registro? Esta acción no se puede deshacer.')) return;
   showToast('Rechazando registro...', 'info');
   try {
-    const res = await fetch(CONFIG.API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'deleteStudent', docNumber })
-    });
-    const data = await res.json();
+    const data = await apiCall({ action: 'deleteStudent', docNumber });
     if (!data.success) throw new Error(data.error || 'Error');
     STATE.students = STATE.students.filter(s => s.docNumber !== docNumber);
     showToast('Registro rechazado y eliminado.', 'success');
@@ -3154,11 +3141,7 @@ async function adminSetTempPin(docNumber) {
   if (!confirm(`Se asignará el PIN temporal ${tempPin} al alumno. ¿Continuar?\n\nDáselo en mano al alumno. Al ingresar deberá cambiarlo.`)) return;
   showToast('Asignando PIN temporal...', 'info');
   try {
-    const res = await fetch(CONFIG.API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'updateStudentPin', docNumber, pin: tempPin, tempPin: 'true' })
-    });
-    const data = await res.json();
+    const data = await apiCall({ action: 'updateStudentPin', docNumber, pin: tempPin, tempPin: 'true' });
     if (!data.success) throw new Error(data.error || 'Error');
     showToast(`PIN temporal asignado: ${tempPin} — Entrégalo al alumno.`, 'success');
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
