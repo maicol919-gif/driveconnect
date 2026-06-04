@@ -649,31 +649,6 @@
 
         <!-- TIMELINE DEL PROCESO ACTIVO -->
         <div class="glass-panel" id="student-timeline-panel"></div>
-
-        <!-- FAQ -->
-        <div class="glass-panel" style="margin-top:1.25rem">
-          <div class="faq-title">Preguntas frecuentes</div>
-          <div class="faq-list">
-            <div class="faq-item">
-              <button class="faq-question" onclick="toggleFaq(this)">
-                <span>¿Cuándo me contacta el instructor?</span><span class="faq-arrow">▼</span>
-              </button>
-              <div class="faq-answer"><p>Tu instructor tiene un plazo máximo de <strong>20 días hábiles</strong> desde que aprobaste el examen teórico para contactarte. En la mayoría de los casos ocurre mucho antes.</p></div>
-            </div>
-            <div class="faq-item">
-              <button class="faq-question" onclick="toggleFaq(this)">
-                <span>¿Cuándo inicia mi primera clase práctica?</span><span class="faq-arrow">▼</span>
-              </button>
-              <div class="faq-answer"><p>Una vez que tu instructor te contacte coordinarán los horarios. Las clases normalmente inician en la misma semana del primer contacto.</p></div>
-            </div>
-            <div class="faq-item">
-              <button class="faq-question" onclick="toggleFaq(this)">
-                <span>¿Qué hago si el instructor no me ha contactado?</span><span class="faq-arrow">▼</span>
-              </button>
-              <div class="faq-answer"><p>Si no han pasado los 20 días hábiles desde que aprobaste el teórico, ten paciencia — el instructor te contactará. Una vez cumplido ese plazo, el sistema te mostrará una alerta y podrás escribirle directamente por WhatsApp.</p></div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- COLUMNA DERECHA: cambia según tab -->
@@ -2183,7 +2158,32 @@ function renderStudentProcessPanel(s, proc) {
       </div>`;
   }
 
-  rightPanel.innerHTML = rightHTML;
+  const faqHTML = `
+    <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color)">
+      <div class="faq-title" style="font-size:.75rem;margin-bottom:.75rem">Preguntas frecuentes</div>
+      <div class="faq-list">
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)" style="font-size:.8rem">
+            <span>¿Cuándo me contacta el instructor?</span><span class="faq-arrow">▼</span>
+          </button>
+          <div class="faq-answer"><p style="font-size:.78rem">Tu instructor tiene un plazo máximo de <strong>20 días hábiles</strong> desde que aprobaste el examen teórico para contactarte. En la mayoría de los casos ocurre mucho antes.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)" style="font-size:.8rem">
+            <span>¿Cuándo inicia mi primera clase práctica?</span><span class="faq-arrow">▼</span>
+          </button>
+          <div class="faq-answer"><p style="font-size:.78rem">Una vez que tu instructor te contacte coordinarán los horarios. Las clases normalmente inician en la misma semana del primer contacto.</p></div>
+        </div>
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)" style="font-size:.8rem">
+            <span>¿Qué hago si no me han contactado?</span><span class="faq-arrow">▼</span>
+          </button>
+          <div class="faq-answer"><p style="font-size:.78rem">Si no han pasado los 20 días hábiles, ten paciencia. Una vez cumplido ese plazo el sistema te habilitará el contacto directo con tu instructor.</p></div>
+        </div>
+      </div>
+    </div>`;
+
+  rightPanel.innerHTML = rightHTML + faqHTML;
 }
 
 async function studentConfirmContact(confirmed, license) {
