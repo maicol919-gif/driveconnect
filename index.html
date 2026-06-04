@@ -827,7 +827,7 @@
           <table class="assign-table">
             <thead>
               <tr>
-                <th>Alumno</th><th>Documento</th><th>Instructor</th>
+                <th>Alumno</th><th>Documento</th><th>Licencia</th><th>Instructor</th>
                 <th>Teórico</th><th>Días espera</th><th>Acciones</th>
               </tr>
             </thead>
@@ -1259,6 +1259,7 @@ let STATE = {
   students: [],
   instructors: [],
   coordinators: [],
+  procesos: [],
   currentUser: null,
   activeDocType: 'CC',
   activeTab: 'student',
@@ -1340,30 +1341,55 @@ function apiCall(params) {
 // =============================================================================
 function normalizeStudent(obj) {
   const k = (key) => (obj[key] !== undefined ? obj[key] : '');
-  const student = {
-    docNumber: String(k('docNumber') || k('dni') || k('cedula') || k('documento') || '').trim(),
-    docType: String(k('docType') || k('tipoDoc') || 'CC').trim() || 'CC',
-    name: String(k('name') || k('nombre') || '').trim(),
-    instructorId: String(k('instructorId') || k('instructor_id') || k('instructor') || '').trim() || null,
-    state: String(k('state') || k('estado') || 'theory_passed').trim(),
-    contactDate: String(k('contactDate') || k('fecha_contacto') || '').trim() || null,
-    practiceStartDate: String(k('practiceStartDate') || k('fecha_practica') || '').trim() || null,
-    theoryPassedDate: String(k('theoryPassedDate') || k('fecha_teorico') || '').trim() || null,
-    preferredSchedule: String(k('preferredSchedule') || k('horario') || k('schedule') || '').trim() || null,
-    pin: String(k('pin') || '').trim(),
-    tempPin: String(k('tempPin') || k('temp_pin') || 'false').trim(),
-    phone: String(k('phone') || k('whatsapp') || k('celular') || '').trim(),
-    license: String(k('license') || k('licencia') || '').trim(),
-    license2: String(k('license2') || k('licencia2') || '').trim(),
-    instructorId2: String(k('instructorId2') || k('instructor_id2') || '').trim() || null,
-    state2: String(k('state2') || '').trim() || null,
-    contactDate2: String(k('contactDate2') || '').trim() || null,
+  return {
+    docNumber:        String(k('docNumber') || '').trim(),
+    docType:          String(k('docType') || 'CC').trim() || 'CC',
+    name:             String(k('name') || '').trim(),
+    phone:            String(k('phone') || k('whatsapp') || '').trim(),
+    preferredSchedule:String(k('preferredSchedule') || '').trim(),
+    theoryPassedDate: String(k('theoryPassedDate') || '').trim(),
+    pin:              String(k('pin') || '').trim(),
+    tempPin:          String(k('tempPin') || 'false').trim(),
+    active:           String(k('active') || 'true').trim(),
   };
-  // Auto-fix: si tiene instructor asignado pero state sigue en theory_passed, corregir
-  if (student.instructorId && student.state === 'theory_passed') {
-    student.state = 'instructor_assigned';
-  }
-  return student;
+}
+
+function normalizeProceso(obj) {
+  const k = (key) => (obj[key] !== undefined ? obj[key] : '');
+  return {
+    docNumber:    String(k('docNumber') || '').trim(),
+    license:      String(k('license') || '').trim().toUpperCase(),
+    instructorId: String(k('instructorId') || '').trim() || null,
+    state:        String(k('state') || 'theory_passed').trim(),
+    contactDate:  String(k('contactDate') || '').trim() || null,
+  };
+}
+
+// Helper: get procesos for a student
+function getStudentProcesos(docNumber) {
+  return STATE.procesos.filter(p => p.docNumber === docNumber);
+}
+
+// Helper: get one proceso
+function getProceso(docNumber, license) {
+  return STATE.procesos.find(p => p.docNumber === docNumber && p.license === license.toUpperCase());
+}
+
+// Helper: most urgent state across all procesos of a student
+function getStudentUrgentState(docNumber) {
+  const procs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
+  if (!procs.length) return 'completed';
+  const order = ['theory_passed','instructor_assigned','contacted','contact_confirmed','ready_to_graduate','practice_started'];
+  return procs.sort((a,b) => order.indexOf(a.state) - order.indexOf(b.state))[0].state;
+}
+
+// Helper: days waiting for a proceso (uses student theoryPassedDate)
+function daysWaitingProceso(proceso, student) {
+  const ref = ['theory_passed','instructor_assigned'].includes(proceso.state)
+    ? today()
+    : (proceso.contactDate || today());
+  const base = student?.theoryPassedDate || proceso.contactDate || today();
+  return businessDaysBetween(parseToISO(base) || today(), ref);
 }
 
 function normalizeInstructor(obj) {
@@ -1396,9 +1422,10 @@ function normalizeCoordinator(obj) {
 async function loadData() {
   const raw = await fetchData();
   if (!raw) return false;
-  STATE.students = (raw.students || []).map(normalizeStudent).filter(s => s.docNumber);
+  STATE.students    = (raw.students    || []).map(normalizeStudent).filter(s => s.docNumber);
   STATE.instructors = (raw.instructors || []).map(normalizeInstructor).filter(i => i.id);
-  STATE.coordinators = (raw.coordinators || []).map(normalizeCoordinator).filter(c => c.username);
+  STATE.coordinators= (raw.coordinators|| []).map(normalizeCoordinator).filter(c => c.username);
+  STATE.procesos    = (raw.procesos    || []).map(normalizeProceso).filter(p => p.docNumber && p.license);
   STATE.cloudConnected = true;
   return true;
 }
@@ -1534,14 +1561,24 @@ function daysBetween(d1, d2) {
   return Math.round(Math.abs(b - a) / 86400000);
 }
 
-function daysWaiting(student) {
-  const raw = student.theoryPassedDate;
-  const iso = parseToISO(raw);
-  if (!iso) return 0;
-  const ref = (['theory_passed','instructor_assigned'].includes(student.state))
-    ? today()
-    : parseToISO(student.contactDate) || today();
-  return businessDaysBetween(iso, ref);
+function daysWaiting(studentOrProceso, student) {
+  // Called with (proceso, student) or legacy (student) for coordinator table
+  if (student !== undefined) {
+    // New model: proceso + student
+    return daysWaitingProceso(studentOrProceso, student);
+  }
+  // Legacy: called with student object — use most urgent proceso
+  const s = studentOrProceso;
+  const procs = getStudentProcesos(s.docNumber);
+  if (!procs.length) {
+    // Fallback for students without procesos yet
+    if (!s.theoryPassedDate) return 0;
+    return businessDaysBetween(parseToISO(s.theoryPassedDate) || today(), today());
+  }
+  const pending = procs.filter(p => ['theory_passed','instructor_assigned'].includes(p.state));
+  if (!pending.length) return 0;
+  const base = parseToISO(s.theoryPassedDate) || today();
+  return Math.max(...pending.map(() => businessDaysBetween(base, today())));
 }
 
 function formatDate(dateStr, long = false) {
@@ -1695,7 +1732,7 @@ async function registerStudent() {
     const pin = generatePIN();
     const data = await apiCall({
       action: 'registerStudent',
-      docNumber, docType, name, phone, license, license2, schedule, pin, state: 'pending'
+      docNumber, docType, name, phone, license, license2, schedule, pin
     });
 
     if (!data.success) throw new Error(data.error || 'Error al registrar. Intenta de nuevo.');
@@ -1740,8 +1777,10 @@ async function loginStudent() {
     const student = STATE.students.find(s => s.docNumber === docNum);
     if (!student) throw new Error('Documento no encontrado. Verifica el número o regístrate si es tu primera vez.');
 
-    // Check state
-    if (student.state === 'pending') throw new Error('Tu registro está pendiente de aprobación. La academia te notificará cuando esté activo.');
+    // Check if pending approval
+    if (student.active === 'false' || student.active === '') {
+      throw new Error('Tu registro está pendiente de aprobación. La academia te notificará cuando esté activo.');
+    }
 
     // Validate PIN
     if (!student.pin) throw new Error('Tu cuenta no tiene PIN configurado. Acércate a la academia.');
@@ -1966,73 +2005,80 @@ function showError(msg) {
 // =============================================================================
 function renderStudentPortal() {
   const s = STATE.currentUser.data;
+  const procs = getStudentProcesos(s.docNumber).filter(p => p.state !== 'completed');
+  // Use most urgent proceso for days calculation
+  const pendingProcs = procs.filter(p => ['theory_passed','instructor_assigned'].includes(p.state));
+  const days = pendingProcs.length > 0
+    ? Math.max(...pendingProcs.map(p => daysWaiting(p, s)))
+    : 0;
+
   document.getElementById('student-name-title').textContent = 'Hola, ' + s.name.split(' ')[0];
   document.getElementById('student-doc-subtitle').textContent = getDocLabel(s.docType) + ' ' + s.docNumber;
 
-  // License badges
-  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+  // License badges from procesos
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const badgesEl = document.getElementById('student-license-badges');
   if (badgesEl) {
     badgesEl.innerHTML = '';
-    [s.license, s.license2].filter(Boolean).forEach(lic => {
+    procs.forEach(p => {
       const span = document.createElement('span');
       span.style.cssText = 'background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);border-radius:9999px;padding:.2rem .65rem;font-size:.72rem;font-weight:600;color:var(--brand-light)';
-      span.textContent = LICENSE_LABELS[lic] || lic;
+      span.textContent = LICENSE_FULL[p.license] || p.license;
       badgesEl.appendChild(span);
     });
   }
 
-  const days = daysWaiting(s);
-  const pending = s.state === 'theory_passed' || s.state === 'instructor_assigned';
+  // Alert banner — show most urgent situation
+  const banner      = document.getElementById('student-alert-banner');
+  const alertCounter= document.getElementById('student-alert-counter');
 
-  // Alert banner
-  const banner = document.getElementById('student-alert-banner');
-  const alertCounter = document.getElementById('student-alert-counter');
-  if (s.state === 'contact_confirmed') {
+  // Find most urgent proceso
+  const overdue    = procs.filter(p => ['theory_passed','instructor_assigned'].includes(p.state) && days >= CONFIG.WAIT_DAYS_CRITICAL);
+  const warned     = procs.filter(p => ['theory_passed','instructor_assigned'].includes(p.state) && days >= CONFIG.WAIT_DAYS_WARNING && days < CONFIG.WAIT_DAYS_CRITICAL);
+  const needConfirm= procs.filter(p => p.state === 'contacted');
+  const allConfirmed = procs.length > 0 && procs.every(p => ['contact_confirmed','practice_started','ready_to_graduate'].includes(p.state));
+
+  if (allConfirmed) {
     banner.className = 'alert-card success';
     document.getElementById('student-alert-icon').textContent = '✅';
-    document.getElementById('student-alert-title').textContent = '¡Contacto confirmado!';
-    document.getElementById('student-alert-desc').textContent = 'Confirmaste que tu instructor te contactó el ' + formatDate(s.contactDate) + '. ¡Mucho éxito!';
+    document.getElementById('student-alert-title').textContent = '¡Todo confirmado!';
+    document.getElementById('student-alert-desc').textContent = '¡Felicitaciones! Tu(s) instructor(es) ya te contactaron. ¡Mucho éxito en tus clases!';
     alertCounter.style.display = 'none';
-  } else if (s.state === 'contacted') {
+  } else if (needConfirm.length > 0) {
     banner.className = 'alert-card warning';
     document.getElementById('student-alert-icon').textContent = '📞';
     document.getElementById('student-alert-title').textContent = '¿Ya te contactó tu instructor?';
-    document.getElementById('student-alert-desc').textContent = 'Tu instructor reportó haberte contactado. Confírmalo para cerrar el proceso.';
+    document.getElementById('student-alert-desc').textContent = 'Tu instructor reportó haberte contactado. Confírmalo desde la tarjeta correspondiente.';
     alertCounter.style.display = 'none';
-  } else if (days >= CONFIG.WAIT_DAYS_CRITICAL) {
+  } else if (overdue.length > 0) {
     banner.className = 'alert-card danger';
     document.getElementById('student-alert-icon').textContent = '🚨';
     document.getElementById('student-alert-title').textContent = 'Han pasado 20 días hábiles — contáctalo tú';
     document.getElementById('student-alert-desc').textContent = 'Se cumplió el plazo desde que aprobaste el teórico. Puedes escribirle directamente por WhatsApp desde esta pantalla.';
     alertCounter.innerHTML = days + '<span>Días</span>';
     alertCounter.style.display = 'block';
-  } else if (days >= CONFIG.WAIT_DAYS_WARNING) {
+  } else if (warned.length > 0) {
     banner.className = 'alert-card warning';
     document.getElementById('student-alert-icon').textContent = '⏳';
     document.getElementById('student-alert-title').textContent = 'Tu instructor te contactará pronto';
-    document.getElementById('student-alert-desc').textContent = 'Llevas ' + days + ' días hábiles desde que aprobaste el teórico. El plazo máximo es 20 días hábiles — faltan ' + (CONFIG.WAIT_DAYS_CRITICAL - days) + '.';
+    document.getElementById('student-alert-desc').textContent = 'Llevas ' + days + ' días hábiles desde que aprobaste el teórico. Faltan ' + (CONFIG.WAIT_DAYS_CRITICAL - days) + ' días hábiles para el límite.';
     alertCounter.innerHTML = days + '<span>Días</span>';
     alertCounter.style.display = 'block';
   } else {
     banner.className = 'alert-card success';
     document.getElementById('student-alert-icon').textContent = '😊';
     document.getElementById('student-alert-title').textContent = '¡Todo en proceso!';
-    document.getElementById('student-alert-desc').textContent = s.state === 'theory_passed'
-      ? 'Pronto te asignaremos un instructor. Tienes ' + (CONFIG.WAIT_DAYS_CRITICAL - days) + ' días hábiles restantes de espera.'
-      : '¡Ya tienes instructor asignado! Él te contactará antes de cumplirse los 20 días hábiles desde tu examen teórico.';
+    document.getElementById('student-alert-desc').textContent = '¡Ya tienes instructor(es) asignado(s)! Te contactarán antes de cumplirse los 20 días hábiles.';
     alertCounter.innerHTML = days + '<span>Días</span>';
     alertCounter.style.display = 'block';
   }
 
-  // Timeline — 3 steps
-  document.getElementById('student-theory-date').textContent = 'Aprobado el: ' + formatDate(s.theoryPassedDate, true);
+  // Theory step
+  const theoryEl = document.getElementById('step-theory');
   ['step-theory','step-instructor','step-contact'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.className = 'timeline-step'; el.querySelector('.timeline-marker').textContent = id.includes('theory')?'1':id.includes('instructor')?'2':'3'; }
   });
-
-  const theoryEl = document.getElementById('step-theory');
   if (theoryEl) {
     theoryEl.classList.add('completed');
     theoryEl.querySelector('.timeline-marker').textContent = '✓';
@@ -2043,90 +2089,116 @@ function renderStudentPortal() {
       </span>`;
   }
 
-  const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
-  const inst2 = s.instructorId2 ? STATE.instructors.find(i => i.id === s.instructorId2) : null;
+  // Timeline steps — based on most advanced proceso
+  const hasInstructor = procs.some(p => p.instructorId);
+  const hasContact    = procs.some(p => ['contacted','contact_confirmed','practice_started'].includes(p.state));
+  const hasConfirmed  = procs.some(p => ['contact_confirmed','practice_started'].includes(p.state));
 
-  if (s.state === 'theory_passed') {
-    document.getElementById('step-instructor-desc').textContent = 'La academia está buscando tu instructor.';
-  } else if (s.state === 'instructor_assigned') {
-    const si = document.getElementById('step-instructor');
+  const si = document.getElementById('step-instructor');
+  const sc = document.getElementById('step-contact');
+
+  if (hasInstructor) {
     if (si) { si.classList.add('completed'); si.querySelector('.timeline-marker').textContent = '✓'; }
-    document.getElementById('step-instructor-desc').textContent = inst ? inst.name + ' es tu instructor.' : 'Instructor asignado.';
-    const sc = document.getElementById('step-contact');
-    if (sc) { sc.classList.add('active'); sc.querySelector('.timeline-marker').textContent = '3'; }
-    document.getElementById('step-contact-desc').textContent = days >= CONFIG.WAIT_DAYS_CRITICAL
-      ? 'Han pasado más de 20 días. Puedes escribirle directamente por WhatsApp.'
-      : 'Tu instructor te contactará. Faltan ' + (CONFIG.WAIT_DAYS_CRITICAL - days) + ' días para el límite.';
-    document.getElementById('student-contact-date').textContent = '';
-  } else if (s.state === 'contacted' || s.state === 'contact_confirmed' || s.state === 'practice_started') {
-    ['step-instructor','step-contact'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) { el.classList.add('completed'); el.querySelector('.timeline-marker').textContent = '✓'; }
-    });
-    document.getElementById('step-instructor-desc').textContent = inst ? inst.name + ' es tu instructor.' : 'Instructor asignado.';
-    document.getElementById('step-contact-desc').textContent = s.state === 'contact_confirmed'
-      ? '✅ Contacto confirmado por ti.'
-      : '📞 Tu instructor reportó contacto — pendiente tu confirmación.';
-    document.getElementById('student-contact-date').textContent = formatDate(s.contactDate);
+    const names = [...new Set(procs.filter(p=>p.instructorId).map(p => STATE.instructors.find(i=>i.id===p.instructorId)?.name).filter(Boolean))];
+    document.getElementById('step-instructor-desc').textContent = names.join(' · ');
+  } else {
+    if (si) { si.classList.add('active'); }
+    document.getElementById('step-instructor-desc').textContent = 'La academia está buscando tu(s) instructor(es).';
   }
 
-  // Render instructor panels
-  renderInstructorCard(s, inst, 1);
-  const panel2 = document.getElementById('instructor-info-panel-2');
-  if (s.license2) {
-    panel2.style.display = 'block';
-    renderInstructorCard(s, inst2, 2);
-  } else {
-    panel2.style.display = 'none';
+  if (hasConfirmed) {
+    if (sc) { sc.classList.add('completed'); sc.querySelector('.timeline-marker').textContent = '✓'; }
+    document.getElementById('step-contact-desc').textContent = '✅ Contacto confirmado.';
+  } else if (hasContact) {
+    if (sc) { sc.classList.add('active'); }
+    document.getElementById('step-contact-desc').textContent = '📞 Tu instructor reportó contacto — confirma desde tu tarjeta.';
+  } else if (hasInstructor) {
+    if (sc) { sc.classList.add('active'); }
+    document.getElementById('step-contact-desc').textContent = days >= CONFIG.WAIT_DAYS_CRITICAL
+      ? 'Han pasado más de 20 días. Puedes escribirle directamente.'
+      : 'Tu instructor te contactará. Faltan ' + (CONFIG.WAIT_DAYS_CRITICAL - days) + ' días hábiles.';
+  }
+
+  // Render instructor panels — one per proceso
+  const panelCol = document.getElementById('instructor-panels-col');
+  if (panelCol) {
+    // Clear and rebuild panels dynamically
+    panelCol.innerHTML = '';
+    if (procs.length === 0) {
+      const div = document.createElement('div');
+      div.className = 'glass-panel instructor-card';
+      div.id = 'instructor-info-panel';
+      panelCol.appendChild(div);
+      renderInstructorCard(s, null, { license: '', state: 'theory_passed', instructorId: null, contactDate: null }, 1);
+    } else {
+      procs.forEach((proc, idx) => {
+        const inst = proc.instructorId ? STATE.instructors.find(i => i.id === proc.instructorId) : null;
+        const div = document.createElement('div');
+        div.className = 'glass-panel instructor-card';
+        div.id = 'instructor-panel-' + idx;
+        panelCol.appendChild(div);
+        renderInstructorCard(s, inst, proc, idx + 1);
+      });
+    }
   }
 }
 
-function renderInstructorCard(student, instructor, slot) {
-  const panelId = slot === 2 ? 'instructor-info-panel-2' : 'instructor-info-panel';
-  const panel = document.getElementById(panelId);
-  const license = slot === 2 ? student.license2 : student.license;
-  const state   = slot === 2 ? (student.state2 || 'theory_passed') : student.state;
-  const contactDate = slot === 2 ? student.contactDate2 : student.contactDate;
+// renderInstructorCard(student, instructor, proceso, idx)
+// proceso = { license, state, contactDate, instructorId }
+// idx = 0-based index for gradient color
+function renderInstructorCard(student, instructor, proceso, idx) {
+  const panel = document.getElementById('instructor-panel-' + (idx - 1)) ||
+                document.getElementById('instructor-info-panel');
+  if (!panel) return;
 
-  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta/Bus' };
+  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const license      = proceso?.license || '';
+  const state        = proceso?.state || 'theory_passed';
+  const contactDate  = proceso?.contactDate || null;
   const licenseLabel = LICENSE_LABELS[license] || license;
+  const days         = daysWaiting(proceso, student);
+  const gradients    = [
+    'linear-gradient(135deg,var(--brand),#6366f1)',
+    'linear-gradient(135deg,#059669,#0891b2)',
+    'linear-gradient(135deg,#dc2626,#ea580c)',
+  ];
+
   if (!instructor) {
-    const days = daysWaiting(student);
-    const overdue = days >= CONFIG.WAIT_DAYS_CRITICAL;
+    const overdue    = days >= CONFIG.WAIT_DAYS_CRITICAL;
     const coordPhone = CONFIG.COORD_PHONE;
-    const waMsg = `Hola, soy ${student.name} (${getDocLabel(student.docType)} ${student.docNumber}). Aprobé el examen teórico hace ${days} días hábiles y aún no me han asignado instructor. ¿Me pueden ayudar?`;
+    const waMsg = `Hola, soy ${student.name} (${getDocLabel(student.docType)} ${student.docNumber}). Llevo ${days} días hábiles desde mi examen teórico y aún no tengo instructor para ${licenseLabel}. ¿Me pueden ayudar?`;
     const waUrl = coordPhone ? `https://wa.me/57${coordPhone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}` : null;
 
-    panel.innerHTML = overdue ? `
-      <div class="no-instructor-state">
-        <div class="no-instructor-icon">⚠️</div>
-        <h4>Plazo vencido sin instructor</h4>
-        <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem">Han pasado <strong>${days} días hábiles</strong> desde tu examen teórico y aún no tienes instructor asignado. Comunícate con la administración.</p>
-        ${waUrl
-          ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp">
-               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-               Escribir a la Administración
-             </a>`
-          : `<p style="font-size:.78rem;color:var(--text-muted)">Comunícate directamente con la academia para resolver tu caso.</p>`}
-      </div>` : `
-      <div style="text-align:center;padding:1.5rem 1rem">
-        <div style="font-size:4rem;margin-bottom:1rem;line-height:1">⏳</div>
-        <h3 style="font-family:var(--font-title);font-size:1.3rem;font-weight:800;margin-bottom:.5rem">Estamos en ello</h3>
-        <p style="font-size:.88rem;color:var(--text-secondary);margin-bottom:1.5rem">Tu instructor está siendo asignado. Pronto recibirás su contacto.</p>
-        <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--r-md);padding:1rem">
-          <div style="font-size:.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.5rem">Días hábiles de espera</div>
-          <div style="font-family:var(--font-title);font-size:2.5rem;font-weight:800;color:${days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand-light)'}">${days}</div>
-          <div style="font-size:.75rem;color:var(--text-muted);margin-top:.25rem">de ${CONFIG.WAIT_DAYS_CRITICAL} días hábiles máximos</div>
-          <div style="margin-top:.75rem;background:rgba(255,255,255,.05);border-radius:9999px;height:6px;overflow:hidden">
-            <div style="height:100%;border-radius:9999px;width:${Math.min(100,Math.round(days/CONFIG.WAIT_DAYS_CRITICAL*100))}%;background:${days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand)'};transition:width .5s"></div>
+    panel.innerHTML = `
+      <div style="font-size:.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem">${licenseLabel}</div>
+      ${overdue ? `
+        <div class="no-instructor-state">
+          <div class="no-instructor-icon">⚠️</div>
+          <h4>Plazo vencido sin instructor</h4>
+          <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem">Han pasado <strong>${days} días hábiles</strong> desde tu examen teórico y aún no tienes instructor asignado. Comunícate con la administración.</p>
+          ${waUrl ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Escribir a la Administración</a>`
+          : `<p style="font-size:.78rem;color:var(--text-muted)">Comunícate directamente con la academia.</p>`}
+        </div>` : `
+        <div style="text-align:center;padding:1rem">
+          <div style="font-size:3rem;margin-bottom:.75rem">⏳</div>
+          <h3 style="font-family:var(--font-title);font-size:1.1rem;font-weight:800;margin-bottom:.4rem">Buscando tu instructor</h3>
+          <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem">Te contactará antes de cumplirse el plazo.</p>
+          <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--r-md);padding:.85rem">
+            <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.35rem">Días hábiles de espera</div>
+            <div style="font-family:var(--font-title);font-size:2rem;font-weight:800;color:${days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand-light)'}">${days}</div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin-top:.2rem">de ${CONFIG.WAIT_DAYS_CRITICAL} días hábiles máximos</div>
+            <div style="margin-top:.6rem;background:rgba(255,255,255,.05);border-radius:9999px;height:5px;overflow:hidden">
+              <div style="height:100%;border-radius:9999px;width:${Math.min(100,Math.round(days/CONFIG.WAIT_DAYS_CRITICAL*100))}%;background:${days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand)'};transition:width .5s"></div>
+            </div>
           </div>
-        </div>
-      </div>`;
+        </div>`}`;
     return;
   }
 
-  const waMsg = `Hola ${instructor.name}, soy ${student.name} (${getDocLabel(student.docType)} ${student.docNumber}). Estoy registrado para ${licenseLabel} y el sistema me indica que eres mi instructor asignado. Me gustaría coordinar el inicio de mis clases prácticas. ¡Muchas gracias!`;
-  const waUrl = `https://wa.me/${instructor.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+  const waMsg  = `Hola ${instructor.name}, soy ${student.name} (${getDocLabel(student.docType)} ${student.docNumber}). Estoy registrado para ${licenseLabel} y el sistema me indica que eres mi instructor. Me gustaría coordinar el inicio de mis clases. ¡Gracias!`;
+  const waUrl  = `https://wa.me/${instructor.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+  const canContact = days >= CONFIG.WAIT_DAYS_CRITICAL || state === 'contacted' || state === 'contact_confirmed';
+  const initials   = instructor.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
 
   let confirmBtn = '';
   if (state === 'contacted') {
@@ -2134,27 +2206,18 @@ function renderInstructorCard(student, instructor, slot) {
       <div style="margin-top:.75rem;border:1px solid rgba(245,158,11,.3);border-radius:var(--r-sm);padding:1rem;background:rgba(245,158,11,.05)">
         <p style="font-size:.8rem;color:var(--warning);font-weight:600;margin-bottom:.65rem">📞 Tu instructor reportó haberte contactado</p>
         <div style="display:flex;gap:.5rem">
-          <button class="btn-success-action" style="margin-top:0;flex:1;padding:.65rem" onclick="studentConfirmContact(true,${slot})">
-            ✅ Sí, ya me contactó
-          </button>
-          <button onclick="studentConfirmContact(false,${slot})" style="flex:1;padding:.65rem;background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-sm);font-weight:700;cursor:pointer;font-size:.82rem">
-            ❌ Aún no me han contactado
-          </button>
+          <button class="btn-success-action" style="margin-top:0;flex:1;padding:.65rem" onclick="studentConfirmContact(true,'${license}')">✅ Sí, ya me contactó</button>
+          <button onclick="studentConfirmContact(false,'${license}')" style="flex:1;padding:.65rem;background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-sm);font-weight:700;cursor:pointer;font-size:.82rem">❌ Aún no</button>
         </div>
       </div>`;
   } else if (state === 'contact_confirmed') {
     confirmBtn = `<div style="margin-top:.75rem;padding:.75rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-sm);font-size:.82rem;color:var(--success);text-align:center">✅ Confirmaste el contacto el ${formatDate(contactDate, true)}</div>`;
   }
 
-  const days = daysWaiting(student);
-  const canContact = days >= CONFIG.WAIT_DAYS_CRITICAL || state === 'contacted' || state === 'contact_confirmed';
-
-  const initials = instructor.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-  const gradients = ['linear-gradient(135deg,var(--brand),#6366f1)', 'linear-gradient(135deg,#059669,#0891b2)'];
   panel.innerHTML = `
     <div style="font-size:.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem">${licenseLabel}</div>
     <div class="instructor-card-header">
-      <div style="width:64px;height:64px;border-radius:50%;background:${gradients[(slot||1)-1]};display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.4rem;font-weight:800;color:white;flex-shrink:0;box-shadow:0 0 0 3px rgba(59,130,246,.2)">${initials}</div>
+      <div style="width:56px;height:56px;border-radius:50%;background:${gradients[(idx-1)%gradients.length]};display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.2rem;font-weight:800;color:white;flex-shrink:0;box-shadow:0 0 0 3px rgba(59,130,246,.2)">${initials}</div>
       <div class="instructor-meta">
         <span class="instructor-badge">Tu Instructor Asignado</span>
         <h3>${instructor.name}</h3>
@@ -2162,40 +2225,34 @@ function renderInstructorCard(student, instructor, slot) {
     </div>
     <div class="action-buttons" style="margin-top:1rem">
       ${canContact
-        ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp">
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-             Escribir por WhatsApp
-           </a>
-           <p style="font-size:.72rem;color:var(--text-muted);text-align:center;margin-top:.5rem">Han pasado 20 días hábiles — ya puedes contactarlo directamente</p>`
-        : `<div style="padding:.85rem;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:var(--r-sm);text-align:center">
-             <p style="font-size:.88rem;color:var(--success);font-weight:600;margin-bottom:.25rem">✅ En breve te contactará</p>
-             <p style="font-size:.75rem;color:var(--text-muted)">Le quedan <strong>${CONFIG.WAIT_DAYS_CRITICAL - days} días hábiles</strong> para hacerlo.</p>
+        ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Escribir por WhatsApp</a>
+           <p style="font-size:.72rem;color:var(--text-muted);text-align:center;margin-top:.4rem">Han pasado 20 días hábiles — ya puedes contactarlo</p>`
+        : `<div style="padding:.75rem;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:var(--r-sm);text-align:center">
+             <p style="font-size:.85rem;color:var(--success);font-weight:600;margin-bottom:.2rem">✅ En breve te contactará</p>
+             <p style="font-size:.75rem;color:var(--text-muted)">Le quedan <strong>${CONFIG.WAIT_DAYS_CRITICAL - days} días hábiles</strong>.</p>
            </div>`}
       ${confirmBtn}
     </div>`;
 }
+}
 
-async function studentConfirmContact(confirmed, slot = 1) {
+async function studentConfirmContact(confirmed, license) {
   const student = STATE.currentUser.data;
-  const isSlot2 = slot === 2;
-  const stateField = isSlot2 ? 'state2' : 'state';
-  const dateField  = isSlot2 ? 'contactDate2' : 'contactDate';
+  const proc = getProceso(student.docNumber, license);
+  if (!proc) return;
 
   if (confirmed) {
-    student[stateField] = 'contact_confirmed';
-    student[dateField]  = student[dateField] || today();
-    STATE.currentUser.data = student;
+    proc.state = 'contact_confirmed';
+    proc.contactDate = proc.contactDate || today();
     renderStudentPortal();
-    showToast('✅ ¡Gracias por confirmar!', 'success');
-    await apiCall({ action: 'updateStudent', docNumber: student.docNumber, field: stateField, value: 'contact_confirmed' });
-    await apiCall({ action: 'updateStudent', docNumber: student.docNumber, field: dateField, value: student[dateField] });
+    showToast('✅ ¡Gracias por confirmar! ¡Mucho éxito en tus clases!', 'success');
+    await apiCall({ action: 'confirmContact', docNumber: student.docNumber, license });
   } else {
-    student[stateField] = 'instructor_assigned';
-    student[dateField]  = null;
-    STATE.currentUser.data = student;
+    proc.state = 'instructor_assigned';
+    proc.contactDate = null;
     renderStudentPortal();
     showToast('⚠ Reporte enviado a la administración', 'warning');
-    await apiCall({ action: 'updateStudent', docNumber: student.docNumber, field: stateField, value: 'instructor_assigned' });
+    await apiCall({ action: 'updateProceso', docNumber: student.docNumber, license, field: 'state', value: 'instructor_assigned' });
   }
 }
 
@@ -2210,14 +2267,16 @@ function renderInstructorPortal() {
   document.getElementById('inst-name').textContent = inst.name;
   document.getElementById('inst-specialty').textContent = '';
 
-  const myStudents = STATE.students.filter(s => s.instructorId === inst.id);
-  document.getElementById('inst-stat-active').textContent = myStudents.filter(s => s.state === 'contact_confirmed').length;
-  document.getElementById('inst-stat-pending').textContent = myStudents.filter(s => s.state === 'instructor_assigned').length;
+  const myProcesos = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed');
+  document.getElementById('inst-stat-active').textContent = myProcesos.filter(p => p.state === 'contact_confirmed').length;
+  document.getElementById('inst-stat-pending').textContent = myProcesos.filter(p => p.state === 'instructor_assigned').length;
 
-  const sorted = [...myStudents].sort((a,b) => {
-    const ap = a.state === 'instructor_assigned', bp = b.state === 'instructor_assigned';
-    if (ap && !bp) return -1; if (!ap && bp) return 1;
-    return daysWaiting(b) - daysWaiting(a);
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+
+  const sorted = [...myProcesos].sort((a,b) => {
+    const sa = STATE.students.find(s => s.docNumber === a.docNumber);
+    const sb = STATE.students.find(s => s.docNumber === b.docNumber);
+    return daysWaiting(b, sb) - daysWaiting(a, sa);
   });
 
   const list = document.getElementById('instructor-students-list');
@@ -2227,31 +2286,30 @@ function renderInstructorPortal() {
     return;
   }
 
-  sorted.forEach(student => {
-    const days = daysWaiting(student);
-    const badgeCls = days > 15 ? 'danger' : days >= 8 ? 'warning' : 'success';
+  sorted.forEach(proc => {
+    const student = STATE.students.find(s => s.docNumber === proc.docNumber);
+    if (!student) return;
+    const days = daysWaiting(proc, student);
+    const badgeCls = days > CONFIG.WAIT_DAYS_CRITICAL ? 'danger' : days >= CONFIG.WAIT_DAYS_WARNING ? 'warning' : 'success';
     let pClass = 'p-low', pLabel = 'Contactado';
-    if (student.state === 'instructor_assigned') {
+    if (proc.state === 'instructor_assigned') {
       if (days >= CONFIG.WAIT_DAYS_CRITICAL) { pClass = 'p-high'; pLabel = '🚨 Urgente +' + CONFIG.WAIT_DAYS_CRITICAL + 'd'; }
-      else if (days >= CONFIG.WAIT_DAYS_WARNING) { pClass = 'p-medium'; pLabel = '⚠ +' + CONFIG.WAIT_DAYS_WARNING + 'd sin contacto'; }
+      else if (days >= CONFIG.WAIT_DAYS_WARNING) { pClass = 'p-medium'; pLabel = '⚠ Sin contactar'; }
       else { pClass = 'p-low'; pLabel = 'Pendiente contacto'; }
     }
 
-    const waMsg = `Hola ${student.name}, soy ${inst.name}, tu instructor asignado de la academia de conducción. Me comunico para coordinar el inicio de tus clases prácticas. ¿Qué disponibilidad tienes esta semana? 😊\n\nRecuerda entrar a la plataforma y confirmar que ya te contacté. ¡Gracias!`;
+    const waMsg = `Hola ${student.name}, soy ${inst.name}, tu instructor asignado de la academia. Me comunico para coordinar el inicio de tus clases de ${LICENSE_LABELS[proc.license] || proc.license}. ¿Qué disponibilidad tienes esta semana? 😊\n\nRecuerda confirmar en el portal que ya te contacté. ¡Gracias!`;
     const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
 
-    const assignedDate = student.assignedDate || student.theoryPassedDate;
-    const daysSinceAssign = assignedDate ? daysBetween(assignedDate, today()) : daysWaiting(student);
-
     let actionBtns = '';
-    if (student.state === 'instructor_assigned') {
+    if (proc.state === 'instructor_assigned') {
       actionBtns = `<span style="font-size:.75rem;color:var(--warning);font-weight:600">⏳ Escríbele — aún no ha confirmado contacto</span>`;
-    } else if (student.state === 'contacted') {
+    } else if (proc.state === 'contacted') {
       actionBtns = `<span style="font-size:.75rem;color:var(--brand-light)">📲 Contactado — esperando que confirme en el portal</span>`;
-    } else if (student.state === 'ready_to_graduate') {
+    } else if (proc.state === 'ready_to_graduate') {
       actionBtns = `<span style="font-size:.75rem;color:var(--success)">🎓 Listo — administración cerrará su expediente</span>`;
     } else {
-      actionBtns = `<button class="btn-sec" style="font-size:.72rem;padding:.3rem .65rem;border-color:var(--success);color:var(--success)" onclick="instMarkReady('${student.docNumber}')">🎓 Alumno terminó clases</button>`;
+      actionBtns = `<button class="btn-sec" style="font-size:.72rem;padding:.3rem .65rem;border-color:var(--success);color:var(--success)" onclick="instMarkReady('${proc.docNumber}','${proc.license}')">🎓 Alumno terminó clases</button>`;
     }
 
     const card = document.createElement('div');
@@ -2261,6 +2319,7 @@ function renderInstructorPortal() {
         <div class="student-card-title">
           <h4>${student.name}</h4>
           <div class="student-card-dni">${getDocLabel(student.docType)} ${student.docNumber}</div>
+          <div style="margin-top:.25rem"><span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);border-radius:9999px;padding:.15rem .55rem;font-size:.68rem;font-weight:600;color:var(--brand-light)">${LICENSE_LABELS[proc.license] || proc.license}</span></div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem">
           <span class="wait-badge ${badgeCls}" style="font-size:.8rem;padding:.2rem .6rem">${days}d</span>
@@ -2268,8 +2327,8 @@ function renderInstructorPortal() {
         </div>
       </div>
       <div class="student-card-details">
-        <div class="student-det-item"><span>Asignado el</span><strong>${formatDate(assignedDate)}</strong></div>
-        <div class="student-det-item"><span>Días de espera</span><strong style="color:var(--${badgeCls === 'success' ? 'success' : badgeCls === 'warning' ? 'warning' : 'danger'})">${daysSinceAssign}d</strong></div>
+        <div class="student-det-item"><span>Teórico</span><strong>${formatDate(student.theoryPassedDate, true)}</strong></div>
+        <div class="student-det-item"><span>Días hábiles</span><strong style="color:var(--${badgeCls})">${days}d</strong></div>
       </div>
       <div class="student-card-actions">
         ${actionBtns}
@@ -2282,29 +2341,29 @@ function renderInstructorPortal() {
   });
 }
 
-async function instMarkReady(docNumber) {
-  if (!confirm('¿Confirmas que este alumno terminó todas sus clases prácticas?\nEsto notificará al coordinador para cerrar el expediente.')) return;
+async function instMarkReady(docNumber, license) {
+  if (!confirm('¿Confirmas que este alumno terminó todas sus clases prácticas de ' + license + '?\nEsto notificará al coordinador para cerrar el expediente.')) return;
   showToast('Marcando alumno como listo...', 'info');
   try {
-    const data = await apiCall({ action:'updateStudent', docNumber, field:'state', value:'ready_to_graduate' });
+    const data = await apiCall({ action: 'markReady', docNumber, license });
     if (data.success) {
-      const s = STATE.students.find(st => st.docNumber === docNumber);
-      if (s) s.state = 'ready_to_graduate';
+      const p = getProceso(docNumber, license);
+      if (p) p.state = 'ready_to_graduate';
       showToast('✓ Alumno marcado. El coordinador recibirá la notificación.', 'success');
       renderInstructorPortal();
     } else { showToast('Error: ' + (data.error || 'desconocido'), 'error'); }
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
 
-async function confirmGraduate(docNumber) {
+async function confirmGraduate(docNumber, license) {
   const s = STATE.students.find(st => st.docNumber === docNumber);
-  if (!confirm(`¿Confirmas cerrar el expediente de ${s?.name}?\nEl alumno pasará a "Completado" y saldrá del panel activo.`)) return;
+  if (!confirm(`¿Confirmas cerrar el proceso de ${license} para ${s?.name}?`)) return;
   showToast('Cerrando expediente...', 'info');
   try {
-    const data = await apiCall({ action:'updateStudent', docNumber, field:'state', value:'completed' });
+    const data = await apiCall({ action: 'completeProceso', docNumber, license });
     if (data.success) {
-      const st = STATE.students.find(x => x.docNumber === docNumber);
-      if (st) st.state = 'completed';
+      const p = getProceso(docNumber, license);
+      if (p) p.state = 'completed';
       showToast('🎓 Expediente cerrado exitosamente.', 'success');
       renderCoordinatorPortal();
     } else { showToast('Error: ' + (data.error || 'desconocido'), 'error'); }
@@ -2389,11 +2448,11 @@ function coordMetricClick(type) {
     if (titleEl) titleEl.textContent = '👤 Pendientes de contacto';
   } else if (type === 'alerts') {
     filterEl.value = '';
-    _coordCustomFilter = s => ['theory_passed','instructor_assigned'].includes(s.state) && daysWaiting(s) >= 15;
-    if (titleEl) titleEl.textContent = '🚨 Alertas: más de 15 días';
+    _coordCustomFilter = (p, st) => ['theory_passed','instructor_assigned'].includes(p.state) && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
+    if (titleEl) titleEl.textContent = '🚨 Alertas: más de 20 días hábiles';
   } else if (type === 'ready') {
     filterEl.value = '';
-    _coordCustomFilter = s => s.state === 'ready_to_graduate';
+    _coordCustomFilter = (p) => p.state === 'ready_to_graduate';
     if (titleEl) titleEl.textContent = '🎓 Listos para graduarse';
   }
 
@@ -2419,44 +2478,59 @@ function renderCoordTable() {
   const tbody = document.getElementById('coord-table-body');
   tbody.innerHTML = '';
 
-  // Exclude completed students from active view (unless filter explicitly set)
-  let list = STATE.students.filter(s => s.state !== 'completed');
+  // Build list from procesos, excluding completed and pending
+  let list = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
 
   if (_coordCustomFilter) {
-    list = list.filter(_coordCustomFilter);
+    list = list.filter(p => {
+      const st = STATE.students.find(s => s.docNumber === p.docNumber);
+      return _coordCustomFilter(p, st);
+    });
   } else {
-    if (search)      list = list.filter(s => s.name.toLowerCase().includes(search) || s.docNumber.includes(search));
-    if (filterState) list = list.filter(s => s.state === filterState);
+    if (filterState) list = list.filter(p => p.state === filterState);
+    if (search) list = list.filter(p => {
+      const st = STATE.students.find(s => s.docNumber === p.docNumber);
+      return (st?.name || '').toLowerCase().includes(search) || p.docNumber.includes(search);
+    });
   }
 
-  list.sort((a,b) => daysWaiting(b) - daysWaiting(a));
+  // Sort by days waiting desc
+  list.sort((a,b) => {
+    const sa = STATE.students.find(s => s.docNumber === a.docNumber);
+    const sb = STATE.students.find(s => s.docNumber === b.docNumber);
+    return daysWaiting(b, sb) - daysWaiting(a, sa);
+  });
 
   if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary" style="padding:2rem">Sin resultados para este filtro 🎉</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary" style="padding:2rem">Sin resultados 🎉</td></tr>';
     return;
   }
 
-  list.forEach(s => {
-    const inst = s.instructorId ? STATE.instructors.find(i => i.id === s.instructorId) : null;
-    const days = daysWaiting(s);
-    const cls  = days > 15 ? 'danger' : days >= 8 ? 'warning' : 'success';
-    const isReady = s.state === 'ready_to_graduate';
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+
+  list.forEach(p => {
+    const st   = STATE.students.find(s => s.docNumber === p.docNumber);
+    const inst = p.instructorId ? STATE.instructors.find(i => i.id === p.instructorId) : null;
+    const days = daysWaiting(p, st);
+    const cls  = days > CONFIG.WAIT_DAYS_CRITICAL ? 'danger' : days >= CONFIG.WAIT_DAYS_WARNING ? 'warning' : 'success';
+    const isReady = p.state === 'ready_to_graduate';
     const tr = document.createElement('tr');
     if (isReady) tr.style.background = 'rgba(16,185,129,.05)';
     tr.innerHTML = `
-      <td><div class="student-name-cell">${s.name}</div></td>
-      <td><code style="font-size:.72rem">${s.docType} ${s.docNumber}</code></td>
+      <td><div class="student-name-cell">${st?.name || p.docNumber}</div></td>
+      <td><code style="font-size:.72rem">${st?.docType || ''} ${p.docNumber}</code></td>
+      <td><span style="font-size:.78rem">${LICENSE_LABELS[p.license] || p.license}</span></td>
       <td style="font-size:.8rem">${inst ? inst.name : '<span class="text-muted">—</span>'}</td>
-      <td style="font-size:.78rem">${formatDate(s.theoryPassedDate)}</td>
+      <td style="font-size:.78rem">${formatDate(st?.theoryPassedDate, true)}</td>
       <td><span class="wait-badge ${cls}">${days}d</span></td>
       <td style="display:flex;gap:.35rem;flex-wrap:wrap">
-        <button class="btn-sec" style="font-size:.7rem;padding:.25rem .55rem" onclick="openStudentProfile('${s.docNumber}')">🗂 Perfil</button>
-        ${!s.instructorId || s.state === 'theory_passed'
-          ? `<button class="btn-primary" style="font-size:.7rem;padding:.25rem .55rem;width:auto" onclick="openModal('${s.docNumber}')">+ Asignar</button>`
-          : `<button class="btn-sec" style="font-size:.7rem;padding:.25rem .55rem" onclick="openModal('${s.docNumber}')">🔄 Reasignar</button>`}
+        <button class="btn-sec" style="font-size:.7rem;padding:.25rem .55rem" onclick="openStudentProfile('${p.docNumber}','${p.license}')">🗂 Perfil</button>
+        ${!p.instructorId
+          ? `<button class="btn-primary" style="font-size:.7rem;padding:.25rem .55rem;width:auto" onclick="openModal('${p.docNumber}','${p.license}')">+ Asignar</button>`
+          : `<button class="btn-sec" style="font-size:.7rem;padding:.25rem .55rem" onclick="openModal('${p.docNumber}','${p.license}')">🔄 Reasignar</button>`}
         ${isReady
-          ? `<button class="btn-primary" style="font-size:.7rem;padding:.25rem .55rem;width:auto;background:var(--success);border-color:var(--success)" onclick="confirmGraduate('${s.docNumber}')">🎓 Cerrar</button>`
-          : `<button class="btn-sec" style="font-size:.7rem;padding:.25rem .55rem" onclick="coordChangeState('${s.docNumber}')">✏️ Estado</button>`}
+          ? `<button class="btn-primary" style="font-size:.7rem;padding:.25rem .55rem;width:auto;background:var(--success);border-color:var(--success)" onclick="confirmGraduate('${p.docNumber}','${p.license}')">🎓 Cerrar</button>`
+          : `<button class="btn-sec" style="font-size:.7rem;padding:.25rem .55rem" onclick="coordChangeState('${p.docNumber}','${p.license}')">✏️ Estado</button>`}
       </td>`;
     tbody.appendChild(tr);
   });
@@ -2508,16 +2582,24 @@ async function renderCoordinatorPortal() {
   const user = STATE.currentUser.data.username;
   document.getElementById('coord-welcome').textContent = 'Bienvenido/a, ' + user;
 
-  // Exclude completed from all active metrics
-  const active = STATE.students.filter(s => s.state !== 'completed');
-  const unassigned = active.filter(s => s.state === 'theory_passed').length;
-  const waiting    = active.filter(s => s.state === 'instructor_assigned').length;
-  const critical   = active.filter(s => ['theory_passed','instructor_assigned'].includes(s.state) && daysWaiting(s) >= 15).length;
-  const readyList  = active.filter(s => s.state === 'ready_to_graduate');
-  const pending    = active.filter(s => ['theory_passed','instructor_assigned'].includes(s.state));
-  const avg = pending.length ? Math.round(pending.reduce((a,s) => a + daysWaiting(s), 0) / pending.length) : 0;
+  // Metrics based on Procesos
+  const activeStudents  = STATE.students.filter(s => s.active === 'true');
+  const activeProcesos  = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
+  const unassigned      = STATE.procesos.filter(p => p.state === 'theory_passed').length;
+  const waiting         = STATE.procesos.filter(p => p.state === 'instructor_assigned').length;
+  const readyList       = STATE.procesos.filter(p => p.state === 'ready_to_graduate');
+  const pendingStudents = STATE.students.filter(s => s.active === 'false' || s.active === '');
+  const critical = activeProcesos.filter(p => {
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    return ['theory_passed','instructor_assigned'].includes(p.state) && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
+  }).length;
+  const pendingProcs = activeProcesos.filter(p => ['theory_passed','instructor_assigned'].includes(p.state));
+  const avg = pendingProcs.length ? Math.round(pendingProcs.reduce((a,p) => {
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    return a + daysWaiting(p, st);
+  }, 0) / pendingProcs.length) : 0;
 
-  document.getElementById('cmetric-total').textContent = active.length;
+  document.getElementById('cmetric-total').textContent = activeStudents.length;
   document.getElementById('cmetric-unassigned').textContent = unassigned;
   document.getElementById('cmetric-waiting').textContent = waiting;
   document.getElementById('cmetric-alerts').textContent = critical;
@@ -2542,7 +2624,7 @@ async function renderCoordinatorPortal() {
   paintCard('mcard-alerts', critical, 1, 3);
 
   // Pending registrations banner
-  const pending_students = STATE.students.filter(s => s.state === 'pending');
+  const pending_students = STATE.students.filter(s => s.active === 'false' || s.active === '');
   const pendingBanner = document.getElementById('coord-pending-banner');
   if (pending_students.length > 0) {
     pendingBanner.style.display = 'flex';
@@ -3366,7 +3448,7 @@ function closePendingModal() {
 
 function renderPendingList() {
   const list = document.getElementById('pending-list');
-  const pending = STATE.students.filter(s => s.state === 'pending');
+  const pending = STATE.students.filter(s => s.active === 'false' || s.active === '');
 
   if (pending.length === 0) {
     list.innerHTML = '<p class="text-center text-muted" style="padding:2rem">Sin registros pendientes 🎉</p>';
@@ -3401,10 +3483,12 @@ async function approveStudent(docNumber) {
   if (!confirm('¿Aprobar el registro de este alumno?')) return;
   showToast('Aprobando registro...', 'info');
   try {
-    const data = await apiCall({ action: 'updateStudent', docNumber, field: 'state', value: 'theory_passed' });
+    const data = await apiCall({ action: 'approveStudent', docNumber });
     if (!data.success) throw new Error(data.error || 'Error');
     const s = STATE.students.find(x => x.docNumber === docNumber);
-    if (s) s.state = 'theory_passed';
+    if (s) s.active = 'true';
+    // Update procesos state
+    STATE.procesos.filter(p => p.docNumber === docNumber).forEach(p => p.state = 'theory_passed');
     showToast('✓ Alumno aprobado. Ya puede ingresar al portal.', 'success');
     renderPendingList();
     renderCoordinatorPortal();
