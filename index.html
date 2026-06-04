@@ -1333,7 +1333,7 @@ function apiCall(params) {
 // =============================================================================
 function normalizeStudent(obj) {
   const k = (key) => (obj[key] !== undefined ? obj[key] : '');
-  return {
+  const student = {
     docNumber: String(k('docNumber') || k('dni') || k('cedula') || k('documento') || '').trim(),
     docType: String(k('docType') || k('tipoDoc') || 'CC').trim() || 'CC',
     name: String(k('name') || k('nombre') || '').trim(),
@@ -1348,6 +1348,11 @@ function normalizeStudent(obj) {
     phone: String(k('phone') || k('whatsapp') || k('celular') || '').trim(),
     license: String(k('license') || k('licencia') || '').trim(),
   };
+  // Auto-fix: si tiene instructor asignado pero state sigue en theory_passed, corregir
+  if (student.instructorId && student.state === 'theory_passed') {
+    student.state = 'instructor_assigned';
+  }
+  return student;
 }
 
 function normalizeInstructor(obj) {
