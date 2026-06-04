@@ -474,6 +474,12 @@
     .reg-pill:hover{border-color:var(--brand);color:var(--brand-light)}
     .reg-pill.selected{background:rgba(59,130,246,.15);border-color:var(--brand);color:var(--brand-light);font-weight:600}
 
+    .toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.75rem 1.25rem;border-radius:var(--r-md);font-size:.85rem;font-weight:600;z-index:9999;display:flex;align-items:center;gap:.5rem;box-shadow:0 8px 24px rgba(0,0,0,.4);transform:translateY(2rem);opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none}
+    .toast.show{transform:translateY(0);opacity:1}
+    .toast.success{background:#065f46;border:1px solid var(--success);color:#6ee7b7}
+    .toast.error{background:#4c0519;border:1px solid var(--danger);color:#fda4af}
+    .toast.info{background:#1e3a5f;border:1px solid var(--brand);color:#93c5fd}
+
     /* MOBILE */
     @media(max-width:640px){
       main{padding:1rem}
@@ -1409,6 +1415,21 @@ function getDocLabel(type) {
 // =============================================================================
 // VIEWS
 // =============================================================================
+function showToast(msg, type = 'info') {
+  let toast = document.getElementById('dc-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'dc-toast';
+    toast.className = 'toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.className = 'toast ' + type;
+  setTimeout(() => toast.classList.add('show'), 10);
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
 function showView(id) {
   document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
   document.getElementById(id).classList.add('active');
