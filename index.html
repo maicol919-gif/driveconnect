@@ -645,7 +645,7 @@
             <div class="timeline-step completed" id="step-theory">
               <div class="timeline-marker">✓</div>
               <div class="timeline-content">
-                <div class="timeline-title">Examen Teórico Aprobado</div>
+                <div class="timeline-title">Examen Teórico Aprobado 🎉</div>
                 <div class="timeline-date" id="student-theory-date"></div>
               </div>
             </div>
@@ -1988,7 +1988,7 @@ function renderStudentPortal() {
     theoryEl.classList.add('completed');
     theoryEl.querySelector('.timeline-marker').textContent = '✓';
     const dateEl = document.getElementById('student-theory-date');
-    if (dateEl) dateEl.innerHTML = `Aprobado el: <strong>${formatDate(s.theoryPassedDate, true)}</strong>
+    if (dateEl) dateEl.innerHTML = `¡Felicitaciones! Aprobado el <strong>${formatDate(s.theoryPassedDate, true)}</strong>
       <span style="display:block;margin-top:.3rem;font-size:.72rem;color:var(--text-muted)">
         ¿Esta no es tu fecha? Acércate a la administración para corregirla.
       </span>`;
