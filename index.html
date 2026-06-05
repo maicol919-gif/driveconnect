@@ -2263,8 +2263,6 @@ function renderStudentProcessPanel(s, proc) {
           <button onclick="studentConfirmContact(false,'${lic}')" style="flex:1;padding:.55rem;background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-sm);font-weight:700;cursor:pointer;font-size:.78rem">❌ Aún no</button>
         </div>
       </div>`;
-    } else if (proc.state === 'contact_confirmed') {
-      confirmBtn = `<div style="margin-top:.85rem;padding:.65rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-sm);font-size:.8rem;color:var(--success);text-align:center">✅ Contacto confirmado el ${formatDate(proc.contactDate, true)}</div>`;
     }
 
     rightHTML += `
@@ -2281,6 +2279,10 @@ function renderStudentProcessPanel(s, proc) {
              <p style="font-size:.7rem;color:var(--text-muted);text-align:center;margin-top:.35rem">Han pasado 20 días hábiles — ya puedes contactarlo directamente</p>`
           : `<p style="font-size:.8rem;color:var(--text-muted);text-align:center">Te contactará pronto. <span style="color:white;font-weight:600">Faltan ${CONFIG.WAIT_DAYS_CRITICAL - procDays} días hábiles</span> para el límite.</p>`}
         ${confirmBtn}
+        ${proc.state === 'contact_confirmed'
+          ? `<p style="font-size:.82rem;color:var(--text-secondary);text-align:center;margin-top:.5rem">¡Todo listo! Coordina tus clases directamente con él 🚗</p>
+             <a href="${waUrl}" target="_blank" style="display:block;text-align:center;margin-top:.5rem;font-size:.75rem;color:var(--text-muted);text-decoration:underline;text-underline-offset:3px">¿Necesitas contactarlo? Escríbele por WhatsApp</a>`
+          : ''}
       </div>`;
   }
 
