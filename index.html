@@ -776,10 +776,11 @@
             <select id="coord-filter-state" class="config-input" style="width:170px;margin-bottom:0;padding:.45rem .6rem;font-size:.8rem">
               <option value="">Todos los estados</option>
               <option value="theory_passed">Sin instructor</option>
-              <option value="instructor_assigned">Pendiente contacto</option>
-              <option value="contacted">Contactado</option>
+              <option value="instructor_assigned">Instructor asignado</option>
+              <option value="contacted">Contactado por instructor</option>
               <option value="contact_confirmed">Confirmado por alumno</option>
-              <option value="practice_started">En práctica</option>
+              <option value="practice_started">Clases en curso</option>
+              <option value="ready_to_graduate">Finalizados — pendiente cierre</option>
             </select>
             <button id="coord-clear-filter" class="btn-sec" style="font-size:.75rem;padding:.4rem .75rem;display:none" onclick="coordClearFilter()">✕ Limpiar</button>
           </div>
@@ -1419,12 +1420,29 @@ function normalizeStudent(obj) {
 function normalizeProceso(obj) {
   const k = (key) => (obj[key] !== undefined ? obj[key] : '');
   return {
-    docNumber:    String(k('docNumber') || '').trim(),
-    license:      String(k('license') || '').trim().toUpperCase(),
-    instructorId: String(k('instructorId') || '').trim() || null,
-    state:        String(k('state') || 'theory_passed').trim(),
-    contactDate:  String(k('contactDate') || '').trim() || null,
+    docNumber:           String(k('docNumber') || '').trim(),
+    license:             String(k('license') || '').trim().toUpperCase(),
+    instructorId:        String(k('instructorId') || '').trim() || null,
+    state:               String(k('state') || 'theory_passed').trim(),
+    contactDate:         String(k('contactDate') || '').trim() || null,
+    assignedDate:        String(k('assignedDate') || '').trim() || null,
+    contactedDate:       String(k('contactedDate') || '').trim() || null,
+    confirmedDate:       String(k('confirmedDate') || '').trim() || null,
+    practiceStartedDate: String(k('practiceStartedDate') || '').trim() || null,
+    completedDate:       String(k('completedDate') || '').trim() || null,
   };
+}
+
+// Helper: devuelve la fecha más relevante para un estado dado
+function getStateDate(proc, state) {
+  const map = {
+    instructor_assigned:  proc.assignedDate,
+    contacted:            proc.contactedDate,
+    contact_confirmed:    proc.confirmedDate || proc.contactDate,
+    practice_started:     proc.practiceStartedDate,
+    completed:            proc.completedDate,
+  };
+  return map[state] || null;
 }
 
 // Helper: get procesos for a student
@@ -1656,11 +1674,14 @@ function formatDate(dateStr, long = false) {
   
 function translateState(state) {
   const map = {
-    theory_passed: 'Sin instructor',
-    instructor_assigned: 'Pendiente contacto',
-    contacted: 'Contactado (sin confirmar)',
-    contact_confirmed: 'Contacto confirmado',
-    practice_started: 'Contactado (sin confirmar)',
+    pending:             'Pendiente de activación',
+    theory_passed:       'Sin instructor asignado',
+    instructor_assigned: 'Instructor asignado — pendiente contacto',
+    contacted:           'Contactado por instructor — pendiente confirmación del alumno',
+    contact_confirmed:   'Contacto confirmado',
+    practice_started:    'Clases en curso',
+    ready_to_graduate:   'Clases finalizadas — pendiente cierre',
+    completed:           'Proceso completado',
   };
   return map[state] || state;
 }
@@ -2138,16 +2159,12 @@ function renderStudentProcessPanel(s, proc) {
   const licenseLabel  = LICENSE_FULL[proc.license] || proc.license || 'Tu proceso';
   const inst          = proc.instructorId ? STATE.instructors.find(i => i.id === proc.instructorId) : null;
   const procDays      = daysWaiting(proc, s);
-  const canContact    = procDays >= CONFIG.WAIT_DAYS_CRITICAL && !['contact_confirmed','practice_started','ready_to_graduate'].includes(proc.state);
   const gradients     = ['linear-gradient(135deg,var(--brand),#6366f1)', 'linear-gradient(135deg,#059669,#0891b2)'];
   const gradIdx       = (proc.license === 'A2' || proc.license === 'A1') ? 1 : 0;
   const barColor      = gradients[gradIdx];
 
-  const step1done   = true;
-  const step2done   = !!proc.instructorId;
-  const step2active = !proc.instructorId;
-  const step3done   = ['contact_confirmed','practice_started','ready_to_graduate'].includes(proc.state);
-  const step3active = proc.state === 'contacted' || (proc.instructorId && !step3done);
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
+  const stateIdx = STATE_ORDER.indexOf(proc.state);
 
   const dot = (done, active) => done
     ? `<div style="width:28px;height:28px;border-radius:50%;background:rgba(16,185,129,.15);border:2px solid var(--success);display:flex;align-items:center;justify-content:center;color:var(--success);font-size:.8rem;flex-shrink:0">✓</div>`
@@ -2155,7 +2172,14 @@ function renderStudentProcessPanel(s, proc) {
       ? `<div style="width:28px;height:28px;border-radius:50%;background:var(--brand-glow);border:2px solid var(--brand);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:white;flex-shrink:0;animation:pulseBorder 2s infinite">●</div>`
       : `<div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.03);border:2px solid var(--border-color);display:flex;align-items:center;justify-content:center;font-size:.7rem;color:var(--text-muted);flex-shrink:0">○</div>`;
 
-  // LEFT: timeline for active proceso
+  const dateTag = (d) => d ? `<div style="font-size:.72rem;color:var(--text-muted);margin-top:.2rem">${formatDate(d, true)}</div>` : '';
+
+  const s1done = true;
+  const s2done = stateIdx >= 1;
+  const s3done = stateIdx >= 2;
+  const s4done = stateIdx >= 3;
+  const s5done = stateIdx >= 4;
+
   timelinePanel.style.position = 'relative';
   timelinePanel.style.overflow = 'hidden';
   timelinePanel.innerHTML = `
@@ -2163,159 +2187,242 @@ function renderStudentProcessPanel(s, proc) {
     <div style="display:flex;flex-direction:column;gap:1.1rem;position:relative;padding-top:.25rem">
       <div style="position:absolute;left:13px;top:28px;bottom:28px;width:2px;background:var(--border-color)"></div>
       <div style="display:flex;align-items:flex-start;gap:.85rem">
-        ${dot(step1done,false)}
+        ${dot(s1done, false)}
         <div>
-          <div style="font-weight:700;font-size:.9rem;color:var(--text-secondary)">Examen teórico aprobado</div>
+          <div style="font-weight:600;font-size:.88rem;color:var(--text-secondary)">Examen teórico aprobado</div>
+          ${dateTag(s.theoryPassedDate)}
         </div>
       </div>
       <div style="display:flex;align-items:flex-start;gap:.85rem">
-        ${dot(step2done,step2active)}
+        ${dot(s2done, !s2done)}
         <div>
-          <div style="font-weight:${step2active?'700':'600'};font-size:.9rem;color:${step2active?'white':'var(--text-secondary)'}">Asignación de instructor</div>
-          ${step2done ? `<div style="font-size:.78rem;color:var(--brand-light);margin-top:.1rem">${inst?.name||''}</div>` : step2active ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:.1rem">La academia está buscando el indicado para ti</div>` : ''}
+          <div style="font-weight:${!s2done?'700':'600'};font-size:.88rem;color:${!s2done?'white':'var(--text-secondary)'}">Instructor asignado</div>
+          ${s2done && inst ? `<div style="font-size:.78rem;color:var(--brand-light);margin-top:.1rem">${inst.name}</div>` : !s2done ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:.1rem">La academia está buscando el indicado para ti</div>` : ''}
+          ${dateTag(proc.assignedDate)}
         </div>
       </div>
       <div style="display:flex;align-items:flex-start;gap:.85rem">
-        ${dot(step3done,step3active)}
+        ${dot(s3done, s2done && !s3done)}
         <div>
-          <div style="font-weight:${step3active?'700':'600'};font-size:.9rem;color:${step3active?'white':'var(--text-secondary)'}">Primer contacto</div>
-          ${step3done ? `<div style="font-size:.75rem;color:var(--success);margin-top:.1rem">Confirmado el ${formatDate(proc.contactDate, true)}</div>` : step3active ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:.1rem">${procDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'Plazo cumplido — escríbele desde la derecha →' : 'Tu instructor te contactará pronto'}</div>` : ''}
+          <div style="font-weight:${s2done&&!s3done?'700':'600'};font-size:.88rem;color:${s2done&&!s3done?'white':'var(--text-secondary)'}">Primer contacto del instructor</div>
+          ${s3done ? dateTag(proc.contactedDate) : s2done && !s3done ? `<div style="font-size:.75rem;color:var(--text-muted);margin-top:.1rem">${procDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'Plazo cumplido — toma acción desde la derecha →' : 'Tu instructor te contactará pronto'}</div>` : ''}
         </div>
       </div>
+      <div style="display:flex;align-items:flex-start;gap:.85rem">
+        ${dot(s4done, s3done && !s4done)}
+        <div>
+          <div style="font-weight:${s3done&&!s4done?'700':'600'};font-size:.88rem;color:${s3done&&!s4done?'white':'var(--text-secondary)'}">Contacto confirmado</div>
+          ${s4done ? dateTag(proc.confirmedDate || proc.contactDate) : s3done && !s4done ? `<div style="font-size:.75rem;color:var(--warning);margin-top:.1rem">Tu instructor reportó haberte contactado — confírmalo</div>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:.85rem">
+        ${dot(s5done, s4done && !s5done)}
+        <div>
+          <div style="font-weight:${s4done&&!s5done?'700':'600'};font-size:.88rem;color:${s4done&&!s5done?'white':'var(--text-secondary)'}">Clases en curso</div>
+          ${s5done ? dateTag(proc.practiceStartedDate) : ''}
+        </div>
+      </div>
+      ${stateIdx >= 5 ? `
+      <div style="display:flex;align-items:flex-start;gap:.85rem">
+        ${dot(true, false)}
+        <div>
+          <div style="font-weight:600;font-size:.88rem;color:var(--text-secondary)">Clases finalizadas</div>
+          ${dateTag(proc.completedDate)}
+        </div>
+      </div>` : ''}
     </div>`;
 
-  // RIGHT: instructor panel
   rightPanel.style.position = 'relative';
   rightPanel.style.overflow = 'hidden';
-
   let rightHTML = `<div style="position:absolute;top:0;left:0;right:0;height:3px;background:${barColor}"></div>`;
-  // Mini-banner contextual por licencia
-  const procDays2 = procDays; // alias
-  let miniBanner = '';
-  if (proc.state === 'contacted') {
-    miniBanner = `<div style="margin-bottom:1rem;padding:.65rem .85rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--r-sm);display:flex;align-items:center;gap:.6rem">
-      <span style="font-size:1.1rem">📞</span>
-      <div><strong style="font-size:.82rem;color:var(--warning)">Tu instructor te contactó</strong><br><span style="font-size:.72rem;color:var(--text-muted)">Confirma si ya fue o no desde abajo</span></div>
-    </div>`;
-  } else if (proc.state === 'contact_confirmed') {
-    miniBanner = `<div style="margin-bottom:1rem;padding:.65rem .85rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-sm);display:flex;align-items:center;gap:.6rem">
-      <span style="font-size:1.1rem">✅</span>
-      <div><strong style="font-size:.82rem;color:var(--success)">¡Todo listo! Coordina tus clases directamente con él 🚗</strong></div>
-    </div>`;
-  } else if (procDays2 >= CONFIG.WAIT_DAYS_CRITICAL && ['theory_passed','instructor_assigned'].includes(proc.state)) {
-    miniBanner = `<div style="margin-bottom:1rem;padding:.65rem .85rem;background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:space-between;gap:.6rem">
-      <div style="display:flex;align-items:center;gap:.6rem">
-        <span style="font-size:1.1rem">🚨</span>
-        <div><strong style="font-size:.82rem;color:var(--danger)">Han pasado ${procDays2} días hábiles</strong><br><span style="font-size:.72rem;color:var(--text-muted)">Se cumplió el plazo — toma acción</span></div>
-      </div>
-      <span style="font-family:var(--font-title);font-size:1.5rem;font-weight:800;color:var(--danger)">${procDays2}<span style="font-size:.65rem;font-weight:400;color:var(--text-muted)">d</span></span>
-    </div>`;
-  } else if (procDays2 >= CONFIG.WAIT_DAYS_WARNING && ['theory_passed','instructor_assigned'].includes(proc.state)) {
-    miniBanner = `<div style="margin-bottom:1rem;padding:.65rem .85rem;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:var(--r-sm);display:flex;align-items:center;justify-content:space-between;gap:.6rem">
-      <div style="display:flex;align-items:center;gap:.6rem">
-        <span style="font-size:1.1rem">⏳</span>
-        <div><strong style="font-size:.82rem;color:var(--warning)">Tu instructor te contactará pronto</strong><br><span style="font-size:.72rem;color:var(--text-muted)">Faltan ${CONFIG.WAIT_DAYS_CRITICAL - procDays2} días hábiles para el límite</span></div>
-      </div>
-      <span style="font-family:var(--font-title);font-size:1.5rem;font-weight:800;color:var(--warning)">${procDays2}<span style="font-size:.65rem;font-weight:400;color:var(--text-muted)">d</span></span>
-    </div>`;
-  }
-
   rightHTML += `<div style="font-size:.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1rem;padding-top:.25rem">${licenseLabel}</div>`;
-  rightHTML += miniBanner;
 
-  if (!inst) {
-    const coordPhone = CONFIG.COORD_PHONE;
-    const waMsg = `Hola, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Llevo ${procDays} días hábiles desde mi examen teórico y aún no tengo instructor para ${licenseLabel}. ¿Me pueden ayudar?`;
-    const waUrl = coordPhone ? `https://wa.me/57${coordPhone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}` : null;
+  switch (proc.state) {
 
-    rightHTML += procDays >= CONFIG.WAIT_DAYS_CRITICAL
-      ? `<div style="text-align:center;padding:.5rem 0">
-           <div style="font-size:2.5rem;margin-bottom:.75rem">⚠️</div>
-           <h4 style="color:var(--danger);margin-bottom:.4rem">Plazo vencido</h4>
-           <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:1rem">Han pasado <strong>${procDays} días hábiles</strong> sin instructor asignado.</p>
-           ${waUrl ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp" style="font-size:.82rem"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Escribir a la Administración</a>` : '<p style="font-size:.78rem;color:var(--text-muted)">Comunícate con la academia.</p>'}
-         </div>`
-      : `<div style="text-align:center;padding:.5rem 0">
-           <div style="font-size:3rem;margin-bottom:.75rem">⏳</div>
-           <h4 style="margin-bottom:.4rem">Buscando tu instructor</h4>
-           <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:1.25rem">Te contactará antes de cumplirse el plazo.</p>
-           <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--r-md);padding:.85rem">
-             <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.35rem">Días hábiles de espera</div>
-             <div style="font-family:var(--font-title);font-size:2.25rem;font-weight:800;color:${procDays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand-light)'}">${procDays}</div>
-             <div style="font-size:.72rem;color:var(--text-muted);margin-top:.2rem">de ${CONFIG.WAIT_DAYS_CRITICAL} días hábiles máximos</div>
-             <div style="margin-top:.6rem;background:rgba(255,255,255,.05);border-radius:9999px;height:5px;overflow:hidden">
-               <div style="height:100%;border-radius:9999px;width:${Math.min(100,Math.round(procDays/CONFIG.WAIT_DAYS_CRITICAL*100))}%;background:${procDays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand)'}"></div>
-             </div>
-           </div>
-         </div>`;
-  } else {
-    const initials = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-    const waMsg = `Hola ${inst.name}, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Estoy registrado para ${licenseLabel} y el sistema me indica que eres mi instructor. Me gustaría coordinar el inicio de mis clases. ¡Gracias!`;
-    const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
-    const lic = proc.license;
-
-    let confirmBtn = '';
-    if (proc.state === 'contacted') {
-      confirmBtn = `<div style="margin-top:.85rem;padding:.85rem;border:1px solid rgba(245,158,11,.3);border-radius:var(--r-sm);background:rgba(245,158,11,.05)">
-        <p style="font-size:.8rem;color:var(--warning);font-weight:600;margin-bottom:.6rem">📞 Tu instructor reportó haberte contactado</p>
-        <div style="display:flex;gap:.5rem">
-          <button class="btn-success-action" style="margin-top:0;flex:1;padding:.55rem;font-size:.78rem" onclick="studentConfirmContact(true,'${lic}')">✅ Sí, ya me contactó</button>
-          <button onclick="studentConfirmContact(false,'${lic}')" style="flex:1;padding:.55rem;background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-sm);font-weight:700;cursor:pointer;font-size:.78rem">❌ Aún no</button>
-        </div>
+    case undefined: case '': case 'pending': {
+      rightHTML += `<div style="text-align:center;padding:1rem 0">
+        <div style="font-size:2.5rem;margin-bottom:.75rem">⏳</div>
+        <h4 style="margin-bottom:.4rem">Registro en proceso</h4>
+        <p style="font-size:.82rem;color:var(--text-muted)">Tu registro está siendo revisado por la academia. Te notificarán pronto.</p>
       </div>`;
+      break;
     }
 
-    rightHTML += `
-      <div class="instructor-card-header">
-        <div style="width:56px;height:56px;border-radius:50%;background:${barColor};display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.2rem;font-weight:800;color:white;flex-shrink:0;box-shadow:0 0 0 3px rgba(59,130,246,.2)">${initials}</div>
-        <div class="instructor-meta">
-          <span class="instructor-badge">Tu Instructor Asignado</span>
-          <h3>${inst.name}</h3>
-        </div>
-      </div>
-      <div style="margin-top:1rem">
-        ${proc.state === 'contact_confirmed'
-          ? `<p style="font-size:.75rem;color:var(--text-muted);text-align:center;margin-bottom:.5rem">¿Necesitas contactarlo?</p>
-             <a href="${waUrl}" target="_blank" class="btn-whatsapp"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Escribir por WhatsApp</a>`
-          : canContact
-            ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>Escribir por WhatsApp</a>
-               <p style="font-size:.7rem;color:var(--text-muted);text-align:center;margin-top:.35rem">Han pasado 20 días hábiles — ya puedes contactarlo directamente</p>`
-            : `<p style="font-size:.8rem;color:var(--text-muted);text-align:center">Te contactará pronto. <span style="color:white;font-weight:600">Faltan ${CONFIG.WAIT_DAYS_CRITICAL - procDays} días hábiles</span> para el límite.</p>`}
-        ${confirmBtn}
-      </div>`;
-  }
+    case 'theory_passed': {
+      const coordPhone = CONFIG.COORD_PHONE;
+      const waMsg = `Hola, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Llevo ${procDays} días hábiles desde mi examen teórico y aún no tengo instructor para ${licenseLabel}. ¿Me pueden ayudar?`;
+      const waUrl = coordPhone ? `https://wa.me/57${coordPhone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}` : null;
+      rightHTML += procDays >= CONFIG.WAIT_DAYS_CRITICAL
+        ? `<div style="text-align:center;padding:.5rem 0">
+             <div style="font-size:2.5rem;margin-bottom:.75rem">🚨</div>
+             <h4 style="color:var(--danger);margin-bottom:.4rem">Plazo vencido sin instructor</h4>
+             <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:1rem">Han pasado <strong>${procDays} días hábiles</strong> sin instructor asignado. Comunícate con la academia.</p>
+             ${waUrl ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp" style="font-size:.82rem">Escribir a la Academia</a>` : ''}
+           </div>`
+        : `<div style="text-align:center;padding:.5rem 0">
+             <div style="font-size:3rem;margin-bottom:.75rem">🔍</div>
+             <h4 style="margin-bottom:.4rem">Buscando tu instructor ideal</h4>
+             <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:1.25rem">La academia está seleccionando el mejor instructor para ti.</p>
+             <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--r-md);padding:.85rem">
+               <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.35rem">Días hábiles de espera</div>
+               <div style="font-family:var(--font-title);font-size:2.25rem;font-weight:800;color:${procDays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand-light)'}">${procDays}</div>
+               <div style="font-size:.72rem;color:var(--text-muted);margin-top:.2rem">de ${CONFIG.WAIT_DAYS_CRITICAL} días hábiles máximos</div>
+               <div style="margin-top:.6rem;background:rgba(255,255,255,.05);border-radius:9999px;height:5px;overflow:hidden">
+                 <div style="height:100%;border-radius:9999px;width:${Math.min(100,Math.round(procDays/CONFIG.WAIT_DAYS_CRITICAL*100))}%;background:${procDays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand)'}"></div>
+               </div>
+             </div>
+           </div>`;
+      break;
+    }
 
-  const selfConfirmHTML = (proc.state === 'instructor_assigned' && inst && procDays < CONFIG.WAIT_DAYS_CRITICAL)
-    ? `<div style="margin-top:1.25rem;text-align:center">
-        <button onclick="studentSelfConfirmContact('${proc.license}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;text-decoration:underline;text-underline-offset:3px">¿Ya te contactó? Confírmalo aquí</button>
-       </div>` : '';
+    case 'instructor_assigned': {
+      const canContact = procDays >= CONFIG.WAIT_DAYS_CRITICAL;
+      if (!inst) {
+        rightHTML += `<div style="text-align:center;padding:1rem 0"><p style="color:var(--text-muted);font-size:.82rem">Instructor asignado — cargando información...</p></div>`;
+      } else {
+        const initials = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+        const waMsg = `Hola ${inst.name}, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Estoy registrado para ${licenseLabel} y el sistema indica que eres mi instructor. Me gustaría coordinar el inicio de mis clases.`;
+        const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+        rightHTML += `
+          <div class="instructor-card-header">
+            <div style="width:56px;height:56px;border-radius:50%;background:${barColor};display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.2rem;font-weight:800;color:white;flex-shrink:0">${initials}</div>
+            <div class="instructor-meta"><span class="instructor-badge">Tu Instructor Asignado</span><h3>${inst.name}</h3></div>
+          </div>
+          ${canContact
+            ? `<div style="text-align:center;margin-top:.75rem">
+                 <p style="font-size:.8rem;color:var(--text-muted);margin-bottom:.85rem">Han pasado <strong style="color:var(--danger)">${procDays} días hábiles</strong> — ya puedes escribirle.</p>
+                 <a href="${waUrl}" target="_blank" class="btn-whatsapp">Escribir por WhatsApp</a>
+               </div>`
+            : `<div style="background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.12);border-radius:var(--r-sm);padding:.85rem;text-align:center;margin-top:.75rem">
+                 <p style="font-size:.82rem;color:var(--text-muted)">Tu instructor te contactará pronto.</p>
+                 <p style="font-size:.78rem;color:var(--brand-light);margin-top:.3rem;font-weight:600">Quedan ${CONFIG.WAIT_DAYS_CRITICAL - procDays} días hábiles para el límite.</p>
+               </div>`}
+          <div style="margin-top:1rem;text-align:center">
+            <button onclick="studentSelfConfirmContact('${proc.license}')" style="background:none;border:none;color:var(--text-muted);font-size:.78rem;cursor:pointer;text-decoration:underline;text-underline-offset:3px">¿Ya te contactó? Confírmalo aquí</button>
+          </div>`;
+      }
+      break;
+    }
+
+    case 'contacted': {
+      const initials = inst ? inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() : '';
+      const waMsg = inst ? `Hola ${inst.name}, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Tengo una consulta sobre mis clases de ${licenseLabel}.` : '';
+      const waUrl = inst ? `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}` : '';
+      rightHTML += `
+        <div style="margin-bottom:1rem;padding:.85rem 1rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--r-sm)">
+          <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem">
+            <span style="font-size:1.2rem">📞</span>
+            <strong style="font-size:.9rem;color:var(--warning)">Tu instructor te contactó</strong>
+          </div>
+          <p style="font-size:.82rem;color:var(--text-muted)">Confirma si ya fue así para continuar con tus clases.</p>
+        </div>
+        <div style="display:flex;gap:.5rem;margin-bottom:1rem">
+          <button class="btn-success-action" style="flex:1;padding:.65rem;font-size:.82rem" onclick="studentConfirmContact(true,'${proc.license}')">✅ Sí, ya me contactó</button>
+          <button onclick="studentConfirmContact(false,'${proc.license}')" style="flex:1;padding:.65rem;background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-sm);font-weight:700;cursor:pointer;font-size:.82rem">❌ Aún no</button>
+        </div>
+        ${inst ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp" style="font-size:.8rem">Contactar instructor</a>` : ''}`;
+      break;
+    }
+
+    case 'contact_confirmed': {
+      const initials = inst ? inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() : '';
+      const waMsg = inst ? `Hola ${inst.name}, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Te escribo sobre mis clases de ${licenseLabel}.` : '';
+      const waUrl = inst ? `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}` : '';
+      rightHTML += `
+        <div style="text-align:center;padding:.5rem 0 1rem">
+          <div style="font-size:2.5rem;margin-bottom:.5rem">✅</div>
+          <h4 style="color:var(--success);font-size:1.1rem;margin-bottom:.3rem">Contacto confirmado</h4>
+          <p style="font-size:.84rem;color:var(--text-secondary)">¡Todo listo! Coordina tus clases directamente con tu instructor.</p>
+        </div>
+        ${inst ? `
+        <div class="instructor-card-header" style="margin-top:.5rem">
+          <div style="width:52px;height:52px;border-radius:50%;background:${barColor};display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.1rem;font-weight:800;color:white;flex-shrink:0">${initials}</div>
+          <div class="instructor-meta"><span class="instructor-badge">Tu Instructor</span><h3>${inst.name}</h3></div>
+        </div>
+        <a href="${waUrl}" target="_blank" class="btn-whatsapp" style="margin-top:.75rem">Escribir por WhatsApp</a>` : ''}`;
+      break;
+    }
+
+    case 'practice_started': {
+      const initials = inst ? inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() : '';
+      const waMsg = inst ? `Hola ${inst.name}, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Te escribo sobre mis clases de ${licenseLabel}.` : '';
+      const waUrl = inst ? `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}` : '';
+      rightHTML += `
+        <div style="text-align:center;padding:.5rem 0 1rem">
+          <div style="font-size:2.5rem;margin-bottom:.5rem">🚗</div>
+          <h4 style="color:var(--success);font-size:1.1rem;margin-bottom:.3rem">¡Clases en curso!</h4>
+          <p style="font-size:.84rem;color:var(--text-secondary)">Estás disfrutando tus clases. ¡Mucho éxito!</p>
+        </div>
+        ${inst ? `
+        <div class="instructor-card-header" style="margin-top:.5rem">
+          <div style="width:52px;height:52px;border-radius:50%;background:${barColor};display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.1rem;font-weight:800;color:white;flex-shrink:0">${initials}</div>
+          <div class="instructor-meta"><span class="instructor-badge">Tu Instructor</span><h3>${inst.name}</h3></div>
+        </div>
+        <a href="${waUrl}" target="_blank" class="btn-whatsapp" style="margin-top:.75rem">Contactar instructor</a>` : ''}`;
+      break;
+    }
+
+    case 'ready_to_graduate': {
+      const initials = inst ? inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() : '';
+      const waMsg = inst ? `Hola ${inst.name}, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Tengo una consulta sobre el cierre de mis clases de ${licenseLabel}.` : '';
+      const waUrl = inst ? `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}` : '';
+      rightHTML += `
+        <div style="text-align:center;padding:.5rem 0 1rem">
+          <div style="font-size:2.5rem;margin-bottom:.5rem">🎓</div>
+          <h4 style="color:var(--success);font-size:1.1rem;margin-bottom:.3rem">Tu instructor finalizó tus clases</h4>
+          <p style="font-size:.84rem;color:var(--text-secondary);margin-bottom:1rem">Acércate lo antes posible a la academia para <strong>cerrar el curso con la certificadora</strong>.</p>
+          <div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:var(--r-sm);padding:.85rem;margin-bottom:.85rem;text-align:left">
+            <div style="font-size:.78rem;font-weight:700;color:var(--success);margin-bottom:.25rem">📋 Próximos pasos</div>
+            <div style="font-size:.78rem;color:var(--text-secondary);line-height:1.6">
+              1. Acércate a la academia con tu documento<br>
+              2. Solicita el cierre de curso en administración<br>
+              3. La certificadora emitirá tu licencia
+            </div>
+          </div>
+          ${inst ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp" style="font-size:.8rem">Consultar con instructor</a>` : ''}
+        </div>`;
+      break;
+    }
+
+    case 'completed': {
+      rightHTML += `
+        <div style="text-align:center;padding:1rem 0">
+          <div style="font-size:3rem;margin-bottom:.75rem">🏆</div>
+          <h4 style="color:var(--success);font-size:1.1rem;margin-bottom:.3rem">¡Proceso completado!</h4>
+          <p style="font-size:.84rem;color:var(--text-secondary)">Has completado exitosamente tu proceso de ${licenseLabel}. ¡Felicitaciones!</p>
+        </div>`;
+      break;
+    }
+
+    default: {
+      rightHTML += `
+        <div style="text-align:center;padding:1rem 0">
+          <div style="font-size:2rem;margin-bottom:.5rem">ℹ️</div>
+          <p style="font-size:.84rem;color:var(--text-muted)">Estado en actualización. Comunícate con la academia si tienes dudas.</p>
+        </div>`;
+    }
+  }
 
   const faqHTML = `
     <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border-color)">
       <div class="faq-title" style="font-size:.75rem;margin-bottom:.75rem">Preguntas frecuentes</div>
       <div class="faq-list">
         <div class="faq-item">
-          <button class="faq-question" onclick="toggleFaq(this)" style="font-size:.8rem">
-            <span>¿Cuándo me contacta el instructor?</span><span class="faq-arrow">▼</span>
-          </button>
-          <div class="faq-answer"><p style="font-size:.78rem">Tu instructor tiene un plazo máximo de <strong>20 días hábiles</strong> desde que aprobaste el examen teórico para contactarte. En la mayoría de los casos ocurre mucho antes.</p></div>
+          <button class="faq-question" onclick="toggleFaq(this)" style="font-size:.8rem"><span>¿Cuándo me contacta el instructor?</span><span class="faq-arrow">▼</span></button>
+          <div class="faq-answer"><p style="font-size:.78rem">Tu instructor tiene un plazo máximo de <strong>20 días hábiles</strong> desde que aprobaste el examen teórico para contactarte. En la mayoría de los casos ocurre antes.</p></div>
         </div>
         <div class="faq-item">
-          <button class="faq-question" onclick="toggleFaq(this)" style="font-size:.8rem">
-            <span>¿Cuándo inicia mi primera clase práctica?</span><span class="faq-arrow">▼</span>
-          </button>
+          <button class="faq-question" onclick="toggleFaq(this)" style="font-size:.8rem"><span>¿Cuándo inicia mi primera clase práctica?</span><span class="faq-arrow">▼</span></button>
           <div class="faq-answer"><p style="font-size:.78rem">Una vez que tu instructor te contacte coordinarán los horarios. Las clases normalmente inician en la misma semana del primer contacto.</p></div>
         </div>
         <div class="faq-item">
-          <button class="faq-question" onclick="toggleFaq(this)" style="font-size:.8rem">
-            <span>¿Qué hago si no me han contactado?</span><span class="faq-arrow">▼</span>
-          </button>
-          <div class="faq-answer"><p style="font-size:.78rem">El proceso tiene un plazo de <strong>20 días hábiles</strong> desde tu examen teórico. Durante ese tiempo, <strong>no necesitas llamar a la academia</strong> — el sistema te avisará si hay algún problema. Si el plazo se cumple sin contacto, aparecerá una alerta aquí mismo con los pasos a seguir.</p></div>
+          <button class="faq-question" onclick="toggleFaq(this)" style="font-size:.8rem"><span>¿Qué hago si no me han contactado?</span><span class="faq-arrow">▼</span></button>
+          <div class="faq-answer"><p style="font-size:.78rem">El sistema tiene un plazo de <strong>20 días hábiles</strong>. Durante ese tiempo <strong>no necesitas llamar a la academia</strong> — aquí aparecerá una alerta si algo ocurre.</p></div>
         </div>
       </div>
     </div>`;
 
-  rightPanel.innerHTML = rightHTML + selfConfirmHTML + faqHTML;
+  rightPanel.innerHTML = rightHTML + faqHTML;
 }
 
 async function studentConfirmContact(confirmed, license) {
@@ -2324,16 +2431,19 @@ async function studentConfirmContact(confirmed, license) {
   if (!proc) return;
 
   if (confirmed) {
+    const now = today();
     proc.state = 'contact_confirmed';
-    proc.contactDate = proc.contactDate || today();
+    proc.confirmedDate = now;
+    proc.contactDate = proc.contactDate || now;
     renderStudentPortal();
-    showToast('✅ ¡Gracias por confirmar! ¡Mucho éxito en tus clases!', 'success');
-    await apiCall({ action: 'confirmContact', docNumber: student.docNumber, license });
+    showToast('✅ Contacto confirmado — ¡Todo listo! Coordina tus clases con tu instructor.', 'success');
+    await apiCall({ action: 'confirmContact', docNumber: student.docNumber, license, confirmedDate: now });
   } else {
     proc.state = 'instructor_assigned';
     proc.contactDate = null;
+    proc.contactedDate = null;
     renderStudentPortal();
-    showToast('⚠ Reporte enviado a la administración', 'warning');
+    showToast('⚠ Reportado. La academia revisará el estado con el instructor.', 'warning');
     await apiCall({ action: 'updateProceso', docNumber: student.docNumber, license, field: 'state', value: 'instructor_assigned' });
   }
 }
@@ -3247,8 +3357,8 @@ function adminChangeState(docNumber, license) {
   if (!procs.length) { showToast('Este alumno no tiene procesos activos.', 'warning'); return; }
 
   const ex = document.getElementById('state-modal'); if (ex) ex.remove();
-  const states = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','ready_to_graduate'];
-  const labels = { theory_passed:'Sin instructor', instructor_assigned:'Pendiente contacto', contacted:'Contactado sin confirmar', contact_confirmed:'Confirmado por alumno', practice_started:'En práctica', ready_to_graduate:'Listo para cerrar' };
+  const states = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','ready_to_graduate','completed'];
+  const labels = { theory_passed:'Sin instructor', instructor_assigned:'Instructor asignado — pendiente contacto', contacted:'Contactado por instructor', contact_confirmed:'Confirmado por alumno', practice_started:'Clases en curso', ready_to_graduate:'Clases finalizadas — pendiente cierre', completed:'Proceso completado' };
   const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
 
   const procOptions = procs.map(p => `<option value="${p.license}" ${p.license===license?'selected':''}>${LICENSE_LABELS[p.license]||p.license}</option>`).join('');
@@ -3661,16 +3771,40 @@ function toggleLicense(btn, groupId) {
   const groupEl = document.getElementById(groupId || 'reg-license-pills');
   const selected = groupEl ? groupEl.querySelectorAll('.reg-pill.selected') : document.querySelectorAll('#reg-license-pills .reg-pill.selected');
   const hint = document.getElementById('reg-license-hint');
+
   if (btn.classList.contains('selected')) {
     btn.classList.remove('selected');
     if (hint) hint.textContent = '';
-  } else {
-    if (selected.length >= 2) {
-      if (hint) { hint.textContent = '⚠ Máximo 2 licencias.'; hint.style.color = 'var(--warning)'; }
+    return;
+  }
+
+  if (selected.length >= 2) {
+    if (hint) { hint.textContent = '⚠ Máximo 2 licencias.'; hint.style.color = 'var(--warning)'; }
+    return;
+  }
+
+  // Validar combinaciones: si ya hay una seleccionada, la segunda debe formar par válido
+  if (selected.length === 1) {
+    const existing = selected[0].dataset.val;
+    const adding   = btn.dataset.val;
+    const VALID_COMBOS = [['A2','B1'],['A2','C1']];
+    const isValid = VALID_COMBOS.some(([a,b]) =>
+      (existing === a && adding === b) || (existing === b && adding === a)
+    );
+    if (!isValid) {
+      if (hint) {
+        hint.textContent = '⚠ Combinación no válida. Solo se permite A2+B1 o A2+C1.';
+        hint.style.color = 'var(--danger)';
+      }
       return;
     }
-    btn.classList.add('selected');
-    if (hint && selected.length === 1) { hint.textContent = '✓ Dos licencias seleccionadas'; hint.style.color = 'var(--success)'; }
+  }
+
+  btn.classList.add('selected');
+  if (hint) {
+    const newSelected = groupEl ? groupEl.querySelectorAll('.reg-pill.selected') : document.querySelectorAll('#reg-license-pills .reg-pill.selected');
+    hint.textContent = newSelected.length === 2 ? '✓ Dos licencias seleccionadas' : '';
+    hint.style.color = 'var(--success)';
   }
 }
 
@@ -3754,11 +3888,13 @@ function openStudentProfile(docNumber) {
     return order.indexOf(a.state) - order.indexOf(b.state);
   })[0];
   const stateMap = {
-    theory_passed:       { label:'⏳ Sin instructor',           cls:'s-pending' },
-    instructor_assigned: { label:'👤 Pendiente contacto',       cls:'s-assigned' },
-    contacted:           { label:'📞 Contactado (sin confirmar)',cls:'s-contacted' },
-    contact_confirmed:   { label:'✅ Contacto confirmado',       cls:'s-confirmed' },
-    ready_to_graduate:   { label:'🎓 Listo para cerrar',         cls:'s-confirmed' },
+    theory_passed:       { label:'⏳ Sin instructor',                    cls:'s-pending' },
+    instructor_assigned: { label:'👤 Pendiente por asignar instructor',  cls:'s-assigned' },
+    contacted:           { label:'📞 Contactado por instructor',          cls:'s-contacted' },
+    contact_confirmed:   { label:'✅ Contacto confirmado',                cls:'s-confirmed' },
+    practice_started:    { label:'🚗 Clases en curso',                   cls:'s-practice' },
+    ready_to_graduate:   { label:'🎓 Listo para cerrar',                 cls:'s-confirmed' },
+    completed:           { label:'🏆 Proceso completado',                cls:'s-confirmed' },
   };
   const st = urgentProc ? (stateMap[urgentProc.state] || { label: urgentProc.state, cls:'s-pending' }) : { label:'Sin procesos', cls:'s-pending' };
   const pill = document.getElementById('profile-state-pill');
