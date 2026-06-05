@@ -1801,7 +1801,8 @@ function setDocType(btn, type) {
   STATE.activeDocType = type;
   document.querySelectorAll('.doc-type-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('doc-label').textContent = 'Número de ' + DOC_LABELS[type];
+  const labelEl = document.getElementById('doc-label');
+  if (labelEl) labelEl.textContent = 'Número de ' + (DOC_LABELS[type] || type);
 }
 
 function toggleLicense(btn) {
