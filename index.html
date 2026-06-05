@@ -330,20 +330,21 @@
     .steps-guide ol{padding-left:1.2rem;display:flex;flex-direction:column;gap:.4rem}
 
     /* MODAL */
-    .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:var(--t-norm)}
+    .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .25s ease}
     .modal-overlay.active{opacity:1;pointer-events:auto}
-    .modal-content{background:var(--bg-secondary);border:1px solid var(--border-color);box-shadow:0 20px 50px rgba(0,0,0,.5);border-radius:var(--r-md);width:100%;max-width:480px;overflow:hidden;transform:scale(.95);transition:var(--t-norm)}
-    .modal-overlay.active .modal-content{transform:scale(1)}
-    .modal-header{padding:1.1rem 1.5rem;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center}
-    .modal-header h3{font-family:var(--font-title);font-size:1.1rem;font-weight:700}
-    .btn-close-modal{background:transparent;border:none;color:var(--text-secondary);font-size:1.4rem;cursor:pointer;line-height:1}
-    .btn-close-modal:hover{color:white}
-    .modal-body{padding:1.25rem 1.5rem}
-    .modal-footer{padding:.9rem 1.5rem;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:.65rem}
-    .btn-action-cancel{background:rgba(255,255,255,.03);border:1px solid var(--border-color);color:var(--text-secondary);padding:.55rem 1.1rem;border-radius:var(--r-sm);font-weight:600;cursor:pointer;font-size:.85rem}
-    .btn-action-cancel:hover{background:rgba(255,255,255,.08);color:white}
-    .btn-action-confirm{background:var(--brand);border:none;color:white;padding:.55rem 1.25rem;border-radius:var(--r-sm);font-weight:600;cursor:pointer;box-shadow:0 4px 10px var(--brand-glow);font-size:.85rem}
-    .btn-action-confirm:hover{background:var(--brand-light)}
+    .modal-content{background:var(--bg-secondary);border:1px solid var(--border-color);box-shadow:0 24px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04);border-radius:var(--r-md);width:100%;max-width:480px;overflow:hidden;transform:scale(.94) translateY(8px);transition:transform .28s cubic-bezier(.34,1.56,.64,1),opacity .25s ease;opacity:0}
+    .modal-overlay.active .modal-content{transform:scale(1) translateY(0);opacity:1}
+    .modal-header{padding:1.25rem 1.5rem;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.02)}
+    .modal-header h3{font-family:var(--font-title);font-size:1.1rem;font-weight:700;color:white}
+    .btn-close-modal{background:rgba(255,255,255,.06);border:1px solid var(--border-color);color:var(--text-secondary);font-size:1rem;cursor:pointer;line-height:1;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:var(--t-fast)}
+    .btn-close-modal:hover{background:rgba(244,63,94,.15);border-color:var(--danger);color:var(--danger)}
+    .modal-body{padding:1.35rem 1.5rem}
+    .modal-footer{padding:.9rem 1.5rem;border-top:1px solid var(--border-color);display:flex;justify-content:flex-end;gap:.65rem;background:rgba(0,0,0,.15)}
+    .btn-action-cancel{background:rgba(255,255,255,.04);border:1px solid var(--border-color);color:var(--text-secondary);padding:.55rem 1.1rem;border-radius:var(--r-sm);font-weight:600;cursor:pointer;font-size:.85rem;transition:var(--t-fast)}
+    .btn-action-cancel:hover{background:rgba(255,255,255,.08);color:white;border-color:var(--border-hover)}
+    .btn-action-confirm{background:linear-gradient(135deg,var(--brand),#4f46e5);border:none;color:white;padding:.55rem 1.25rem;border-radius:var(--r-sm);font-weight:700;cursor:pointer;box-shadow:0 4px 14px var(--brand-glow);font-size:.85rem;transition:var(--t-fast)}
+    .btn-action-confirm:hover{filter:brightness(1.1);transform:translateY(-1px)}
+    @keyframes pulseBg{0%,100%{box-shadow:0 0 18px rgba(244,63,94,.35),0 4px 20px rgba(0,0,0,.4)}50%{box-shadow:0 0 28px rgba(244,63,94,.55),0 4px 20px rgba(0,0,0,.4)}}
 
     /* BADGE COMPONENTS */
     .badge{display:inline-block;padding:.2rem .5rem;border-radius:4px;font-size:.72rem;font-weight:600}
@@ -421,8 +422,8 @@
     .metric-card[onclick]:hover{border-color:var(--border-hover);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
 
     /* STUDENT PROFILE MODAL */
-    .profile-modal-content{background:var(--bg-secondary);border:1px solid var(--border-color);box-shadow:0 20px 60px rgba(0,0,0,.6);border-radius:var(--r-lg);width:100%;max-width:620px;overflow:hidden;transform:scale(.95);transition:var(--t-norm)}
-    .modal-overlay.active .profile-modal-content{transform:scale(1)}
+    .profile-modal-content{background:var(--bg-secondary);border:1px solid var(--border-color);box-shadow:0 24px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.04);border-radius:var(--r-lg);width:100%;max-width:620px;overflow:hidden;transform:scale(.94) translateY(8px);transition:transform .28s cubic-bezier(.34,1.56,.64,1),opacity .25s ease;opacity:0}
+    .modal-overlay.active .profile-modal-content{transform:scale(1) translateY(0);opacity:1}
     .profile-header{position:relative;padding:2rem 1.75rem 1.5rem;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(16,185,129,.06));border-bottom:1px solid var(--border-color)}
     .profile-header-top{display:flex;align-items:flex-start;gap:1.25rem;margin-bottom:1.25rem}
     .profile-avatar{width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--brand-light));display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1.6rem;font-weight:800;color:white;flex-shrink:0;box-shadow:0 0 0 3px rgba(59,130,246,.3)}
@@ -474,12 +475,16 @@
     .reg-pill:hover{border-color:var(--brand);color:var(--brand-light)}
     .reg-pill.selected{background:rgba(59,130,246,.15);border-color:var(--brand);color:var(--brand-light);font-weight:600}
 
-    .toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.85rem 1.25rem;border-radius:var(--r-md);font-size:.85rem;font-weight:600;z-index:9999;display:flex;align-items:center;gap:.6rem;box-shadow:0 8px 32px rgba(0,0,0,.5);transform:translateY(2rem);opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none;max-width:360px;line-height:1.4}
-    .toast.show{transform:translateY(0);opacity:1}
-    .toast.success{background:#065f46;border:1px solid var(--success);color:#6ee7b7}
-    .toast.error{background:#4c0519;border:1px solid var(--danger);color:#fda4af}
-    .toast.warning{background:#422006;border:1px solid var(--warning);color:#fcd34d}
-    .toast.info{background:#1e3a5f;border:1px solid var(--brand);color:#93c5fd}
+    .toast{position:fixed;bottom:1.75rem;right:1.75rem;padding:.9rem 1.35rem;border-radius:var(--r-md);font-size:.85rem;font-weight:600;z-index:9999;display:flex;align-items:flex-start;gap:.7rem;box-shadow:0 12px 40px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06);transform:translateX(calc(100% + 2rem));opacity:0;transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s ease;pointer-events:none;max-width:380px;line-height:1.4;min-width:240px;overflow:hidden}
+    .toast::after{content:'';position:absolute;bottom:0;left:0;height:3px;background:rgba(255,255,255,.3);border-radius:0 0 var(--r-md) var(--r-md);width:100%;transform-origin:left;animation:toastBar var(--toast-dur, 4000ms) linear forwards}
+    @keyframes toastBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+    .toast.show{transform:translateX(0);opacity:1}
+    .toast.success{background:linear-gradient(135deg,#064e3b,#065f46);border:1px solid rgba(16,185,129,.4);color:#6ee7b7}
+    .toast.error{background:linear-gradient(135deg,#450a0a,#4c0519);border:1px solid rgba(244,63,94,.4);color:#fda4af}
+    .toast.warning{background:linear-gradient(135deg,#2d1800,#422006);border:1px solid rgba(245,158,11,.4);color:#fcd34d}
+    .toast.info{background:linear-gradient(135deg,#0c1f3f,#1e3a5f);border:1px solid rgba(59,130,246,.4);color:#93c5fd}
+    .toast-icon{font-size:1.1rem;flex-shrink:0;margin-top:.05rem}
+    .toast-body{flex:1}
 
     /* MOBILE */
     @media(max-width:640px){
@@ -1174,8 +1179,9 @@
     <div class="profile-footer">
       <button class="profile-btn-action secondary" onclick="closeStudentProfile()">Cerrar</button>
       <button class="profile-btn-action danger" id="profile-btn-temppin" onclick="adminSetTempPin(_profileDocNumber)">🔑 PIN temporal</button>
-      <button class="profile-btn-action secondary" id="profile-btn-reassign" onclick="profileReassign()">🔄 Reasignar instructor</button>
-      <button class="profile-btn-action primary" id="profile-btn-state" onclick="profileChangeState()">✏️ Cambiar estado</button>
+      <button class="profile-btn-action secondary" id="profile-btn-reassign" onclick="profileReassign()">🔄 Reasignar</button>
+      <button class="profile-btn-action" id="profile-btn-licencia" style="display:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;border:none" onclick="notifyLicenciaLista()">🪪 Licencia lista</button>
+      <button class="profile-btn-action primary" id="profile-btn-state" onclick="profileChangeState()">✏️ Estado</button>
     </div>
   </div>
 </div>
@@ -1724,20 +1730,25 @@ function getDocLabel(type) {
 // =============================================================================
 // VIEWS
 // =============================================================================
-function showToast(msg, type = 'info') {
+function showToast(msg, type = 'info', duration) {
   let toast = document.getElementById('dc-toast');
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'dc-toast';
     document.body.appendChild(toast);
   }
-  const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
-  toast.innerHTML = `<span style="font-size:1rem;flex-shrink:0">${icons[type] || 'ℹ'}</span><span>${msg}</span>`;
+  const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+  const dur = duration || (type === 'error' ? 5500 : type === 'warning' ? 4500 : 4000);
+  toast.style.setProperty('--toast-dur', dur + 'ms');
+  toast.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ️'}</span><span class="toast-body">${msg}</span>`;
   toast.className = 'toast ' + type;
-  setTimeout(() => toast.classList.add('show'), 10);
+  // Forzar reflow para reiniciar animación barra
+  void toast.offsetWidth;
   clearTimeout(toast._timer);
-  const dur = type === 'error' ? 5000 : type === 'warning' ? 4000 : 3500;
-  toast._timer = setTimeout(() => toast.classList.remove('show'), dur);
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+    toast._timer = setTimeout(() => toast.classList.remove('show'), dur);
+  });
 }
 
 function showView(id) {
@@ -4391,7 +4402,64 @@ function openStudentProfile(docNumber) {
   }
 
   document.getElementById('profile-btn-reassign').style.display = withInst.length ? 'flex' : 'none';
+
+  // Mostrar botón "Licencia lista" solo si hay procesos en ready_to_graduate o completed
+  const hasReady = allProcs.some(p => ['ready_to_graduate','completed'].includes(p.state)) ||
+                   getStudentProcesos(docNumber).some(p => p.state === 'completed');
+  const licBtn = document.getElementById('profile-btn-licencia');
+  if (licBtn) licBtn.style.display = hasReady ? 'flex' : 'none';
+
   document.getElementById('student-profile-modal').classList.add('active');
+}
+
+function notifyLicenciaLista() {
+  const docNumber = _profileDocNumber;
+  const s = STATE.students.find(st => st.docNumber === docNumber);
+  if (!s || !s.phone) {
+    showToast('⚠ El alumno no tiene número de teléfono registrado.', 'warning');
+    return;
+  }
+
+  const existing = document.getElementById('licencia-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'licencia-modal';
+  modal.className = 'modal-overlay active';
+  const nombre = s.name.split(' ')[0];
+  const waMsg = `Hola ${nombre}, buenas. Te escribimos de la academia de conducción para informarte que tu licencia ya está lista para retirar 🎉🪪\n\nRecuerda traer tu documento de identidad al momento de reclamarla.\n\nHorario de atención: lunes a viernes de 8am a 5pm.\n\n¡Te esperamos! 😊`;
+  const waUrl = `https://wa.me/57${s.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:420px">
+      <div class="modal-header">
+        <h3>🪪 Notificar licencia lista</h3>
+        <button class="btn-close-modal" onclick="document.getElementById('licencia-modal').remove()">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:.88rem;color:var(--text-secondary);margin-bottom:1.1rem">Enviarás a <strong style="color:white">${s.name}</strong> un WhatsApp notificándole que su licencia está lista para retirar.</p>
+        <div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:var(--r-sm);padding:.9rem;margin-bottom:1rem">
+          <div style="font-size:.7rem;color:var(--success);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.4rem">Vista previa del mensaje</div>
+          <p style="font-size:.78rem;color:var(--text-secondary);line-height:1.6;white-space:pre-line">${waMsg.substring(0,200)}…</p>
+        </div>
+        <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:var(--r-sm);padding:.65rem .9rem;display:flex;align-items:center;gap:.6rem">
+          <span style="font-size:1rem">📱</span>
+          <div>
+            <div style="font-size:.72rem;color:var(--text-muted)">Número del alumno</div>
+            <div style="font-size:.85rem;font-weight:600;color:white">${s.phone}</div>
+          </div>
+        </div>
+        <p style="font-size:.72rem;color:var(--text-muted);margin-top:.75rem">Se abrirá WhatsApp con el mensaje listo. Si el alumno no quiere recibirlo, simplemente cierra sin enviar.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-action-cancel" onclick="document.getElementById('licencia-modal').remove()">Cancelar</button>
+        <a href="${waUrl}" target="_blank" class="btn-action-confirm" style="text-decoration:none;display:inline-flex;align-items:center;gap:.4rem" onclick="document.getElementById('licencia-modal').remove()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+          Enviar por WhatsApp
+        </a>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 function closeStudentProfile() {
