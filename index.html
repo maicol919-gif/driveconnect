@@ -474,10 +474,11 @@
     .reg-pill:hover{border-color:var(--brand);color:var(--brand-light)}
     .reg-pill.selected{background:rgba(59,130,246,.15);border-color:var(--brand);color:var(--brand-light);font-weight:600}
 
-    .toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.75rem 1.25rem;border-radius:var(--r-md);font-size:.85rem;font-weight:600;z-index:9999;display:flex;align-items:center;gap:.5rem;box-shadow:0 8px 24px rgba(0,0,0,.4);transform:translateY(2rem);opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none}
+    .toast{position:fixed;bottom:1.5rem;right:1.5rem;padding:.85rem 1.25rem;border-radius:var(--r-md);font-size:.85rem;font-weight:600;z-index:9999;display:flex;align-items:center;gap:.6rem;box-shadow:0 8px 32px rgba(0,0,0,.5);transform:translateY(2rem);opacity:0;transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none;max-width:360px;line-height:1.4}
     .toast.show{transform:translateY(0);opacity:1}
     .toast.success{background:#065f46;border:1px solid var(--success);color:#6ee7b7}
     .toast.error{background:#4c0519;border:1px solid var(--danger);color:#fda4af}
+    .toast.warning{background:#422006;border:1px solid var(--warning);color:#fcd34d}
     .toast.info{background:#1e3a5f;border:1px solid var(--brand);color:#93c5fd}
 
     /* MOBILE */
@@ -1728,14 +1729,15 @@ function showToast(msg, type = 'info') {
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'dc-toast';
-    toast.className = 'toast';
     document.body.appendChild(toast);
   }
-  toast.textContent = msg;
+  const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+  toast.innerHTML = `<span style="font-size:1rem;flex-shrink:0">${icons[type] || 'ℹ'}</span><span>${msg}</span>`;
   toast.className = 'toast ' + type;
   setTimeout(() => toast.classList.add('show'), 10);
   clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => toast.classList.remove('show'), 3500);
+  const dur = type === 'error' ? 5000 : type === 'warning' ? 4000 : 3500;
+  toast._timer = setTimeout(() => toast.classList.remove('show'), dur);
 }
 
 function showView(id) {
@@ -2709,7 +2711,28 @@ async function instMarkReadyConfirm(docNumber, license) {
 
 async function confirmGraduate(docNumber, license) {
   const s = STATE.students.find(st => st.docNumber === docNumber);
-  if (!confirm(`¿Confirmas cerrar el proceso de ${license} para ${s?.name}?`)) return;
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
+
+  document.getElementById('grad-confirm-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'grad-confirm-modal';
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:380px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:.75rem">🎓</div>
+      <h3 style="font-family:var(--font-title);font-size:1.15rem;font-weight:700;margin-bottom:.4rem">Cerrar expediente</h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:.5rem">Confirmas cerrar el proceso de <strong>${LICENSE_FULL[license]||license}</strong> para <strong>${s?.name || docNumber}</strong>.</p>
+      <p style="font-size:.76rem;color:var(--text-muted);margin-bottom:1.25rem">Esta acción marcará el proceso como completado.</p>
+      <div style="display:flex;gap:.65rem">
+        <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('grad-confirm-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="flex:1;background:var(--success);border-color:var(--success)" onclick="confirmGraduateExec('${docNumber}','${license}')">Cerrar expediente</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function confirmGraduateExec(docNumber, license) {
+  document.getElementById('grad-confirm-modal')?.remove();
   showToast('Cerrando expediente...', 'info');
   try {
     const data = await apiCall({ action: 'completeProceso', docNumber, license });
@@ -3625,20 +3648,27 @@ function adminChangeState(docNumber, license) {
   const modal = document.createElement('div');
   modal.id = 'state-modal'; modal.className = 'modal-overlay active';
   modal.innerHTML = `
-    <div class="modal-content" style="max-width:380px">
-      <div class="modal-header"><h3>Cambiar estado — ${s.name}</h3>
-        <button class="btn-close-modal" onclick="document.getElementById('state-modal').remove()">&times;</button></div>
+    <div class="modal-content" style="max-width:400px">
+      <div class="modal-header">
+        <div>
+          <h3>✏️ Actualizar proceso</h3>
+          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.15rem">${s.name}</p>
+        </div>
+        <button class="btn-close-modal" onclick="document.getElementById('state-modal').remove()">&times;</button>
+      </div>
       <div class="modal-body" style="display:flex;flex-direction:column;gap:.75rem">
         ${procs.length > 1 ? `<div><label class="config-label">Licencia</label>
           <select id="state-lic-sel" class="config-input" style="margin-bottom:0">${procOptions}</select></div>` : `<input type="hidden" id="state-lic-sel" value="${procs[0].license}">`}
-        <div><label class="config-label">Nuevo estado</label>
+        <div><label class="config-label">Estado del proceso</label>
           <select id="new-state-sel" class="config-input" style="margin-bottom:0">
             ${states.map(st => `<option value="${st}" ${selProc?.state===st?'selected':''}>${labels[st]}</option>`).join('')}
-          </select></div>
+          </select>
+        </div>
+        <p style="font-size:.74rem;color:var(--text-muted);margin-top:-.25rem">⚠ Cambia el estado manualmente solo si es necesario corregir un error. El flujo normal lo actualizan los roles correspondientes.</p>
       </div>
       <div class="modal-footer">
         <button class="btn-action-cancel" onclick="document.getElementById('state-modal').remove()">Cancelar</button>
-        <button class="btn-action-confirm" onclick="confirmStateChange('${docNumber}')">Guardar</button>
+        <button class="btn-action-confirm" onclick="confirmStateChange('${docNumber}')">Guardar cambio</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
@@ -3710,15 +3740,18 @@ function editPin(instructorId) {
   modal.innerHTML = `
     <div class="modal-content" style="max-width:380px">
       <div class="modal-header">
-        <h3>Editar PIN — ${inst.name}</h3>
+        <div>
+          <h3>🔑 PIN de acceso</h3>
+          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.15rem">${inst.name}</p>
+        </div>
         <button class="btn-close-modal" onclick="closePinModal()">&times;</button>
       </div>
       <div class="modal-body">
         <p style="font-size:.83rem;color:var(--text-secondary);margin-bottom:1rem">
-          El PIN permite al instructor iniciar sesión. Debe ser exactamente 4 dígitos numéricos.
+          ${inst?.pin ? 'Ya tiene un PIN configurado. Escribe uno nuevo para reemplazarlo.' : 'Asigna un PIN de 4 dígitos para que pueda iniciar sesión.'}
         </p>
         <div class="form-group" style="margin-bottom:.5rem">
-          <label class="config-label">Nuevo PIN ${inst?.pin ? '(ya tiene uno configurado — escribe para reemplazarlo)' : ''}</label>
+          <label class="config-label">Nuevo PIN (4 dígitos)</label>
           <input id="pin-input" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}"
             class="config-input" placeholder="••••" style="font-size:1.4rem;letter-spacing:.5rem;text-align:center;margin-bottom:0"
             value="">
@@ -3958,14 +3991,32 @@ function renderPendingList() {
 }
 
 async function approveStudent(docNumber) {
-  if (!confirm('¿Aprobar el registro de este alumno?')) return;
+  const s = STATE.students.find(x => x.docNumber === docNumber);
+  document.getElementById('approve-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'approve-modal';
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:360px;text-align:center">
+      <div style="font-size:2rem;margin-bottom:.65rem">✅</div>
+      <h3 style="font-family:var(--font-title);font-size:1.1rem;font-weight:700;margin-bottom:.35rem">Aprobar registro</h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem"><strong>${s?.name || docNumber}</strong> podrá ingresar al portal con su PIN.</p>
+      <div style="display:flex;gap:.65rem">
+        <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('approve-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="flex:1" onclick="approveStudentExec('${docNumber}')">Aprobar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function approveStudentExec(docNumber) {
+  document.getElementById('approve-modal')?.remove();
   showToast('Aprobando registro...', 'info');
   try {
     const data = await apiCall({ action: 'approveStudent', docNumber });
     if (!data.success) throw new Error(data.error || 'Error');
     const s = STATE.students.find(x => x.docNumber === docNumber);
     if (s) s.active = 'true';
-    // Update procesos state
     STATE.procesos.filter(p => p.docNumber === docNumber).forEach(p => p.state = 'theory_passed');
     showToast('✓ Alumno aprobado. Ya puede ingresar al portal.', 'success');
     renderPendingList();
@@ -3974,7 +4025,27 @@ async function approveStudent(docNumber) {
 }
 
 async function rejectStudent(docNumber) {
-  if (!confirm('¿Rechazar y eliminar este registro? Esta acción no se puede deshacer.')) return;
+  const s = STATE.students.find(x => x.docNumber === docNumber);
+  document.getElementById('reject-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'reject-modal';
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:360px;text-align:center">
+      <div style="font-size:2rem;margin-bottom:.65rem">⚠️</div>
+      <h3 style="font-family:var(--font-title);font-size:1.1rem;font-weight:700;margin-bottom:.35rem">Rechazar registro</h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:.35rem">Se eliminará el registro de <strong>${s?.name || docNumber}</strong>.</p>
+      <p style="font-size:.76rem;color:var(--danger);margin-bottom:1.25rem">Esta acción no se puede deshacer.</p>
+      <div style="display:flex;gap:.65rem">
+        <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('reject-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="flex:1;background:var(--danger);box-shadow:0 4px 10px rgba(244,63,94,.3)" onclick="rejectStudentExec('${docNumber}')">Rechazar y eliminar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function rejectStudentExec(docNumber) {
+  document.getElementById('reject-modal')?.remove();
   showToast('Rechazando registro...', 'info');
   try {
     const data = await apiCall({ action: 'deleteStudent', docNumber });
@@ -3988,12 +4059,33 @@ async function rejectStudent(docNumber) {
 
 async function adminSetTempPin(docNumber) {
   const tempPin = generatePIN();
-  if (!confirm(`Se asignará el PIN temporal ${tempPin} al alumno. ¿Continuar?\n\nDáselo en mano al alumno. Al ingresar deberá cambiarlo.`)) return;
+  const s = STATE.students.find(x => x.docNumber === docNumber);
+  document.getElementById('temppin-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'temppin-modal';
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:380px;text-align:center">
+      <div style="font-size:2rem;margin-bottom:.65rem">🔑</div>
+      <h3 style="font-family:var(--font-title);font-size:1.1rem;font-weight:700;margin-bottom:.35rem">PIN temporal para ${s?.name?.split(' ')[0] || docNumber}</h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:.5rem">Se asignará el siguiente PIN temporal:</p>
+      <div style="font-family:var(--font-title);font-size:2.5rem;font-weight:800;color:var(--brand-light);letter-spacing:.5rem;margin:.75rem 0">${tempPin}</div>
+      <p style="font-size:.76rem;color:var(--text-muted);margin-bottom:1.25rem">Entrégate este PIN al alumno en mano. Al ingresar deberá cambiarlo por uno propio.</p>
+      <div style="display:flex;gap:.65rem">
+        <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('temppin-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="flex:1" onclick="adminSetTempPinExec('${docNumber}','${tempPin}')">Asignar PIN</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function adminSetTempPinExec(docNumber, tempPin) {
+  document.getElementById('temppin-modal')?.remove();
   showToast('Asignando PIN temporal...', 'info');
   try {
     const data = await apiCall({ action: 'updateStudentPin', docNumber, pin: tempPin, tempPin: 'true' });
     if (!data.success) throw new Error(data.error || 'Error');
-    showToast(`PIN temporal asignado: ${tempPin} — Entrégalo al alumno.`, 'success');
+    showToast(`🔑 PIN ${tempPin} asignado. Entrégalo al alumno.`, 'success');
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
@@ -4120,8 +4212,22 @@ async function coordRegisterSubmit() {
 // CONFIRMACIÓN DE CONTACTO POR EL ALUMNO (sin depender del instructor)
 // =============================================================================
 async function studentSelfConfirmContact(license) {
-  if (!confirm('¿Confirmas que tu instructor ya se comunicó contigo?\nEsta acción quedará registrada en el sistema.')) return;
-  await studentConfirmContact(true, license);
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
+  document.getElementById('self-confirm-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'self-confirm-modal';
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:360px;text-align:center">
+      <div style="font-size:2rem;margin-bottom:.65rem">📞</div>
+      <h3 style="font-family:var(--font-title);font-size:1.1rem;font-weight:700;margin-bottom:.35rem">¿Tu instructor ya te contactó?</h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem">Al confirmar, quedará registrado que ya hubo contacto para <strong>${LICENSE_FULL[license]||license}</strong>. Esta acción queda guardada en el sistema.</p>
+      <div style="display:flex;gap:.65rem">
+        <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('self-confirm-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="flex:1" onclick="document.getElementById('self-confirm-modal').remove();studentConfirmContact(true,'${license}')">Sí, confirmar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
 }
 
 // =============================================================================
