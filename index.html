@@ -2804,14 +2804,17 @@ function switchCoordTab(tab) {
 }
 
 function coordMetricClick(type) {
-  const searchEl  = document.getElementById('coord-search');
-  const filterEl  = document.getElementById('coord-filter-state');
-  const clearBtn  = document.getElementById('coord-clear-filter');
-  const titleEl   = document.getElementById('coord-table-title');
+  // Navegar a la tab de alumnos primero
+  switchCoordTab('students');
+
+  const searchEl = document.getElementById('coord-search');
+  const filterEl = document.getElementById('coord-filter-state');
+  const clearBtn = document.getElementById('coord-clear-filter');
+  const titleEl  = document.getElementById('coord-table-title');
   if (!searchEl || !filterEl) return;
 
   searchEl.value = '';
-  clearBtn.style.display = 'flex';
+  if (clearBtn) clearBtn.style.display = 'flex';
   _coordCustomFilter = null;
 
   if (type === 'all') {
@@ -2819,24 +2822,24 @@ function coordMetricClick(type) {
     if (titleEl) titleEl.textContent = 'Todos los alumnos activos';
   } else if (type === 'unassigned') {
     filterEl.value = 'theory_passed';
-    if (titleEl) titleEl.textContent = '⏰ Sin instructor';
-  } else if (type === 'waiting') {
-    filterEl.value = 'instructor_assigned';
-    if (titleEl) titleEl.textContent = '👤 Pendientes de contacto';
+    if (titleEl) titleEl.textContent = '⏰ Sin instructor asignado';
   } else if (type === 'alerts') {
     filterEl.value = '';
-    _coordCustomFilter = (p, st) => ['theory_passed','instructor_assigned'].includes(p.state) && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
-    if (titleEl) titleEl.textContent = '🚨 Alertas: más de 20 días hábiles';
+    _coordCustomFilter = (p, st) => ['theory_passed','instructor_assigned'].includes(p.state) && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_WARNING;
+    if (titleEl) titleEl.textContent = '⚠ Alertas de tiempo (+8d y +15d)';
+  } else if (type === 'active') {
+    filterEl.value = '';
+    _coordCustomFilter = (p) => ['contact_confirmed','practice_started'].includes(p.state);
+    if (titleEl) titleEl.textContent = '🚗 En clases actualmente';
   } else if (type === 'ready') {
     filterEl.value = '';
     _coordCustomFilter = (p) => p.state === 'ready_to_graduate';
-    if (titleEl) titleEl.textContent = '🎓 Listos para graduarse';
+    if (titleEl) titleEl.textContent = '🎓 Listos para cerrar expediente';
   } else if (type === 'completed') {
     filterEl.value = '';
     _coordCustomFilter = (p) => p.state === 'completed';
-    if (titleEl) titleEl.textContent = '🎓 Procesos completados';
+    if (titleEl) titleEl.textContent = '🏆 Procesos completados';
   }
-
   renderCoordTable();
 }
 
@@ -4237,41 +4240,39 @@ function openStudentProfile(docNumber) {
   _profileDocNumber = docNumber;
   const s = STATE.students.find(st => st.docNumber === docNumber);
   if (!s) return;
-  const procs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
-  const maxDays = procs.length ? Math.max(...procs.map(p => daysWaiting(p, s))) : 0;
+
+  const allProcs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
   const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_SHORT  = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','ready_to_graduate'];
+
+  const urgentProc = allProcs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
+  const stateMap = {
+    theory_passed:       { label:'⏳ Pendiente instructor',     cls:'s-pending' },
+    instructor_assigned: { label:'👤 Pendiente contacto',       cls:'s-assigned' },
+    contacted:           { label:'📞 Contactado',               cls:'s-contacted' },
+    contact_confirmed:   { label:'✅ Contacto confirmado',       cls:'s-confirmed' },
+    practice_started:    { label:'🚗 En clases',                cls:'s-practice' },
+    ready_to_graduate:   { label:'🎓 Listo para cerrar',         cls:'s-confirmed' },
+    completed:           { label:'🏆 Completado',               cls:'s-confirmed' },
+  };
 
   const initials = s.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
   document.getElementById('profile-avatar').textContent = initials;
-  document.getElementById('profile-name').textContent = s.name;
-  document.getElementById('profile-doc').textContent = getDocLabel(s.docType) + ' ' + s.docNumber;
+  document.getElementById('profile-name').textContent   = s.name;
+  document.getElementById('profile-doc').textContent    = getDocLabel(s.docType) + ' ' + s.docNumber;
 
-  // State pill — most urgent proceso
-  const urgentProc = procs.sort((a,b) => {
-    const order = ['theory_passed','instructor_assigned','contacted','contact_confirmed','ready_to_graduate'];
-    return order.indexOf(a.state) - order.indexOf(b.state);
-  })[0];
-  const stateMap = {
-    theory_passed:       { label:'⏳ Sin instructor',                    cls:'s-pending' },
-    instructor_assigned: { label:'👤 Pendiente por asignar instructor',  cls:'s-assigned' },
-    contacted:           { label:'📞 Contactado por instructor',          cls:'s-contacted' },
-    contact_confirmed:   { label:'✅ Contacto confirmado',                cls:'s-confirmed' },
-    practice_started:    { label:'🚗 Clases en curso',                   cls:'s-practice' },
-    ready_to_graduate:   { label:'🎓 Listo para cerrar',                 cls:'s-confirmed' },
-    completed:           { label:'🏆 Proceso completado',                cls:'s-confirmed' },
-  };
-  const st = urgentProc ? (stateMap[urgentProc.state] || { label: urgentProc.state, cls:'s-pending' }) : { label:'Sin procesos', cls:'s-pending' };
+  const stInfo = urgentProc ? (stateMap[urgentProc.state] || { label: urgentProc.state, cls:'s-pending' }) : { label:'Sin procesos', cls:'s-pending' };
   const pill = document.getElementById('profile-state-pill');
-  pill.textContent = st.label;
-  pill.className = 'profile-state-pill ' + st.cls;
+  pill.textContent = stInfo.label;
+  pill.className   = 'profile-state-pill ' + stInfo.cls;
 
-  // Wait chip
-  const chipEl = document.getElementById('profile-wait-chip');
-  const numEl  = document.getElementById('profile-wait-num');
-  numEl.textContent = maxDays;
-  chipEl.className = 'profile-wait-chip ' + (maxDays > CONFIG.WAIT_DAYS_CRITICAL ? 'crit' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'warn' : 'ok');
+  const maxDays = allProcs.length ? Math.max(...allProcs.map(p => daysWaiting(p, s))) : 0;
+  const chipEl  = document.getElementById('profile-wait-chip');
+  const numEl   = document.getElementById('profile-wait-num');
+  if (numEl) numEl.textContent = maxDays;
+  if (chipEl) chipEl.className = 'profile-wait-chip ' + (maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'crit' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'warn' : 'ok');
 
-  // Meta chips
   const chips = document.getElementById('profile-meta-chips');
   chips.innerHTML = '';
   const addChip = (icon, text) => {
@@ -4284,78 +4285,102 @@ function openStudentProfile(docNumber) {
   addChip('📋', s.docType);
   if (s.theoryPassedDate) addChip('🎓', 'Teórico: ' + formatDate(s.theoryPassedDate, true));
   if (s.phone) addChip('📱', s.phone);
-  procs.forEach(p => addChip('🚗', LICENSE_LABELS[p.license] || p.license));
 
-  // Timeline — one per proceso
+  // ── TIMELINE ──
   const tl = document.getElementById('profile-timeline');
   tl.innerHTML = '';
 
-  // Theory step (shared)
+  const dot = (done, active) => done
+    ? `<div class="profile-tl-dot done">✓</div>`
+    : active
+      ? `<div class="profile-tl-dot active">●</div>`
+      : `<div class="profile-tl-dot pending">○</div>`;
+  const dateTag = (d) => d ? `<div class="profile-tl-date">${formatDate(d, true)}</div>` : '';
+
+  // Paso teórico compartido
   const theoryDiv = document.createElement('div');
   theoryDiv.className = 'profile-tl-step';
-  theoryDiv.innerHTML = `<div class="profile-tl-dot done">✓</div>
+  theoryDiv.innerHTML = `${dot(true,false)}
     <div class="profile-tl-content">
       <div class="profile-tl-title" style="color:var(--text-secondary)">Examen teórico aprobado</div>
-      <div class="profile-tl-date">${formatDate(s.theoryPassedDate, true)}</div>
+      ${dateTag(s.theoryPassedDate)}
     </div>`;
   tl.appendChild(theoryDiv);
 
-  // Per-proceso steps
-  procs.forEach(proc => {
-    const inst = proc.instructorId ? STATE.instructors.find(i => i.id === proc.instructorId) : null;
+  // Pasos por licencia
+  allProcs.forEach(proc => {
+    const inst     = proc.instructorId ? STATE.instructors.find(i => i.id === proc.instructorId) : null;
     const procDays = daysWaiting(proc, s);
     const licLabel = LICENSE_LABELS[proc.license] || proc.license;
+    const licShort = LICENSE_SHORT[proc.license]  || proc.license;
+    const sIdx     = STATE_ORDER.indexOf(proc.state);
 
     const header = document.createElement('div');
-    header.style.cssText = 'margin-top:.75rem;margin-bottom:.35rem;font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding-left:2rem';
-    header.textContent = licLabel;
+    header.style.cssText = 'margin-top:.9rem;margin-bottom:.35rem;font-size:.68rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding-left:2rem;display:flex;align-items:center;gap:.4rem';
+    header.innerHTML = `<span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light)">${licShort}</span> ${licLabel}`;
     tl.appendChild(header);
 
-    [
-      { label: 'Instructor asignado', extraLabel: inst?.name, done: !!proc.instructorId, active: !proc.instructorId },
-      { label: 'Primer contacto', date: proc.contactDate, done: ['contacted','contact_confirmed','ready_to_graduate'].includes(proc.state), active: proc.state === 'instructor_assigned', days: procDays },
-      { label: 'Confirmado por alumno', date: proc.state === 'contact_confirmed' ? proc.contactDate : null, done: ['contact_confirmed','ready_to_graduate'].includes(proc.state), active: proc.state === 'contacted' },
-    ].forEach(step => {
-      const dotClass = step.done ? 'done' : step.active ? 'active' : 'pending';
-      const dotIcon  = step.done ? '✓' : step.active ? '●' : '○';
+    const steps = [
+      { label:'Instructor asignado',              extra:inst?.name, done:sIdx>=1, active:sIdx<1,  date:proc.assignedDate,       emptyMsg:'Pendiente por asignar instructor' },
+      { label:'Primer contacto del instructor',   done:sIdx>=2,     active:sIdx===1, date:proc.contactedDate,     emptyMsg:sIdx===1?`${procDays}d hábiles de espera`:null },
+      { label:'Contacto confirmado por el alumno',done:sIdx>=3,     active:sIdx===2, date:proc.confirmedDate||proc.contactDate, emptyMsg:sIdx===2?'Esperando confirmación del alumno':null },
+      { label:'Clases iniciadas',                 done:sIdx>=4,     active:sIdx===3, date:proc.practiceStartedDate },
+      { label:'Clases finalizadas',               done:sIdx>=5,     active:sIdx===4, date:proc.completedDate },
+    ];
+
+    steps.forEach(step => {
       const div = document.createElement('div');
       div.className = 'profile-tl-step';
-      div.innerHTML = `
-        <div class="profile-tl-dot ${dotClass}">${dotIcon}</div>
+      div.innerHTML = `${dot(step.done, step.active)}
         <div class="profile-tl-content">
-          <div class="profile-tl-title" style="color:${step.done?'var(--text-secondary)':step.active?'white':'var(--text-muted)'}">${step.label}${step.extraLabel?` — <strong style="color:var(--brand-light)">${step.extraLabel}</strong>`:''}
+          <div class="profile-tl-title" style="color:${step.done?'var(--text-secondary)':step.active?'white':'var(--text-muted)'}">
+            ${step.label}${step.extra?` — <strong style="color:var(--brand-light)">${step.extra}</strong>`:''}
           </div>
-          ${step.date ? `<div class="profile-tl-date">${formatDate(step.date, true)}</div>` : step.active && step.days ? `<div class="profile-tl-date" style="color:var(--brand-light);font-style:italic">Etapa actual · ${step.days}d hábiles</div>` : ''}
+          ${step.date ? dateTag(step.date) : step.emptyMsg && (step.active || (!step.done && step.emptyMsg)) ? `<div class="profile-tl-date" style="${step.active?'color:var(--brand-light);font-style:italic':''}">${step.emptyMsg}</div>` : ''}
         </div>`;
       tl.appendChild(div);
     });
+
+    // Botones de acción por licencia
+    const actionsDiv = document.createElement('div');
+    actionsDiv.style.cssText = 'margin-top:.6rem;margin-left:2rem;display:flex;gap:.4rem;flex-wrap:wrap;padding-bottom:.85rem;border-bottom:1px solid var(--border-color)';
+
+    if (!proc.instructorId) {
+      actionsDiv.innerHTML += `<button class="btn-primary" style="width:auto;font-size:.75rem;padding:.3rem .75rem" onclick="closeStudentProfile();openModal('${proc.docNumber}','${proc.license}')">+ Asignar instructor</button>`;
+    } else {
+      actionsDiv.innerHTML += `<button class="btn-sec" style="font-size:.72rem;padding:.25rem .6rem" onclick="closeStudentProfile();openModal('${proc.docNumber}','${proc.license}')">🔄 Cambiar instructor</button>`;
+    }
+    actionsDiv.innerHTML += `<button class="btn-sec" style="font-size:.72rem;padding:.25rem .6rem" onclick="closeStudentProfile();coordChangeState('${proc.docNumber}','${proc.license}')">✏️ Estado</button>`;
+    if (proc.state === 'ready_to_graduate') {
+      actionsDiv.innerHTML += `<button class="btn-primary" style="width:auto;font-size:.72rem;padding:.25rem .6rem;background:var(--success);border-color:var(--success)" onclick="closeStudentProfile();confirmGraduate('${proc.docNumber}','${proc.license}')">🎓 Cerrar expediente</button>`;
+    }
+    tl.appendChild(actionsDiv);
   });
 
-  // Instructor boxes — one per proceso with instructor
+  // ── INSTRUCTORES ──
   const instBox = document.getElementById('profile-inst-box');
-  const withInst = procs.filter(p => p.instructorId);
+  const withInst = allProcs.filter(p => p.instructorId);
   if (withInst.length === 0) {
-    instBox.innerHTML = `<div class="profile-no-inst">🚗 Sin instructor asignado aún.</div>`;
+    instBox.innerHTML = `<div class="profile-no-inst">Sin instructor asignado aún.</div>`;
   } else {
     instBox.innerHTML = '';
     withInst.forEach(proc => {
       const inst = STATE.instructors.find(i => i.id === proc.instructorId);
       if (!inst) return;
-      const waMsg = `Hola ${inst.name}, te contacto de parte de la coordinación sobre el alumno ${s.name} (${s.docNumber}) — proceso ${LICENSE_LABELS[proc.license]||proc.license}.`;
-      const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
-      const instInitials = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+      const licShort = LICENSE_SHORT[proc.license] || proc.license;
+      const waMsg    = `Hola ${inst.name}, soy de coordinación. El alumno ${s.name} (${s.docNumber}) — ${licShort} — se acercó a reportar algo. ¿Puedes contactarme para coordinar?`;
+      const waUrl    = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+      const instInit = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
       const div = document.createElement('div');
       div.className = 'profile-instructor-box';
       div.style.marginBottom = '.65rem';
-      const waDirectMsg = `Hola ${inst.name}, soy de coordinación. El alumno ${s.name} (${s.docNumber}) — proceso ${LICENSE_LABELS[proc.license]||proc.license} — se acercó a reportar algo. ¿Puedes contactarme para coordinar?`;
-      const waDirectUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waDirectMsg)}`;
       div.innerHTML = `
-        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1rem;font-weight:800;color:white;flex-shrink:0">${instInitials}</div>
+        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1rem;font-weight:800;color:white;flex-shrink:0">${instInit}</div>
         <div style="flex:1">
-          <div class="profile-inst-name">${inst.name} <span style="font-size:.7rem;color:var(--text-muted);font-weight:400">(${LICENSE_LABELS[proc.license]||proc.license})</span></div>
+          <div class="profile-inst-name">${inst.name} <span style="font-size:.7rem;color:var(--text-muted);font-weight:400">(${licShort})</span></div>
           <div class="profile-inst-meta">📞 ${inst.phone}</div>
-          <div class="profile-inst-actions" style="flex-wrap:wrap;gap:.4rem">
-            <a href="${waDirectUrl}" target="_blank" class="btn-whatsapp" style="padding:.35rem .75rem;font-size:.72rem">
+          <div style="margin-top:.35rem">
+            <a href="${waUrl}" target="_blank" class="btn-whatsapp" style="padding:.3rem .7rem;font-size:.72rem">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
               Escribir al instructor
             </a>
