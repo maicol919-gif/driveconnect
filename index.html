@@ -1197,11 +1197,38 @@
 // =============================================================================
 const CONFIG = {
   SCRIPT_URL: localStorage.getItem('dc_script_url') || 'https://script.google.com/macros/s/AKfycbz2MwhNpoMEraFJwnpimc1gI4K_6QMquTF1Dwwvg7udM5nIzY_v5WSSMiPuTyIlt3QxQw/exec',
-  ADMIN_PASS: localStorage.getItem('dc_admin_pass') || 'admin2026',
+  get ADMIN_PASS() { return localStorage.getItem('dc_admin_pass') || null; },
   WAIT_DAYS_WARNING: 10,
   WAIT_DAYS_CRITICAL: 20,
   get COORD_PHONE() { return localStorage.getItem('dc_coord_phone') || ''; },
 };
+
+// Brute force protection — in memory only, resets on page reload
+const _loginAttempts = { student: 0, instructor: 0, coordinator: 0, admin: 0 };
+const _loginLocked   = { student: false, instructor: false, coordinator: false, admin: false };
+
+function checkLoginLock(role) {
+  if (_loginLocked[role]) { showError('Demasiados intentos. Espera 30 segundos.'); return false; }
+  return true;
+}
+
+function registerFailedAttempt(role) {
+  _loginAttempts[role] = (_loginAttempts[role] || 0) + 1;
+  if (_loginAttempts[role] >= 5) {
+    _loginLocked[role] = true;
+    showToast('🔒 Acceso bloqueado 30 segundos por múltiples intentos fallidos.', 'error');
+    setTimeout(() => {
+      _loginLocked[role] = false;
+      _loginAttempts[role] = 0;
+      showToast('🔓 Puedes intentar de nuevo.', 'info');
+    }, 30000);
+  }
+}
+
+function registerSuccessLogin(role) {
+  _loginAttempts[role] = 0;
+  _loginLocked[role] = false;
+}
 
 // =============================================================================
 // STATE
@@ -1702,6 +1729,7 @@ async function registerStudent() {
 }
 
 async function loginStudent() {
+  if (!checkLoginLock('student')) return;
   const docNum = document.getElementById('student-id').value.trim();
   const pin    = document.getElementById('student-pin').value.trim();
   const errEl  = document.getElementById('login-error');
@@ -1735,7 +1763,11 @@ async function loginStudent() {
 
     // Validate PIN
     if (!student.pin) throw new Error('Tu cuenta no tiene PIN configurado. Acércate a la academia.');
-    if (student.pin !== pin) throw new Error('PIN incorrecto. Intenta de nuevo.');
+    if (student.pin !== pin) {
+      registerFailedAttempt('student');
+      throw new Error('PIN incorrecto. Intenta de nuevo.');
+    }
+    registerSuccessLogin('student');
 
     STATE.currentUser = { role: 'student', data: student };
     document.querySelector('.logo-container').classList.add('no-click');
@@ -1795,6 +1827,7 @@ async function submitNewPin() {
 }
 
 async function loginInstructor() {
+  if (!checkLoginLock('instructor')) return;
   const code = document.getElementById('instructor-code').value.trim().toUpperCase();
   const pin  = document.getElementById('instructor-pin').value.trim();
   const errEl = document.getElementById('login-error');
@@ -1813,9 +1846,10 @@ async function loginInstructor() {
     const ok = await loadData();
     if (!ok) throw new Error('No se pudo conectar.');
     const instructor = STATE.instructors.find(i => i.id.toUpperCase() === code);
-    if (!instructor) throw new Error('Código incorrecto. Verifica e intenta de nuevo.');
-    if (instructor.pin && instructor.pin !== pin) throw new Error('PIN incorrecto.');
+    if (!instructor) { registerFailedAttempt('instructor'); throw new Error('Código incorrecto. Verifica e intenta de nuevo.'); }
     if (!instructor.pin) throw new Error('Este instructor no tiene PIN configurado. Contacta al administrador.');
+    if (instructor.pin !== pin) { registerFailedAttempt('instructor'); throw new Error('PIN incorrecto.'); }
+    registerSuccessLogin('instructor');
     STATE.currentUser = { role: 'instructor', data: instructor };
     document.querySelector('.logo-container').classList.add('no-click');
     renderInstructorPortal();
@@ -1828,6 +1862,7 @@ async function loginInstructor() {
 }
 
 async function loginCoordinator() {
+  if (!checkLoginLock('coordinator')) return;
   const user = document.getElementById('coord-user').value.trim().toLowerCase();
   const pass = document.getElementById('coord-pass').value.trim();
   const errEl = document.getElementById('login-error');
@@ -1852,9 +1887,10 @@ async function loginCoordinator() {
       String(c.username || '').trim().toLowerCase() === user
     );
 
-    if (!coord) throw new Error('Usuario no encontrado.');
-    if (String(coord.password || '').trim() !== pass) throw new Error('Contraseña incorrecta.');
+    if (!coord) { registerFailedAttempt('coordinator'); throw new Error('Usuario no encontrado.'); }
+    if (String(coord.password || '').trim() !== pass) { registerFailedAttempt('coordinator'); throw new Error('Contraseña incorrecta.'); }
     if (String(coord.active || 'true').trim() === 'false') throw new Error('Usuario desactivado. Contacta al administrador.');
+    registerSuccessLogin('coordinator');
 
     STATE.currentUser = { role: 'coordinator', data: { username: user } };
     document.querySelector('.logo-container').classList.add('no-click');
@@ -1912,14 +1948,23 @@ async function confirmAdminLogin() {
   const errEl = document.getElementById('admin-auth-error');
   const btn = document.querySelector('#admin-auth-modal .btn-action-confirm');
   const pass = input.value;
-  const stored = localStorage.getItem('dc_admin_pass') || 'admin2026';
+  const stored = localStorage.getItem('dc_admin_pass');
+
+  if (!stored) {
+    errEl.textContent = '⚠ Contraseña no configurada. Contacta al desarrollador.';
+    input.value = '';
+    return;
+  }
 
   if (pass !== stored) {
+    registerFailedAttempt('admin');
     errEl.textContent = '⚠ Contraseña incorrecta.';
     input.value = '';
     input.focus();
     return;
   }
+
+  registerSuccessLogin('admin');
 
   // Immediate feedback before data loads
   btn.disabled = true;
@@ -2838,7 +2883,7 @@ function renderAdminInstructors() {
           <div class="instructor-row-name">${inst.name} ${!isActive ? '<span class="badge red" style="font-size:.6rem">Inactivo</span>' : ''}</div>
           <div class="text-muted" style="font-size:.7rem">${inst.specialty} · ${inst.phone}</div>
           <div class="schedule-pills" style="margin-top:.3rem">${pillsHtml}</div>
-          <div style="font-size:.7rem;margin-top:.2rem">PIN: <strong style="color:${inst.pin?'var(--success)':'var(--danger)'}">${inst.pin||'⚠ Sin PIN'}</strong></div>
+          <div style="font-size:.7rem;margin-top:.2rem">PIN: <strong style="color:${inst.pin?'var(--success)':'var(--danger)'}">${inst.pin?'✓ Configurado':'⚠ Sin PIN'}</strong></div>
         </div>
       </div>
       <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">
@@ -3211,10 +3256,10 @@ function editPin(instructorId) {
           El PIN permite al instructor iniciar sesión. Debe ser exactamente 4 dígitos numéricos.
         </p>
         <div class="form-group" style="margin-bottom:.5rem">
-          <label class="config-label">Nuevo PIN</label>
-          <input id="pin-input" type="text" inputmode="numeric" maxlength="4" pattern="[0-9]{4}"
+          <label class="config-label">Nuevo PIN ${inst?.pin ? '(ya tiene uno configurado — escribe para reemplazarlo)' : ''}</label>
+          <input id="pin-input" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]{4}"
             class="config-input" placeholder="••••" style="font-size:1.4rem;letter-spacing:.5rem;text-align:center;margin-bottom:0"
-            value="${inst.pin || ''}">
+            value="">
         </div>
         <div id="pin-feedback" style="font-size:.78rem;min-height:1.2rem;margin-top:.4rem"></div>
       </div>
@@ -3663,6 +3708,11 @@ function toast(msg, type = 'info') { showToast(msg, type); }
 // INIT
 // =============================================================================
 document.addEventListener('DOMContentLoaded', async () => {
+  // Set default admin password on first run only
+  if (!localStorage.getItem('dc_admin_pass')) {
+    localStorage.setItem('dc_admin_pass', 'admin2026');
+  }
+
   // Warm up the Apps Script in background so it's ready when user logs in
   setTimeout(() => {
     const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
