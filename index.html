@@ -670,7 +670,7 @@
         <div class="instructor-stats-row">
           <div class="inst-stat-card">
             <div class="inst-stat-val v-active" id="inst-stat-active">0</div>
-            <div class="inst-stat-label">Confirmados</div>
+            <div class="inst-stat-label">En clases</div>
           </div>
           <div class="inst-stat-card" style="border-color:var(--warning)">
             <div class="inst-stat-val v-pending" id="inst-stat-pending">0</div>
@@ -679,6 +679,16 @@
           <button class="btn-sec" style="font-size:.78rem" onclick="instChangePIN()">🔑 Mi PIN</button>
           <button class="btn-sec" onclick="logout()">Salir</button>
         </div>
+      </div>
+    </div>
+    <!-- Banner: alumnos pendientes de confirmar contacto -->
+    <div id="inst-pending-confirm-banner" style="display:none;margin-bottom:1.25rem;padding:.9rem 1.25rem;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
+      <span style="font-size:1.3rem">📲</span>
+      <div>
+        <strong style="font-size:.88rem;color:#a78bfa"><span class="inst-banner-count">0</span> alumno(s) aún no confirman el contacto en su portal</strong>
+        <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem">Recuérdales que deben ingresar a DriveConnect y confirmar que ya los contactaste.</p>
+      </div>
+    </div>
       </div>
     </div>
     <div class="students-section-header">
@@ -2460,21 +2470,43 @@ function renderInstructorPortal() {
   document.getElementById('inst-specialty').textContent = '';
 
   const myProcesos = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed');
-  document.getElementById('inst-stat-active').textContent = myProcesos.filter(p => p.state === 'contact_confirmed').length;
-  document.getElementById('inst-stat-pending').textContent = myProcesos.filter(p => p.state === 'instructor_assigned').length;
+  const sinContactar  = myProcesos.filter(p => p.state === 'instructor_assigned').length;
+  const pendConfirmar = myProcesos.filter(p => p.state === 'contacted').length;
+  const enClases      = myProcesos.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
+
+  document.getElementById('inst-stat-active').textContent  = enClases;
+  document.getElementById('inst-stat-pending').textContent = sinContactar;
+
+  // Banner: alumnos que faltan por confirmar contacto
+  const bannerEl = document.getElementById('inst-pending-confirm-banner');
+  if (bannerEl) {
+    if (pendConfirmar > 0) {
+      bannerEl.style.display = 'flex';
+      bannerEl.querySelector('.inst-banner-count').textContent = pendConfirmar;
+    } else {
+      bannerEl.style.display = 'none';
+    }
+  }
 
   const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+  const LICENSE_FULL   = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
 
   const sorted = [...myProcesos].sort((a,b) => {
+    // Primero por urgencia de estado, luego por días
+    const stateOrder = { instructor_assigned: 0, contacted: 1, contact_confirmed: 2, practice_started: 3, ready_to_graduate: 4 };
     const sa = STATE.students.find(s => s.docNumber === a.docNumber);
     const sb = STATE.students.find(s => s.docNumber === b.docNumber);
-    return daysWaiting(b, sb) - daysWaiting(a, sa);
+    const da = daysWaiting(a, sa), db = daysWaiting(b, sb);
+    // instructor_assigned con muchos días primero
+    if (a.state === 'instructor_assigned' && b.state === 'instructor_assigned') return db - da;
+    if (a.state !== b.state) return (stateOrder[a.state] ?? 9) - (stateOrder[b.state] ?? 9);
+    return db - da;
   });
 
   const list = document.getElementById('instructor-students-list');
   list.innerHTML = '';
   if (sorted.length === 0) {
-    list.innerHTML = '<div class="glass-panel text-center" style="grid-column:1/-1;padding:3rem"><p class="text-secondary">No tienes alumnos asignados actualmente.</p></div>';
+    list.innerHTML = '<div class="glass-panel text-center" style="padding:3rem"><p class="text-secondary">No tienes alumnos asignados actualmente.</p></div>';
     return;
   }
 
@@ -2482,47 +2514,89 @@ function renderInstructorPortal() {
     const student = STATE.students.find(s => s.docNumber === proc.docNumber);
     if (!student) return;
     const days = daysWaiting(proc, student);
-    const badgeCls = days > CONFIG.WAIT_DAYS_CRITICAL ? 'danger' : days >= CONFIG.WAIT_DAYS_WARNING ? 'warning' : 'success';
-    let pClass = 'p-low', pLabel = 'Contactado';
+    const licLabel = LICENSE_LABELS[proc.license] || proc.license;
+    const licFull  = LICENSE_FULL[proc.license]   || proc.license;
+
+    // Color y urgencia por estado + días
+    let cardBorder = '', urgencyBadge = '', urgencyLabel = '';
+
     if (proc.state === 'instructor_assigned') {
-      if (days >= CONFIG.WAIT_DAYS_CRITICAL) { pClass = 'p-high'; pLabel = '🚨 Urgente +' + CONFIG.WAIT_DAYS_CRITICAL + 'd'; }
-      else if (days >= CONFIG.WAIT_DAYS_WARNING) { pClass = 'p-medium'; pLabel = '⚠ Sin contactar'; }
-      else { pClass = 'p-low'; pLabel = 'Pendiente contacto'; }
+      if (days >= CONFIG.WAIT_DAYS_CRITICAL) {
+        // ROJO INTENSO — esto es la función principal del sistema
+        cardBorder = 'border:2px solid var(--danger);box-shadow:0 0 18px rgba(244,63,94,.35),0 4px 20px rgba(0,0,0,.4);animation:pulseBg 2s infinite ease-in-out;';
+        urgencyBadge = `<span style="background:var(--danger);color:white;border-radius:9999px;padding:.2rem .65rem;font-size:.72rem;font-weight:800;letter-spacing:.3px">🚨 +${days}d SIN CONTACTAR</span>`;
+        urgencyLabel = 'danger';
+      } else if (days >= CONFIG.WAIT_DAYS_WARNING) {
+        cardBorder = 'border:1px solid rgba(245,158,11,.5);box-shadow:0 0 10px rgba(245,158,11,.2);';
+        urgencyBadge = `<span style="background:rgba(245,158,11,.2);color:var(--warning);border:1px solid rgba(245,158,11,.4);border-radius:9999px;padding:.2rem .6rem;font-size:.72rem;font-weight:700">⚠ ${days}d sin contactar</span>`;
+        urgencyLabel = 'warning';
+      } else {
+        cardBorder = 'border:1px solid var(--border-color);';
+        urgencyBadge = `<span style="background:rgba(59,130,246,.1);color:var(--brand-light);border:1px solid rgba(59,130,246,.25);border-radius:9999px;padding:.2rem .6rem;font-size:.72rem;font-weight:600">${days}d — Pendiente contacto</span>`;
+        urgencyLabel = 'info';
+      }
+    } else if (proc.state === 'contacted') {
+      cardBorder = 'border:1px solid rgba(139,92,246,.4);';
+      urgencyBadge = `<span style="background:rgba(139,92,246,.15);color:#a78bfa;border:1px solid rgba(139,92,246,.3);border-radius:9999px;padding:.2rem .6rem;font-size:.72rem;font-weight:600">📲 Esperando confirmación del alumno</span>`;
+      urgencyLabel = 'purple';
+    } else if (proc.state === 'contact_confirmed') {
+      cardBorder = 'border:1px solid rgba(16,185,129,.3);';
+      urgencyBadge = `<span style="background:rgba(16,185,129,.1);color:var(--success);border:1px solid rgba(16,185,129,.25);border-radius:9999px;padding:.2rem .6rem;font-size:.72rem;font-weight:600">✅ Contacto confirmado</span>`;
+      urgencyLabel = 'success';
+    } else if (proc.state === 'practice_started') {
+      cardBorder = 'border:1px solid rgba(16,185,129,.3);';
+      urgencyBadge = `<span style="background:rgba(16,185,129,.12);color:var(--success);border:1px solid rgba(16,185,129,.25);border-radius:9999px;padding:.2rem .6rem;font-size:.72rem;font-weight:600">🚗 Clases en curso</span>`;
+      urgencyLabel = 'success';
+    } else if (proc.state === 'ready_to_graduate') {
+      cardBorder = 'border:1px solid rgba(16,185,129,.4);';
+      urgencyBadge = `<span style="background:rgba(16,185,129,.15);color:var(--success);border:1px solid rgba(16,185,129,.3);border-radius:9999px;padding:.2rem .6rem;font-size:.72rem;font-weight:700">🎓 Clases finalizadas</span>`;
+      urgencyLabel = 'success';
     }
 
-    const waMsg = `Hola ${student.name}, soy ${inst.name}, tu instructor asignado de la academia. Me comunico para coordinar el inicio de tus clases de ${LICENSE_LABELS[proc.license] || proc.license}. ¿Qué disponibilidad tienes esta semana? 😊\n\nRecuerda confirmar en el portal que ya te contacté. ¡Gracias!`;
-    const waUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
+    const waMsg = `Hola ${student.name}, soy ${inst.name}, tu instructor asignado en la academia. Me comunico para coordinar el inicio de tus clases de ${licFull}. ¿Qué disponibilidad tienes esta semana? 😊\n\nRecuerda confirmar en el portal que ya te contacté. ¡Gracias!`;
+    const waUrl = `https://wa.me/${student.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}`;
 
+    // Botones de acción según estado
     let actionBtns = '';
     if (proc.state === 'instructor_assigned') {
-      actionBtns = `<span style="font-size:.75rem;color:var(--warning);font-weight:600">⏳ Escríbele — aún no ha confirmado contacto</span>`;
+      actionBtns = `
+        <button class="btn-primary" style="width:auto;padding:.4rem .85rem;font-size:.78rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);box-shadow:0 2px 8px rgba(109,40,217,.35)" onclick="instMarkContacted('${proc.docNumber}','${proc.license}')">
+          📞 Marcar como contactado
+        </button>`;
     } else if (proc.state === 'contacted') {
-      actionBtns = `<span style="font-size:.75rem;color:var(--brand-light)">📲 Contactado — esperando que confirme en el portal</span>`;
+      actionBtns = `
+        <span style="font-size:.75rem;color:#a78bfa;font-style:italic">Esperando que el alumno confirme en su portal</span>`;
+    } else if (proc.state === 'contact_confirmed' || proc.state === 'practice_started') {
+      actionBtns = `
+        <button class="btn-sec" style="font-size:.75rem;padding:.35rem .75rem;border-color:var(--success);color:var(--success)" onclick="instMarkReady('${proc.docNumber}','${proc.license}')">
+          🎓 Finalizar alumno
+        </button>`;
     } else if (proc.state === 'ready_to_graduate') {
-      actionBtns = `<span style="font-size:.75rem;color:var(--success)">🎓 Listo — administración cerrará su expediente</span>`;
-    } else {
-      actionBtns = `<button class="btn-sec" style="font-size:.72rem;padding:.3rem .65rem;border-color:var(--success);color:var(--success)" onclick="instMarkReady('${proc.docNumber}','${proc.license}')">🎓 Alumno terminó clases</button>`;
+      actionBtns = `<span style="font-size:.75rem;color:var(--success)">✓ Finalizado — coordinación cerrará el expediente</span>`;
     }
 
     const card = document.createElement('div');
-    card.className = `student-list-card ${pClass}`;
+    card.className = 'student-list-card';
+    card.style.cssText = cardBorder + 'margin-bottom:.85rem;';
     card.innerHTML = `
       <div class="student-card-top">
         <div class="student-card-title">
           <h4>${student.name}</h4>
           <div class="student-card-dni">${getDocLabel(student.docType)} ${student.docNumber}</div>
-          <div style="margin-top:.25rem"><span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);border-radius:9999px;padding:.15rem .55rem;font-size:.68rem;font-weight:600;color:var(--brand-light)">${LICENSE_LABELS[proc.license] || proc.license}</span></div>
+          <div style="margin-top:.4rem">${urgencyBadge}</div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.35rem">
-          <span class="wait-badge ${badgeCls}" style="font-size:.8rem;padding:.2rem .6rem">${days}d</span>
-          <span class="prio-pill">${pLabel}</span>
+          <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);border-radius:9999px;padding:.2rem .6rem;font-size:.72rem;font-weight:700;color:var(--brand-light)">${licLabel}</span>
+          ${proc.state === 'instructor_assigned' && days >= CONFIG.WAIT_DAYS_CRITICAL
+            ? `<span style="font-family:var(--font-title);font-size:1.6rem;font-weight:800;color:var(--danger);line-height:1">${days}<span style="font-size:.65rem;font-weight:400;color:var(--text-muted)">d</span></span>`
+            : ''}
         </div>
       </div>
       <div class="student-card-details">
         <div class="student-det-item"><span>Teórico</span><strong>${formatDate(student.theoryPassedDate, true)}</strong></div>
-        <div class="student-det-item"><span>Días hábiles</span><strong style="color:var(--${badgeCls})">${days}d</strong></div>
+        ${proc.state === 'instructor_assigned' ? `<div class="student-det-item"><span>Días hábiles</span><strong style="color:${days >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--success)'}">${days}d</strong></div>` : ''}
       </div>
-      <div class="student-card-actions">
+      <div class="student-card-actions" style="flex-wrap:wrap;gap:.5rem">
         ${actionBtns}
         <a href="${waUrl}" target="_blank" class="btn-card-action wa">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
@@ -2533,15 +2607,81 @@ function renderInstructorPortal() {
   });
 }
 
+async function instMarkContacted(docNumber, license) {
+  const student = STATE.students.find(s => s.docNumber === docNumber);
+  if (!student) return;
+
+  // Modal de confirmación amigable en vez de confirm()
+  const existing = document.getElementById('inst-contacted-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'inst-contacted-modal';
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:380px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:.75rem">📞</div>
+      <h3 style="font-family:var(--font-title);font-size:1.15rem;font-weight:700;margin-bottom:.4rem">¿Ya contactaste a ${student.name.split(' ')[0]}?</h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem">Esto registrará el contacto. El alumno deberá confirmarlo desde su portal para completar este paso.</p>
+      <div style="display:flex;gap:.65rem">
+        <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('inst-contacted-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="flex:1" onclick="instMarkContactedConfirm('${docNumber}','${license}')">Sí, ya lo contacté</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function instMarkContactedConfirm(docNumber, license) {
+  document.getElementById('inst-contacted-modal')?.remove();
+  showToast('Registrando contacto...', 'info');
+  try {
+    const now = today();
+    const data = await apiCall({ action: 'updateProceso', docNumber, license, field: 'state', value: 'contacted', contactedDate: now });
+    if (data?.success !== false) {
+      const p = getProceso(docNumber, license);
+      if (p) { p.state = 'contacted'; p.contactedDate = now; }
+      showToast('✓ Contacto registrado — el alumno verá la solicitud de confirmación.', 'success');
+      renderInstructorPortal();
+    } else {
+      showToast('Error: ' + (data?.error || 'desconocido'), 'error');
+    }
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
 async function instMarkReady(docNumber, license) {
-  if (!confirm('¿Confirmas que este alumno terminó todas sus clases prácticas de ' + license + '?\nEsto notificará al coordinador para cerrar el expediente.')) return;
-  showToast('Marcando alumno como listo...', 'info');
+  const student = STATE.students.find(s => s.docNumber === docNumber);
+  if (!student) return;
+
+  const existing = document.getElementById('inst-ready-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'inst-ready-modal';
+  modal.className = 'modal-overlay active';
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:380px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:.75rem">🎓</div>
+      <h3 style="font-family:var(--font-title);font-size:1.15rem;font-weight:700;margin-bottom:.4rem">Finalizar a ${student.name.split(' ')[0]}</h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:.5rem">Confirmas que <strong>${student.name}</strong> completó todas sus clases prácticas de <strong>${LICENSE_FULL[license] || license}</strong>.</p>
+      <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:1.25rem">El coordinador recibirá la notificación para cerrar el expediente.</p>
+      <div style="display:flex;gap:.65rem">
+        <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('inst-ready-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="flex:1;background:var(--success);border-color:var(--success)" onclick="instMarkReadyConfirm('${docNumber}','${license}')">Sí, finalizar alumno</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function instMarkReadyConfirm(docNumber, license) {
+  document.getElementById('inst-ready-modal')?.remove();
+  showToast('Finalizando alumno...', 'info');
   try {
     const data = await apiCall({ action: 'markReady', docNumber, license });
     if (data.success) {
       const p = getProceso(docNumber, license);
       if (p) p.state = 'ready_to_graduate';
-      showToast('✓ Alumno marcado. El coordinador recibirá la notificación.', 'success');
+      showToast('🎓 Alumno finalizado. El coordinador cerrará el expediente.', 'success');
       renderInstructorPortal();
     } else { showToast('Error: ' + (data.error || 'desconocido'), 'error'); }
   } catch(e) { showToast('Error de conexión', 'error'); }
