@@ -727,6 +727,16 @@
         <button class="btn-primary" style="width:auto;padding:.45rem 1rem;font-size:.8rem;flex-shrink:0" onclick="coordMetricClick('ready')">Ver y confirmar</button>
       </div>
 
+      <!-- ACCIONES RÁPIDAS -->
+      <div style="display:flex;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <button class="btn-primary" style="width:auto;padding:.55rem 1.1rem;font-size:.85rem;display:flex;align-items:center;gap:.5rem" onclick="coordShowRegisterQR()">
+          📱 Mostrar QR de registro
+        </button>
+        <button class="btn-sec" style="padding:.55rem 1.1rem;font-size:.85rem;display:flex;align-items:center;gap:.5rem" onclick="coordRegisterManual()">
+          ✏️ Registrar alumno manualmente
+        </button>
+      </div>
+
       <!-- 4 CARDS MÉTRICAS -->
       <div class="admin-metrics-grid" style="margin-bottom:1.5rem;grid-template-columns:repeat(4,1fr)">
         <div class="metric-card" id="mcard-total" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('all')">
@@ -739,14 +749,14 @@
           <div class="metric-info"><h4>Sin Instructor</h4><div class="metric-val" id="cmetric-unassigned">0</div></div>
           <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
         </div>
-        <div class="metric-card" id="mcard-waiting" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('waiting')">
-          <div class="metric-icon-wrap" id="mcard-waiting-icon">👤</div>
-          <div class="metric-info"><h4>Pend. Contacto</h4><div class="metric-val" id="cmetric-waiting">0</div></div>
-          <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
-        </div>
         <div class="metric-card" id="mcard-alerts" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('alerts')">
           <div class="metric-icon-wrap" id="mcard-alerts-icon">🚨</div>
-          <div class="metric-info"><h4>Alertas &gt;15d</h4><div class="metric-val" id="cmetric-alerts" style="font-size:2rem">0</div></div>
+          <div class="metric-info"><h4>Alertas &gt;20d</h4><div class="metric-val" id="cmetric-alerts" style="font-size:2rem">0</div></div>
+          <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
+        </div>
+        <div class="metric-card success" id="mcard-completed" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('completed')">
+          <div class="metric-icon-wrap">🎓</div>
+          <div class="metric-info"><h4>Completados</h4><div class="metric-val" id="cmetric-completed">0</div></div>
           <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
         </div>
       </div>
@@ -1020,6 +1030,77 @@
     </div>
     <div class="modal-body" style="max-height:60vh;overflow-y:auto">
       <div id="pending-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- QR MODAL -->
+<div class="modal-overlay" id="qr-modal">
+  <div class="modal-box" style="max-width:400px;text-align:center">
+    <div class="modal-header">
+      <h3>📱 QR de Registro</h3>
+      <button class="btn-close-modal" onclick="document.getElementById('qr-modal').classList.remove('active')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.85rem;color:var(--text-secondary);margin-bottom:1.25rem">Muéstrale este QR al alumno para que escanee y complete su registro.</p>
+      <div id="qr-container" style="background:white;padding:1.5rem;border-radius:var(--r-md);display:inline-block;margin-bottom:1rem"></div>
+      <p style="font-size:.72rem;color:var(--text-muted)">O comparte este enlace:</p>
+      <div style="background:rgba(255,255,255,.05);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .75rem;font-size:.72rem;color:var(--brand-light);word-break:break-all" id="qr-url"></div>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTRO MANUAL MODAL -->
+<div class="modal-overlay" id="manual-register-modal">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-header">
+      <h3>✏️ Registrar Alumno</h3>
+      <button class="btn-close-modal" onclick="document.getElementById('manual-register-modal').classList.remove('active')">×</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.75rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div>
+          <label class="config-label">Tipo de documento</label>
+          <select id="mr-docType" class="config-input" style="margin-bottom:0">
+            <option value="CC">Cédula de Ciudadanía</option>
+            <option value="TI">Tarjeta de Identidad</option>
+            <option value="CE">Cédula de Extranjería</option>
+            <option value="PA">Pasaporte</option>
+          </select>
+        </div>
+        <div>
+          <label class="config-label">Número de documento</label>
+          <input type="text" id="mr-docNumber" class="config-input" style="margin-bottom:0" placeholder="Sin puntos" inputmode="numeric">
+        </div>
+      </div>
+      <div>
+        <label class="config-label">Nombre completo</label>
+        <input type="text" id="mr-name" class="config-input" style="margin-bottom:0" placeholder="Como aparece en el documento">
+      </div>
+      <div>
+        <label class="config-label">WhatsApp</label>
+        <input type="text" id="mr-phone" class="config-input" style="margin-bottom:0" placeholder="3001234567" inputmode="numeric" maxlength="10">
+      </div>
+      <div>
+        <label class="config-label">Fecha examen teórico</label>
+        <input type="date" id="mr-date" class="config-input" style="margin-bottom:0">
+      </div>
+      <div>
+        <label class="config-label">Licencia(s) <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">(máximo 2)</span></label>
+        <div id="mr-license-pills" style="display:flex;flex-wrap:wrap;gap:.4rem">
+          <button type="button" class="reg-pill" data-val="B1" onclick="toggleLicense(this,'mr-license-pills')">🚗 B1</button>
+          <button type="button" class="reg-pill" data-val="C1" onclick="toggleLicense(this,'mr-license-pills')">🚌 C1</button>
+          <button type="button" class="reg-pill" data-val="C2" onclick="toggleLicense(this,'mr-license-pills')">🚛 C2</button>
+          <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this,'mr-license-pills')">🏍 A2</button>
+          <button type="button" class="reg-pill" data-val="A1" onclick="toggleLicense(this,'mr-license-pills')">🛵 A1</button>
+          <button type="button" class="reg-pill" data-val="B2" onclick="toggleLicense(this,'mr-license-pills')">🚐 B2</button>
+        </div>
+      </div>
+      <div id="mr-error" class="error-msg" style="display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-action-cancel" onclick="document.getElementById('manual-register-modal').classList.remove('active')">Cancelar</button>
+      <button class="btn-action-confirm" onclick="coordRegisterSubmit()">Registrar y Aprobar</button>
     </div>
   </div>
 </div>
@@ -2139,6 +2220,14 @@ function renderStudentProcessPanel(s, proc) {
   rightHTML += `<div style="font-size:.7rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1rem;padding-top:.25rem">${licenseLabel}</div>`;
   rightHTML += miniBanner;
 
+  // Self-confirm: alumno puede confirmar contacto sin depender del instructor
+  if (proc.state === 'instructor_assigned' && inst) {
+    rightHTML += `<div style="margin-bottom:.85rem;padding:.65rem .85rem;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);text-align:center">
+      <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:.5rem">¿Ya te contactó tu instructor?</p>
+      <button onclick="studentSelfConfirmContact('${proc.license}')" style="background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--success);border-radius:var(--r-sm);padding:.4rem .85rem;font-size:.78rem;font-weight:600;cursor:pointer;transition:var(--t-fast)">✅ Sí, ya me contactó</button>
+    </div>`;
+  }
+
   if (!inst) {
     const coordPhone = CONFIG.COORD_PHONE;
     const waMsg = `Hola, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Llevo ${procDays} días hábiles desde mi examen teórico y aún no tengo instructor para ${licenseLabel}. ¿Me pueden ayudar?`;
@@ -2223,7 +2312,7 @@ function renderStudentProcessPanel(s, proc) {
           <button class="faq-question" onclick="toggleFaq(this)" style="font-size:.8rem">
             <span>¿Qué hago si no me han contactado?</span><span class="faq-arrow">▼</span>
           </button>
-          <div class="faq-answer"><p style="font-size:.78rem">Si no han pasado los 20 días hábiles, ten paciencia. Una vez cumplido ese plazo el sistema te habilitará el contacto directo con tu instructor.</p></div>
+          <div class="faq-answer"><p style="font-size:.78rem">El proceso tiene un plazo de <strong>20 días hábiles</strong> desde tu examen teórico. Durante ese tiempo, <strong>no necesitas llamar a la academia</strong> — el sistema te avisará si hay algún problema. Si el plazo se cumple sin contacto, aparecerá una alerta aquí mismo con los pasos a seguir.</p></div>
         </div>
       </div>
     </div>`;
@@ -2449,6 +2538,10 @@ function coordMetricClick(type) {
     filterEl.value = '';
     _coordCustomFilter = (p) => p.state === 'ready_to_graduate';
     if (titleEl) titleEl.textContent = '🎓 Listos para graduarse';
+  } else if (type === 'completed') {
+    filterEl.value = '';
+    _coordCustomFilter = (p) => p.state === 'completed';
+    if (titleEl) titleEl.textContent = '🎓 Procesos completados';
   }
 
   renderCoordTable();
@@ -2594,11 +2687,14 @@ async function renderCoordinatorPortal() {
     return a + daysWaiting(p, st);
   }, 0) / pendingProcs.length) : 0;
 
+  const completed = STATE.procesos.filter(p => p.state === 'completed').length;
+
   document.getElementById('cmetric-total').textContent = activeStudents.length;
   document.getElementById('cmetric-unassigned').textContent = unassigned;
-  document.getElementById('cmetric-waiting').textContent = waiting;
   document.getElementById('cmetric-alerts').textContent = critical;
   document.getElementById('cmetric-avg').textContent = avg + 'd';
+  const completedEl = document.getElementById('cmetric-completed');
+  if (completedEl) completedEl.textContent = completed;
 
   // Color cards dynamically based on value
   function paintCard(cardId, val, threshWarn, threshDanger) {
@@ -3536,7 +3632,108 @@ async function adminSetTempPin(docNumber) {
 }
 
 // =============================================================================
-// STUDENT PROFILE MODAL (Coordinator / Admin)
+// QR DE REGISTRO Y REGISTRO MANUAL
+// =============================================================================
+function coordShowRegisterQR() {
+  const url = 'https://maicol919-gif.github.io/driveconnect/#register';
+  document.getElementById('qr-url').textContent = url;
+  const container = document.getElementById('qr-container');
+  container.innerHTML = '';
+  // Generate QR using Google Charts API
+  const img = document.createElement('img');
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}&bgcolor=ffffff&color=000000&margin=10`;
+  img.alt = 'QR DriveConnect Registro';
+  img.style.cssText = 'width:220px;height:220px;display:block';
+  container.appendChild(img);
+  document.getElementById('qr-modal').classList.add('active');
+}
+
+function coordRegisterManual() {
+  // Reset form
+  document.getElementById('mr-docNumber').value = '';
+  document.getElementById('mr-name').value = '';
+  document.getElementById('mr-phone').value = '';
+  document.getElementById('mr-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('mr-error').style.display = 'none';
+  document.querySelectorAll('#mr-license-pills .reg-pill').forEach(p => p.classList.remove('selected'));
+  document.getElementById('manual-register-modal').classList.add('active');
+}
+
+function toggleLicense(btn, groupId) {
+  const groupEl = document.getElementById(groupId || 'reg-license-pills');
+  const selected = groupEl ? groupEl.querySelectorAll('.reg-pill.selected') : document.querySelectorAll('#reg-license-pills .reg-pill.selected');
+  const hint = document.getElementById('reg-license-hint');
+  if (btn.classList.contains('selected')) {
+    btn.classList.remove('selected');
+    if (hint) hint.textContent = '';
+  } else {
+    if (selected.length >= 2) {
+      if (hint) { hint.textContent = '⚠ Máximo 2 licencias.'; hint.style.color = 'var(--warning)'; }
+      return;
+    }
+    btn.classList.add('selected');
+    if (hint && selected.length === 1) { hint.textContent = '✓ Dos licencias seleccionadas'; hint.style.color = 'var(--success)'; }
+  }
+}
+
+async function coordRegisterSubmit() {
+  const docType   = document.getElementById('mr-docType').value;
+  const docNumber = document.getElementById('mr-docNumber').value.trim();
+  const name      = document.getElementById('mr-name').value.trim();
+  const phone     = document.getElementById('mr-phone').value.trim();
+  const date      = document.getElementById('mr-date').value;
+  const errEl     = document.getElementById('mr-error');
+  const licVals   = Array.from(document.querySelectorAll('#mr-license-pills .reg-pill.selected')).map(b => b.dataset.val);
+
+  errEl.style.display = 'none';
+  if (!docNumber) { errEl.textContent = 'Ingresa el número de documento.'; errEl.style.display = 'block'; return; }
+  if (!name)      { errEl.textContent = 'Ingresa el nombre completo.'; errEl.style.display = 'block'; return; }
+  if (!licVals.length) { errEl.textContent = 'Selecciona al menos una licencia.'; errEl.style.display = 'block'; return; }
+
+  const exists = STATE.students.find(s => s.docNumber === docNumber);
+  if (exists) { errEl.textContent = 'Este documento ya está registrado.'; errEl.style.display = 'block'; return; }
+
+  const pin = generatePIN();
+  showToast('Registrando alumno...', 'info');
+
+  try {
+    // Register with active=true directly (coordinator approves immediately)
+    const data = await apiCall({
+      action: 'registerStudent',
+      docNumber, docType, name, phone,
+      license: licVals[0] || '',
+      license2: licVals[1] || '',
+      schedule: 'flexible',
+      pin,
+      theoryPassedDate: date,
+      preApproved: 'true'
+    });
+    if (!data.success) throw new Error(data.error || 'Error al registrar.');
+
+    // Approve immediately
+    await apiCall({ action: 'approveStudent', docNumber });
+
+    document.getElementById('manual-register-modal').classList.remove('active');
+    showToast(`✓ Alumno registrado. PIN: ${pin} — entrégaselo en mano.`, 'success');
+
+    // Reload data
+    await loadData();
+    renderCoordinatorPortal();
+  } catch(e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+// =============================================================================
+// CONFIRMACIÓN DE CONTACTO POR EL ALUMNO (sin depender del instructor)
+// =============================================================================
+async function studentSelfConfirmContact(license) {
+  if (!confirm('¿Confirmas que tu instructor ya se comunicó contigo?\nEsta acción quedará registrada en el sistema.')) return;
+  await studentConfirmContact(true, license);
+}
+
 // =============================================================================
 let _profileDocNumber = null;
 
