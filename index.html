@@ -1788,13 +1788,14 @@ function logout() {
 // =============================================================================
 function switchTab(tab) {
   STATE.activeTab = tab;
-  document.getElementById('btn-student').classList.toggle('active', tab === 'student');
-  document.getElementById('btn-instructor').classList.toggle('active', tab === 'instructor');
-  document.getElementById('btn-coordinator').classList.toggle('active', tab === 'coordinator');
-  document.getElementById('group-student').style.display = tab === 'student' ? 'block' : 'none';
-  document.getElementById('group-instructor').style.display = tab === 'instructor' ? 'block' : 'none';
-  document.getElementById('group-coordinator').style.display = tab === 'coordinator' ? 'block' : 'none';
-  document.getElementById('login-error').style.display = 'none';
+  ['student','instructor','coordinator'].forEach(t => {
+    const btn   = document.getElementById('btn-' + t);
+    const group = document.getElementById('group-' + t);
+    if (btn)   { btn.classList.remove('active');   if (t === tab) btn.classList.add('active'); }
+    if (group) group.style.display = t === tab ? 'block' : 'none';
+  });
+  const errEl = document.getElementById('login-error');
+  if (errEl) errEl.style.display = 'none';
 }
 
 function setDocType(btn, type) {
