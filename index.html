@@ -527,16 +527,7 @@
       <!-- ALUMNO -->
       <div id="group-student">
         <div class="form-group">
-          <label>Tipo de documento</label>
-          <div class="doc-type-row">
-            <button class="doc-type-btn active" data-type="CC" onclick="setDocType(this,'CC')">C.C.</button>
-            <button class="doc-type-btn" data-type="TI" onclick="setDocType(this,'TI')">T.I.</button>
-            <button class="doc-type-btn" data-type="CE" onclick="setDocType(this,'CE')">C.E.</button>
-            <button class="doc-type-btn" data-type="PA" onclick="setDocType(this,'PA')">Pasaporte</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label id="doc-label">Número de Cédula de Ciudadanía</label>
+          <label>Número de documento</label>
           <div class="input-wrapper">
             <span class="input-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -565,15 +556,15 @@
         </p>
       </div>
 
-      <!-- INSTRUCTOR — mismo formulario unificado -->
+      <!-- INSTRUCTOR -->
       <div id="group-instructor" style="display:none">
         <div class="form-group">
-          <label>Número de cédula</label>
+          <label>Número de documento</label>
           <div class="input-wrapper">
             <span class="input-icon">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </span>
-            <input type="text" id="instructor-code" class="form-input" placeholder="Ingresa tu número de cédula" autocomplete="off" inputmode="numeric">
+            <input type="text" id="instructor-code" class="form-input" placeholder="Ingresa tu número de documento" autocomplete="off" inputmode="numeric">
           </div>
         </div>
         <div class="form-group">
