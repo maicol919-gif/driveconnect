@@ -2138,7 +2138,7 @@ function renderStudentProcessPanel(s, proc) {
   const licenseLabel  = LICENSE_FULL[proc.license] || proc.license || 'Tu proceso';
   const inst          = proc.instructorId ? STATE.instructors.find(i => i.id === proc.instructorId) : null;
   const procDays      = daysWaiting(proc, s);
-  const canContact    = procDays >= CONFIG.WAIT_DAYS_CRITICAL || proc.state === 'contacted' || proc.state === 'contact_confirmed';
+  const canContact    = procDays >= CONFIG.WAIT_DAYS_CRITICAL && !['contact_confirmed','practice_started','ready_to_graduate'].includes(proc.state);
   const gradients     = ['linear-gradient(135deg,var(--brand),#6366f1)', 'linear-gradient(135deg,#059669,#0891b2)'];
   const gradIdx       = (proc.license === 'A2' || proc.license === 'A1') ? 1 : 0;
   const barColor      = gradients[gradIdx];
