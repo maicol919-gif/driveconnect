@@ -700,130 +700,150 @@
 
   <!-- ===== PANEL COORDINADOR ===== -->
   <section id="view-coordinator" class="view-section">
+
+    <!-- HEADER CON SALUDO -->
     <div class="coord-header">
       <div class="coord-header-left">
-        <h1>Panel de Coordinación</h1>
-        <p id="coord-welcome">Bienvenido/a</p>
+        <h1 id="coord-greeting" style="font-family:var(--font-title);font-size:1.6rem;font-weight:800;line-height:1.2">¡Buen día!</h1>
+        <p id="coord-welcome" style="color:var(--text-secondary);font-size:.85rem;margin-top:.25rem">Bienvenido/a</p>
       </div>
-      <div style="display:flex;align-items:center;gap:.75rem">
+      <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
         <div class="coord-tabs">
-          <button class="coord-tab active" id="ctab-main"        onclick="switchCoordTab('main')">Panel</button>
-          <button class="coord-tab"        id="ctab-instructors" onclick="switchCoordTab('instructors')">Instructores</button>
+          <button class="coord-tab active" id="ctab-main"        onclick="switchCoordTab('main')">🏠 Inicio</button>
+          <button class="coord-tab"        id="ctab-students"    onclick="switchCoordTab('students')">👥 Alumnos</button>
+          <button class="coord-tab"        id="ctab-instructors" onclick="switchCoordTab('instructors')">👨‍🏫 Instructores</button>
         </div>
         <button class="btn-sec" onclick="logout()">Salir</button>
       </div>
     </div>
 
-    <!-- ===== VISTA PRINCIPAL UNIFICADA ===== -->
+    <!-- ===== VISTA INICIO ===== -->
     <div id="coord-view-main">
 
-      <!-- ALERTA DE PENDIENTES DE APROBACIÓN -->
-      <div id="coord-pending-banner" style="display:none;margin-bottom:1.25rem;padding:.9rem 1.25rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-md);display:flex;align-items:center;gap:.75rem">
-        <span style="font-size:1.1rem">📋</span>
+      <!-- BANNERS -->
+      <div id="coord-pending-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.25rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
+        <span style="font-size:1.2rem">📋</span>
         <div style="flex:1">
-          <strong style="font-size:.9rem">Registros pendientes de aprobación</strong>
-          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem"><span id="coord-pending-count">0</span> alumno(s) se registraron y esperan que los actives.</p>
+          <strong style="font-size:.88rem">Registros pendientes de activación</strong>
+          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem"><span id="coord-pending-count">0</span> alumno(s) esperan ser activados.</p>
         </div>
-        <button class="btn-primary" style="width:auto;padding:.45rem 1rem;font-size:.8rem;flex-shrink:0" onclick="coordShowPending()">Revisar</button>
+        <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0" onclick="coordShowPending()">Revisar</button>
       </div>
 
-      <!-- ALERTA DE LISTOS PARA CERRAR -->
-      <div id="coord-ready-banner" style="display:none;margin-bottom:1.25rem;padding:.9rem 1.25rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:var(--r-md);display:flex;align-items:center;gap:.75rem">
-        <span style="font-size:1.1rem">🎓</span>
+      <div id="coord-ready-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.25rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
+        <span style="font-size:1.2rem">🎓</span>
         <div style="flex:1">
-          <strong style="font-size:.9rem">Alumnos listos para graduarse</strong>
-          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem">El instructor marcó a <span id="coord-ready-count">0</span> alumno(s) como completados. Confírmalos para cerrar su expediente.</p>
+          <strong style="font-size:.88rem">Alumnos listos para cerrar expediente</strong>
+          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem">El instructor finalizó a <span id="coord-ready-count">0</span> alumno(s).</p>
         </div>
-        <button class="btn-primary" style="width:auto;padding:.45rem 1rem;font-size:.8rem;flex-shrink:0" onclick="coordMetricClick('ready')">Ver y confirmar</button>
+        <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0" onclick="switchCoordTab('students');coordMetricClick('ready')">Ver y cerrar</button>
       </div>
 
       <!-- ACCIONES RÁPIDAS -->
-      <div style="display:flex;gap:.75rem;margin-bottom:1.5rem;flex-wrap:wrap">
-        <button class="btn-primary" style="width:auto;padding:.55rem 1.1rem;font-size:.85rem;display:flex;align-items:center;gap:.5rem" onclick="coordShowRegisterQR()">
-          📱 Mostrar QR de registro
-        </button>
-        <button class="btn-sec" style="padding:.55rem 1.1rem;font-size:.85rem;display:flex;align-items:center;gap:.5rem" onclick="coordRegisterManual()">
-          ✏️ Registrar alumno manualmente
-        </button>
+      <div style="display:flex;gap:.65rem;margin-bottom:1.5rem;flex-wrap:wrap">
+        <button class="btn-primary" style="width:auto;padding:.5rem 1rem;font-size:.82rem" onclick="coordShowRegisterQR()">📱 Mostrar QR</button>
+        <button class="btn-sec"     style="padding:.5rem 1rem;font-size:.82rem"             onclick="coordRegisterManual()">✏️ Registrar alumno</button>
       </div>
 
-      <!-- 4 CARDS MÉTRICAS -->
-      <div class="admin-metrics-grid" style="margin-bottom:1.5rem;grid-template-columns:repeat(4,1fr)">
-        <div class="metric-card" id="mcard-total" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('all')">
-          <div class="metric-icon-wrap" id="mcard-total-icon">👥</div>
-          <div class="metric-info"><h4 id="mcard-total-label">Total Activos</h4><div class="metric-val" id="cmetric-total">0</div></div>
-          <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
-        </div>
-        <div class="metric-card" id="mcard-unassigned" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('unassigned')">
-          <div class="metric-icon-wrap" id="mcard-unassigned-icon">⏰</div>
-          <div class="metric-info"><h4>Sin Instructor</h4><div class="metric-val" id="cmetric-unassigned">0</div></div>
-          <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
-        </div>
-        <div class="metric-card" id="mcard-alerts" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('alerts')">
-          <div class="metric-icon-wrap" id="mcard-alerts-icon">🚨</div>
-          <div class="metric-info"><h4>Alertas &gt;20d</h4><div class="metric-val" id="cmetric-alerts" style="font-size:2rem">0</div></div>
-          <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
-        </div>
-        <div class="metric-card success" id="mcard-completed" style="cursor:pointer;transition:var(--t-fast)" onclick="coordMetricClick('completed')">
-          <div class="metric-icon-wrap">🎓</div>
-          <div class="metric-info"><h4>Completados</h4><div class="metric-val" id="cmetric-completed">0</div></div>
-          <div style="margin-left:auto;font-size:.7rem;color:var(--text-muted)">Ver →</div>
-        </div>
-      </div>
+      <!-- CARDS MÉTRICAS -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.85rem;margin-bottom:1.75rem">
 
-      <!-- ESPERA PROM -->
-      <div style="margin-bottom:1rem;padding:.55rem 1rem;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);display:flex;align-items:center;gap:.6rem;font-size:.78rem;color:var(--text-secondary)">
-        <span>📊</span><span>Espera promedio alumnos pendientes:</span>
-        <strong id="cmetric-avg" style="color:var(--text-primary)">—</strong>
-      </div>
+        <div id="mcard-unassigned" class="metric-card" style="cursor:pointer;position:relative;overflow:hidden;transition:var(--t-fast);padding:1rem" onclick="switchCoordTab('students');coordMetricClick('unassigned')">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--danger)"></div>
+          <div style="font-size:1.5rem;margin-bottom:.4rem">⏰</div>
+          <div class="metric-val" id="cmetric-unassigned" style="font-size:2rem;color:var(--danger);line-height:1">0</div>
+          <div style="font-size:.72rem;color:var(--text-secondary);margin-top:.2rem;font-weight:600">Sin instructor</div>
+          <div style="font-size:.65rem;color:var(--text-muted)">procesos sin asignar</div>
+        </div>
 
-      <!-- TABLA UNIFICADA -->
-      <div class="glass-panel">
-        <div class="panel-header" style="flex-wrap:wrap;gap:.75rem">
-          <h3 id="coord-table-title">Todos los alumnos activos</h3>
-          <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
-            <input type="text" id="coord-search" class="config-input" style="width:190px;margin-bottom:0;padding:.45rem .75rem;font-size:.8rem" placeholder="Buscar alumno...">
-            <select id="coord-filter-state" class="config-input" style="width:170px;margin-bottom:0;padding:.45rem .6rem;font-size:.8rem">
-              <option value="">Todos los estados</option>
-              <option value="theory_passed">Sin instructor</option>
-              <option value="instructor_assigned">Instructor asignado</option>
-              <option value="contacted">Contactado por instructor</option>
-              <option value="contact_confirmed">Confirmado por alumno</option>
-              <option value="practice_started">Clases en curso</option>
-              <option value="ready_to_graduate">Finalizados — pendiente cierre</option>
-            </select>
-            <button id="coord-clear-filter" class="btn-sec" style="font-size:.75rem;padding:.4rem .75rem;display:none" onclick="coordClearFilter()">✕ Limpiar</button>
+        <div id="mcard-alerts" class="metric-card" style="cursor:pointer;position:relative;overflow:hidden;transition:var(--t-fast);padding:1rem" onclick="switchCoordTab('students');coordMetricClick('alerts')">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px" id="mcard-alerts-bar" style="background:var(--warning)"></div>
+          <div style="font-size:1.5rem;margin-bottom:.4rem" id="mcard-alerts-icon">⚠️</div>
+          <div style="display:flex;gap:.75rem;align-items:flex-end">
+            <div>
+              <div style="font-size:.6rem;color:var(--warning);font-weight:700;text-transform:uppercase;letter-spacing:.3px">+8d</div>
+              <div class="metric-val" id="cmetric-warn" style="font-size:1.5rem;color:var(--warning);line-height:1">0</div>
+            </div>
+            <div>
+              <div style="font-size:.6rem;color:var(--danger);font-weight:700;text-transform:uppercase;letter-spacing:.3px">+15d</div>
+              <div class="metric-val" id="cmetric-alerts" style="font-size:1.5rem;color:var(--danger);line-height:1">0</div>
+            </div>
           </div>
+          <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">sin contactar</div>
+        </div>
+
+        <div class="metric-card" style="cursor:pointer;position:relative;overflow:hidden;transition:var(--t-fast);padding:1rem" onclick="switchCoordTab('students');coordMetricClick('active')">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--success)"></div>
+          <div style="font-size:1.5rem;margin-bottom:.4rem">🚗</div>
+          <div class="metric-val" id="cmetric-active" style="font-size:2rem;color:var(--success);line-height:1">0</div>
+          <div style="font-size:.72rem;color:var(--text-secondary);margin-top:.2rem;font-weight:600">En clases</div>
+          <div style="font-size:.65rem;color:var(--text-muted)">actualmente</div>
+        </div>
+
+        <div class="metric-card" style="position:relative;overflow:hidden;padding:1rem">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--brand)"></div>
+          <div style="font-size:1.5rem;margin-bottom:.4rem">📊</div>
+          <div class="metric-val" id="cmetric-avg" style="font-size:2rem;line-height:1">—</div>
+          <div style="font-size:.72rem;color:var(--text-secondary);margin-top:.2rem;font-weight:600">Espera promedio</div>
+          <div style="font-size:.65rem;color:var(--text-muted)">días hábiles</div>
+        </div>
+      </div>
+
+      <!-- CARGA DE INSTRUCTORES -->
+      <div class="glass-panel">
+        <div class="panel-header" style="margin-bottom:1rem">
+          <h3>Carga de instructores</h3>
+          <button class="btn-sec" style="font-size:.75rem;padding:.35rem .75rem" onclick="switchCoordTab('instructors')">Ver detalle →</button>
+        </div>
+        <div id="coord-instructors-load"></div>
+      </div>
+    </div>
+
+    <!-- ===== VISTA ALUMNOS ===== -->
+    <div id="coord-view-students" style="display:none">
+      <div style="display:flex;gap:.65rem;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
+        <input type="text" id="coord-search" class="config-input" style="width:200px;margin-bottom:0;padding:.45rem .75rem;font-size:.8rem" placeholder="Buscar alumno...">
+        <select id="coord-filter-state" class="config-input" style="width:215px;margin-bottom:0;padding:.45rem .6rem;font-size:.8rem">
+          <option value="">Todos los estados</option>
+          <option value="theory_passed">Sin instructor</option>
+          <option value="instructor_assigned">Instructor asignado</option>
+          <option value="contacted">Contactado por instructor</option>
+          <option value="contact_confirmed">Confirmado por alumno</option>
+          <option value="practice_started">Clases en curso</option>
+          <option value="ready_to_graduate">Finalizados — pendiente cierre</option>
+        </select>
+        <button id="coord-clear-filter" class="btn-sec" style="font-size:.75rem;padding:.4rem .75rem;display:none" onclick="coordClearFilter()">✕ Limpiar</button>
+        <div style="margin-left:auto;display:flex;gap:.5rem">
+          <button class="btn-primary" style="width:auto;padding:.45rem .9rem;font-size:.78rem" onclick="coordShowRegisterQR()">📱 QR</button>
+          <button class="btn-sec"     style="padding:.45rem .9rem;font-size:.78rem"             onclick="coordRegisterManual()">✏️ Registrar</button>
+        </div>
+      </div>
+
+      <div class="glass-panel">
+        <div class="panel-header" style="margin-bottom:1rem">
+          <h3 id="coord-table-title">Todos los alumnos activos</h3>
+          <span id="coord-table-count" style="font-size:.78rem;color:var(--text-muted)"></span>
         </div>
         <div class="assign-table-wrap scrollable">
           <table class="assign-table">
             <thead>
               <tr>
-                <th>Alumno</th><th>Documento</th><th>Licencia</th><th>Instructor</th>
-                <th>Teórico</th><th>Días espera</th><th>Acciones</th>
+                <th>Alumno</th>
+                <th>Documento</th>
+                <th>Licencias</th>
+                <th>Estado general</th>
+                <th>Días espera</th>
+                <th>Acción</th>
               </tr>
             </thead>
             <tbody id="coord-table-body"></tbody>
           </table>
         </div>
       </div>
-
-      <!-- CARGA DE INSTRUCTORES -->
-      <div class="glass-panel" style="margin-top:1.5rem">
-        <div class="panel-header">
-          <h3>Carga de instructores</h3>
-          <span class="badge blue">Por franja horaria</span>
-        </div>
-        <div id="coord-instructors-load"></div>
-      </div>
     </div>
 
-    <!-- SUB-VIEW: INSTRUCTORES -->
+    <!-- ===== VISTA INSTRUCTORES ===== -->
     <div id="coord-view-instructors" style="display:none">
-      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1.25rem">
-        <button class="btn-sec" style="font-size:.8rem;padding:.45rem .9rem;display:flex;align-items:center;gap:.4rem" onclick="switchCoordTab('main')">← Panel</button>
-        <span style="font-size:.75rem;color:var(--text-muted)">Instructores</span>
-      </div>
       <div class="glass-panel">
         <div class="panel-header">
           <h3>Instructores</h3>
@@ -2702,8 +2722,8 @@ async function confirmGraduate(docNumber, license) {
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
 
-function coordChangeState(docNumber) {
-  adminChangeState(docNumber);
+function coordChangeState(docNumber, license) {
+  adminChangeState(docNumber, license);
 }
 
 function instChangePIN() {
@@ -2751,10 +2771,12 @@ let _coordCustomFilter = null; // fn or null
 
 function switchCoordTab(tab) {
   _coordActiveTab = tab;
-  document.getElementById('ctab-main').classList.toggle('active', tab === 'main');
-  document.getElementById('ctab-instructors').classList.toggle('active', tab === 'instructors');
-  document.getElementById('coord-view-main').style.display = tab === 'main' ? 'block' : 'none';
-  document.getElementById('coord-view-instructors').style.display = tab === 'instructors' ? 'block' : 'none';
+  ['main','students','instructors'].forEach(t => {
+    document.getElementById('ctab-' + t)?.classList.toggle('active', t === tab);
+    const v = document.getElementById('coord-view-' + t);
+    if (v) v.style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'students') renderCoordTable();
   if (tab === 'instructors') renderCoordInstructors();
 }
 
@@ -2812,61 +2834,111 @@ function renderCoordTable() {
   const search      = (document.getElementById('coord-search')?.value || '').toLowerCase();
   const filterState = document.getElementById('coord-filter-state')?.value || '';
   const tbody = document.getElementById('coord-table-body');
+  if (!tbody) return;
   tbody.innerHTML = '';
 
-  // Build list from procesos, excluding completed and pending
-  let list = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+  const STATE_LABEL = {
+    theory_passed:       { text:'Sin instructor',           color:'var(--danger)',    bg:'rgba(244,63,94,.1)' },
+    instructor_assigned: { text:'Pendiente contacto',       color:'var(--warning)',   bg:'rgba(245,158,11,.1)' },
+    contacted:           { text:'Contactado',               color:'#a78bfa',          bg:'rgba(139,92,246,.1)' },
+    contact_confirmed:   { text:'Confirmado',               color:'var(--success)',   bg:'rgba(16,185,129,.1)' },
+    practice_started:    { text:'En clases',                color:'var(--success)',   bg:'rgba(16,185,129,.12)' },
+    ready_to_graduate:   { text:'Listo para cerrar',        color:'var(--success)',   bg:'rgba(16,185,129,.15)' },
+    completed:           { text:'Completado',               color:'var(--text-muted)','bg':'transparent' },
+  };
 
-  if (_coordCustomFilter) {
-    list = list.filter(p => {
-      const st = STATE.students.find(s => s.docNumber === p.docNumber);
-      return _coordCustomFilter(p, st);
-    });
-  } else {
-    if (filterState) list = list.filter(p => p.state === filterState);
-    if (search) list = list.filter(p => {
-      const st = STATE.students.find(s => s.docNumber === p.docNumber);
-      return (st?.name || '').toLowerCase().includes(search) || p.docNumber.includes(search);
-    });
-  }
+  // Agrupar procesos por alumno (un alumno = una fila)
+  const allProcesos = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
 
-  // Sort by days waiting desc
-  list.sort((a,b) => {
-    const sa = STATE.students.find(s => s.docNumber === a.docNumber);
-    const sb = STATE.students.find(s => s.docNumber === b.docNumber);
-    return daysWaiting(b, sb) - daysWaiting(a, sa);
+  // Obtener alumnos únicos con sus procesos
+  const studentMap = new Map();
+  allProcesos.forEach(p => {
+    if (!studentMap.has(p.docNumber)) studentMap.set(p.docNumber, []);
+    studentMap.get(p.docNumber).push(p);
   });
 
-  if (list.length === 0) {
+  // Aplicar filtros
+  let entries = Array.from(studentMap.entries()).map(([docNum, procs]) => {
+    const st = STATE.students.find(s => s.docNumber === docNum);
+    return { docNum, procs, st };
+  });
+
+  if (_coordCustomFilter) {
+    entries = entries.filter(({ procs, st }) =>
+      procs.some(p => _coordCustomFilter(p, st))
+    );
+  } else {
+    if (filterState) entries = entries.filter(({ procs }) => procs.some(p => p.state === filterState));
+    if (search) entries = entries.filter(({ docNum, st }) =>
+      (st?.name || '').toLowerCase().includes(search) || docNum.includes(search)
+    );
+  }
+
+  // Ordenar por urgencia: el estado más urgente del alumno primero
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','ready_to_graduate'];
+  entries.sort((a, b) => {
+    const urgA = a.procs.map(p => STATE_ORDER.indexOf(p.state)).filter(i => i >= 0);
+    const urgB = b.procs.map(p => STATE_ORDER.indexOf(p.state)).filter(i => i >= 0);
+    const minA = urgA.length ? Math.min(...urgA) : 99;
+    const minB = urgB.length ? Math.min(...urgB) : 99;
+    if (minA !== minB) return minA - minB;
+    // Si mismo estado, más días primero
+    const dA = Math.max(...a.procs.map(p => daysWaiting(p, a.st)));
+    const dB = Math.max(...b.procs.map(p => daysWaiting(p, b.st)));
+    return dB - dA;
+  });
+
+  // Actualizar contador
+  const countEl = document.getElementById('coord-table-count');
+  if (countEl) countEl.textContent = entries.length + ' alumno(s)';
+
+  if (entries.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary" style="padding:2rem">Sin resultados 🎉</td></tr>';
     return;
   }
 
-  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+  entries.forEach(({ docNum, procs, st }) => {
+    // Estado más urgente del alumno
+    const urgentProc = procs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
+    const urgentState = urgentProc?.state || 'theory_passed';
+    const stateInfo = STATE_LABEL[urgentState] || { text: urgentState, color: 'var(--text-muted)', bg: 'transparent' };
 
-  list.forEach(p => {
-    const st   = STATE.students.find(s => s.docNumber === p.docNumber);
-    const inst = p.instructorId ? STATE.instructors.find(i => i.id === p.instructorId) : null;
-    const days = daysWaiting(p, st);
-    const cls  = days > CONFIG.WAIT_DAYS_CRITICAL ? 'danger' : days >= CONFIG.WAIT_DAYS_WARNING ? 'warning' : 'success';
-    const isReady = p.state === 'ready_to_graduate';
+    // Días máximos de espera
+    const maxDays = Math.max(...procs.map(p => daysWaiting(p, st)));
+    const daysCls = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'danger' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'warning' : 'success';
+
+    // Licencias (pills)
+    const licPills = procs.map(p =>
+      `<span style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;font-weight:600;color:var(--brand-light);white-space:nowrap">${LICENSE_LABELS[p.license] || p.license}</span>`
+    ).join(' ');
+
+    const isReady = procs.some(p => p.state === 'ready_to_graduate');
+
     const tr = document.createElement('tr');
-    if (isReady) tr.style.background = 'rgba(16,185,129,.05)';
+    if (isReady) tr.style.background = 'rgba(16,185,129,.03)';
+    if (urgentState === 'theory_passed' || (urgentState === 'instructor_assigned' && maxDays >= CONFIG.WAIT_DAYS_CRITICAL)) {
+      tr.style.background = 'rgba(244,63,94,.03)';
+    }
+
     tr.innerHTML = `
-      <td><div class="student-name-cell">${st?.name || p.docNumber}</div></td>
-      <td><code style="font-size:.72rem">${st?.docType || ''} ${p.docNumber}</code></td>
-      <td><span style="font-size:.78rem">${LICENSE_LABELS[p.license] || p.license}</span></td>
-      <td style="font-size:.8rem">${inst ? inst.name : '<span class="text-muted">—</span>'}</td>
-      <td style="font-size:.78rem">${formatDate(st?.theoryPassedDate, true)}</td>
-      <td><span class="wait-badge ${cls}">${days}d</span></td>
-      <td style="display:flex;gap:.35rem;flex-wrap:wrap">
-        <button class="btn-sec" style="font-size:.7rem;padding:.25rem .55rem" onclick="openStudentProfile('${p.docNumber}','${p.license}')">🗂 Perfil</button>
-        ${!p.instructorId
-          ? `<button class="btn-primary" style="font-size:.7rem;padding:.25rem .55rem;width:auto" onclick="openModal('${p.docNumber}','${p.license}')">+ Asignar</button>`
-          : `<button class="btn-sec" style="font-size:.7rem;padding:.25rem .55rem" onclick="openModal('${p.docNumber}','${p.license}')">🔄 Reasignar</button>`}
-        ${isReady
-          ? `<button class="btn-primary" style="font-size:.7rem;padding:.25rem .55rem;width:auto;background:var(--success);border-color:var(--success)" onclick="confirmGraduate('${p.docNumber}','${p.license}')">🎓 Cerrar</button>`
-          : `<button class="btn-sec" style="font-size:.7rem;padding:.25rem .55rem" onclick="coordChangeState('${p.docNumber}','${p.license}')">✏️ Estado</button>`}
+      <td><div class="student-name-cell" style="font-weight:600">${st?.name || docNum}</div></td>
+      <td><code style="font-size:.72rem">${st?.docType || 'CC'} ${docNum}</code></td>
+      <td><div style="display:flex;gap:.25rem;flex-wrap:wrap">${licPills}</div></td>
+      <td>
+        <span style="display:inline-block;padding:.15rem .55rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:${stateInfo.bg};color:${stateInfo.color}">
+          ${stateInfo.text}
+        </span>
+      </td>
+      <td>
+        ${['theory_passed','instructor_assigned'].includes(urgentState)
+          ? `<span class="wait-badge ${daysCls}">${maxDays}d</span>`
+          : '<span style="color:var(--text-muted);font-size:.78rem">—</span>'}
+      </td>
+      <td>
+        <button class="btn-primary" style="width:auto;padding:.3rem .75rem;font-size:.75rem;display:inline-flex;align-items:center;gap:.3rem" onclick="openStudentProfile('${docNum}')">
+          📋 Flujo
+        </button>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -2916,91 +2988,118 @@ function renderCoordInstructors() {
 
 async function renderCoordinatorPortal() {
   const user = STATE.currentUser.data.username;
-  document.getElementById('coord-welcome').textContent = 'Bienvenido/a, ' + user;
 
-  // Metrics based on Procesos
-  const activeStudents  = STATE.students.filter(s => s.active === 'true');
-  const activeProcesos  = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
-  const unassigned      = STATE.procesos.filter(p => p.state === 'theory_passed').length;
-  const waiting         = STATE.procesos.filter(p => p.state === 'instructor_assigned').length;
-  const readyList       = STATE.procesos.filter(p => p.state === 'ready_to_graduate');
-  const pendingStudents = STATE.students.filter(s => s.active === 'false' || s.active === '');
+  // Saludo inteligente con contexto del negocio
+  const hora = new Date().getHours();
+  const emoji = hora < 12 ? '☀️' : hora < 18 ? '🌤' : '🌙';
+  const saludo = hora < 12 ? 'Buenos días' : hora < 18 ? 'Buenas tardes' : 'Buenas noches';
+  const nombre = user.charAt(0).toUpperCase() + user.slice(1);
+
+  // Métricas
+  const activeProcesos = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
+  const unassigned = STATE.procesos.filter(p => p.state === 'theory_passed').length;
+  const readyList  = STATE.procesos.filter(p => p.state === 'ready_to_graduate');
+  const enClases   = STATE.procesos.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
+
+  const warn = activeProcesos.filter(p => {
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    const d  = daysWaiting(p, st);
+    return ['theory_passed','instructor_assigned'].includes(p.state) && d >= CONFIG.WAIT_DAYS_WARNING && d < CONFIG.WAIT_DAYS_CRITICAL;
+  }).length;
+
   const critical = activeProcesos.filter(p => {
     const st = STATE.students.find(s => s.docNumber === p.docNumber);
     return ['theory_passed','instructor_assigned'].includes(p.state) && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
   }).length;
+
   const pendingProcs = activeProcesos.filter(p => ['theory_passed','instructor_assigned'].includes(p.state));
   const avg = pendingProcs.length ? Math.round(pendingProcs.reduce((a,p) => {
     const st = STATE.students.find(s => s.docNumber === p.docNumber);
     return a + daysWaiting(p, st);
   }, 0) / pendingProcs.length) : 0;
 
-  const completed = STATE.procesos.filter(p => p.state === 'completed').length;
-
-  document.getElementById('cmetric-total').textContent = activeStudents.length;
-  document.getElementById('cmetric-unassigned').textContent = unassigned;
-  document.getElementById('cmetric-alerts').textContent = critical;
-  document.getElementById('cmetric-avg').textContent = avg + 'd';
-  const completedEl = document.getElementById('cmetric-completed');
-  if (completedEl) completedEl.textContent = completed;
-
-  // Color cards dynamically based on value
-  function paintCard(cardId, val, threshWarn, threshDanger) {
-    const el = document.getElementById(cardId);
-    if (!el) return;
-    el.classList.remove('success','warning','danger');
-    if (val === 0) { /* neutral */ }
-    else if (val >= threshDanger) el.classList.add('danger');
-    else if (val >= threshWarn)   el.classList.add('warning');
-    else                           el.classList.add('success');
+  // Armar mensaje de contexto según situación real
+  let contextMsg = '';
+  const urgentes = critical + unassigned;
+  if (urgentes > 0) {
+    contextMsg = `Tienes <strong style="color:var(--danger)">${urgentes} proceso(s) urgente(s)</strong> que necesitan atención inmediata.`;
+  } else if (warn > 0) {
+    contextMsg = `Hay <strong style="color:var(--warning)">${warn} proceso(s) en zona de alerta</strong>. Revísalos pronto.`;
+  } else if (readyList.length > 0) {
+    contextMsg = `<strong style="color:var(--success)">${readyList.length} alumno(s) listo(s) para cerrar expediente.</strong> ¡Todo va bien!`;
+  } else {
+    contextMsg = `Todo en orden. <strong style="color:var(--success)">${enClases} alumno(s) en clases actualmente.</strong> ¡Buen trabajo!`;
   }
-  // Total: neutral always (it's just context)
-  // Sin instructor: 1+ = warning, 3+ = danger
-  paintCard('mcard-unassigned', unassigned, 1, 3);
-  // Pendiente contacto: 1+ = warning, 5+ = danger
-  paintCard('mcard-waiting', waiting, 1, 5);
-  // Alertas >15d: 1+ = warning, 3+ = danger (always urgent)
-  paintCard('mcard-alerts', critical, 1, 3);
 
-  // Pending registrations banner
-  const pending_students = STATE.students.filter(s => s.active === 'false' || s.active === '');
+  const greetEl = document.getElementById('coord-greeting');
+  if (greetEl) greetEl.innerHTML = `${emoji} ${saludo}, ${nombre}`;
+  const welcomeEl = document.getElementById('coord-welcome');
+  if (welcomeEl) welcomeEl.innerHTML = contextMsg;
+
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setEl('cmetric-unassigned', unassigned);
+  setEl('cmetric-warn',       warn);
+  setEl('cmetric-alerts',     critical);
+  setEl('cmetric-active',     enClases);
+  setEl('cmetric-avg',        pendingProcs.length ? avg + 'd' : '—');
+
+  // Color dinámico card sin instructor
+  const mcardU = document.getElementById('mcard-unassigned');
+  if (mcardU) mcardU.style.borderColor = unassigned >= 3 ? 'rgba(244,63,94,.5)' : unassigned >= 1 ? 'rgba(245,158,11,.4)' : 'var(--border-color)';
+
+  // Color barra + ícono card alertas
+  const alertBar  = document.getElementById('mcard-alerts-bar');
+  const alertIcon = document.getElementById('mcard-alerts-icon');
+  if (alertBar)  alertBar.style.background  = critical > 0 ? 'var(--danger)' : warn > 0 ? 'var(--warning)' : 'var(--border-color)';
+  if (alertIcon) alertIcon.textContent      = critical > 0 ? '🚨' : warn > 0 ? '⚠️' : '✅';
+
+  // Animación pulsante si hay críticos
+  const mcardAlerts = document.getElementById('mcard-alerts');
+  if (mcardAlerts) {
+    if (critical > 0) {
+      mcardAlerts.style.animation = 'pulseBg 2.5s infinite ease-in-out';
+      mcardAlerts.style.borderColor = 'rgba(244,63,94,.4)';
+    } else {
+      mcardAlerts.style.animation = '';
+      mcardAlerts.style.borderColor = '';
+    }
+  }
+
+  // Banner pendientes de activación
+  const pendingStudents = STATE.students.filter(s => s.active === 'false' || s.active === '');
   const pendingBanner = document.getElementById('coord-pending-banner');
-  if (pending_students.length > 0) {
-    pendingBanner.style.display = 'flex';
-    document.getElementById('coord-pending-count').textContent = pending_students.length;
-  } else {
-    pendingBanner.style.display = 'none';
+  if (pendingBanner) {
+    pendingBanner.style.display = pendingStudents.length > 0 ? 'flex' : 'none';
+    const cEl = document.getElementById('coord-pending-count');
+    if (cEl) cEl.textContent = pendingStudents.length;
   }
 
-  // Ready to graduate banner
-  const banner = document.getElementById('coord-ready-banner');
-  const readyCount = document.getElementById('coord-ready-count');
-  if (readyList.length > 0) {
-    banner.style.display = 'flex';
-    readyCount.textContent = readyList.length;
-  } else {
-    banner.style.display = 'none';
+  // Banner listos para cerrar
+  const readyBanner = document.getElementById('coord-ready-banner');
+  if (readyBanner) {
+    readyBanner.style.display = readyList.length > 0 ? 'flex' : 'none';
+    const rEl = document.getElementById('coord-ready-count');
+    if (rEl) rEl.textContent = readyList.length;
   }
 
-  // Render unified table (all active, no filter)
-  renderCoordTable();
-
-  // Instructor load panel
+  // Carga de instructores
   renderInstructorLoadPanel();
 
-  // Wire up search/filter listeners (once)
+  // Wire search/filter listeners (una sola vez)
   const searchEl = document.getElementById('coord-search');
   const filterEl = document.getElementById('coord-filter-state');
   if (searchEl && !searchEl._wired) {
     searchEl._wired = true;
     searchEl.addEventListener('input', () => {
       _coordCustomFilter = null;
-      document.getElementById('coord-clear-filter').style.display = searchEl.value ? 'flex' : (filterEl.value ? 'flex' : 'none');
+      const clearBtn = document.getElementById('coord-clear-filter');
+      if (clearBtn) clearBtn.style.display = searchEl.value ? 'flex' : (filterEl?.value ? 'flex' : 'none');
       renderCoordTable();
     });
-    filterEl.addEventListener('change', () => {
+    if (filterEl) filterEl.addEventListener('change', () => {
       _coordCustomFilter = null;
-      document.getElementById('coord-clear-filter').style.display = filterEl.value ? 'flex' : (searchEl.value ? 'flex' : 'none');
+      const clearBtn = document.getElementById('coord-clear-filter');
+      if (clearBtn) clearBtn.style.display = filterEl.value ? 'flex' : (searchEl.value ? 'flex' : 'none');
       renderCoordTable();
     });
   }
@@ -3010,34 +3109,53 @@ function renderInstructorLoadPanel() {
   const container = document.getElementById('coord-instructors-load');
   if (!container) return;
   container.innerHTML = '';
+  if (!STATE.instructors.length) {
+    container.innerHTML = '<p class="text-muted text-center" style="padding:1.5rem">Sin instructores registrados.</p>';
+    return;
+  }
   const maxLoad = Math.max(...STATE.instructors.map(i => STATE.procesos.filter(p => p.instructorId === i.id && p.state !== 'completed').length), 1);
 
-  STATE.instructors.forEach(inst => {
-    const myProcs = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed');
-    const active  = myProcs.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
-    const pend    = myProcs.filter(p => p.state === 'instructor_assigned').length;
-    const fillPct = Math.round((myProcs.length / Math.max(maxLoad, 1)) * 100);
-    const barColor = fillPct > 75 ? 'var(--danger)' : fillPct > 45 ? 'var(--warning)' : 'var(--success)';
+  STATE.instructors.filter(i => i.active !== 'false' && i.active !== false).forEach(inst => {
+    const myProcs    = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed');
+    const sinContact = myProcs.filter(p => p.state === 'instructor_assigned').length;
+    const enClases   = myProcs.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
+    const urgentes   = myProcs.filter(p => {
+      const st = STATE.students.find(s => s.docNumber === p.docNumber);
+      return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
+    }).length;
+    const fillPct  = Math.round((myProcs.length / Math.max(maxLoad, 1)) * 100);
+    const barColor = urgentes > 0 ? 'var(--danger)' : fillPct > 75 ? 'var(--warning)' : fillPct > 45 ? 'var(--brand)' : 'var(--success)';
     const initials = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const waCoordMsg = `Hola ${inst.name}, soy de coordinación. Te escribo sobre el estado de tus alumnos asignados.`;
+    const waCoordUrl = inst.phone ? `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waCoordMsg)}` : null;
 
     const div = document.createElement('div');
     div.className = 'instructor-row-card';
-    div.style.cssText = 'flex-wrap:wrap;gap:.75rem';
+    div.style.cssText = `flex-wrap:wrap;gap:.75rem;${urgentes > 0 ? 'border-color:rgba(244,63,94,.4);' : ''}`;
     div.innerHTML = `
       <div class="instructor-row-info" style="flex:1;min-width:200px">
-        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:.85rem;font-weight:800;color:white;flex-shrink:0">${initials}</div>
+        <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:.85rem;font-weight:800;color:white;flex-shrink:0">${initials}</div>
         <div>
           <div class="instructor-row-name">${inst.name}</div>
-          <div style="font-size:.72rem;color:var(--text-muted);margin-top:.15rem">${myProcs.length} proceso(s) activo(s)</div>
+          <div style="display:flex;gap:.5rem;margin-top:.25rem;flex-wrap:wrap">
+            <span style="font-size:.68rem;color:var(--text-muted)">${myProcs.length} proceso(s)</span>
+            ${urgentes > 0 ? `<span style="font-size:.68rem;font-weight:700;color:var(--danger)">🚨 ${urgentes} urgente(s)</span>` : ''}
+            ${enClases > 0 ? `<span style="font-size:.68rem;color:var(--success)">🚗 ${enClases} en clases</span>` : ''}
+          </div>
         </div>
       </div>
-      <div style="flex:1;min-width:180px">
-        <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-muted);margin-bottom:.3rem">
-          <span>Carga: <strong style="color:white">${myProcs.length}</strong></span>
-          <span>Confirmados: <strong style="color:var(--success)">${active}</strong> | Pendientes: <strong style="color:var(--warning)">${pend}</strong></span>
+      <div style="flex:1;min-width:160px">
+        <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--text-muted);margin-bottom:.3rem">
+          <span>Carga total: <strong style="color:white">${myProcs.length}</strong></span>
+          <span style="color:${sinContact > 0 ? 'var(--warning)' : 'var(--text-muted)'}">${sinContact} sin contactar</span>
         </div>
         <div class="inst-load-bar-bg"><div class="inst-load-bar-fill" style="width:${fillPct}%;background:${barColor}"></div></div>
-      </div>`;
+      </div>
+      ${waCoordUrl ? `
+      <a href="${waCoordUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .7rem;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);border-radius:var(--r-sm);font-size:.72rem;font-weight:600;color:#25d366;text-decoration:none;flex-shrink:0;transition:var(--t-fast)" onmouseover="this.style.background='rgba(37,211,102,.18)'" onmouseout="this.style.background='rgba(37,211,102,.1)'">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        Escribir
+      </a>` : ''}`;
     container.appendChild(div);
   });
 }
@@ -4123,15 +4241,17 @@ function openStudentProfile(docNumber) {
       const div = document.createElement('div');
       div.className = 'profile-instructor-box';
       div.style.marginBottom = '.65rem';
+      const waDirectMsg = `Hola ${inst.name}, soy de coordinación. El alumno ${s.name} (${s.docNumber}) — proceso ${LICENSE_LABELS[proc.license]||proc.license} — se acercó a reportar algo. ¿Puedes contactarme para coordinar?`;
+      const waDirectUrl = `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waDirectMsg)}`;
       div.innerHTML = `
         <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:1rem;font-weight:800;color:white;flex-shrink:0">${instInitials}</div>
         <div style="flex:1">
           <div class="profile-inst-name">${inst.name} <span style="font-size:.7rem;color:var(--text-muted);font-weight:400">(${LICENSE_LABELS[proc.license]||proc.license})</span></div>
           <div class="profile-inst-meta">📞 ${inst.phone}</div>
-          <div class="profile-inst-actions">
-            <a href="${waUrl}" target="_blank" class="btn-whatsapp" style="padding:.35rem .75rem;font-size:.72rem">
+          <div class="profile-inst-actions" style="flex-wrap:wrap;gap:.4rem">
+            <a href="${waDirectUrl}" target="_blank" class="btn-whatsapp" style="padding:.35rem .75rem;font-size:.72rem">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
-              WhatsApp
+              Escribir al instructor
             </a>
           </div>
         </div>`;
