@@ -795,14 +795,6 @@
         </div>
       </div>
 
-      <!-- RESUMEN INSTRUCTORES -->
-      <div class="glass-panel">
-        <div class="panel-header" style="margin-bottom:.85rem">
-          <h3>Instructores</h3>
-          <button class="btn-sec" style="font-size:.75rem;padding:.35rem .75rem" onclick="switchCoordTab('instructors')">Ver y gestionar →</button>
-        </div>
-        <div id="coord-inst-summary-list"></div>
-      </div>
     </div>
 
     <!-- ===== VISTA ALUMNOS ===== -->
@@ -3176,39 +3168,6 @@ async function renderCoordinatorPortal() {
     readyBanner.style.display = readyList.length > 0 ? 'flex' : 'none';
     const rEl = document.getElementById('coord-ready-count');
     if (rEl) rEl.textContent = readyList.length;
-  }
-
-  // Resumen compacto de instructores en panel Inicio
-  const summaryEl = document.getElementById('coord-inst-summary-list');
-  if (summaryEl) {
-    summaryEl.innerHTML = '';
-    const activeInsts = STATE.instructors.filter(i => i.active !== 'false' && i.active !== false);
-    if (!activeInsts.length) {
-      summaryEl.innerHTML = '<p class="text-muted" style="font-size:.8rem;padding:.5rem 0">Sin instructores activos.</p>';
-    } else {
-      activeInsts.forEach(inst => {
-        const myProcs  = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed');
-        const urgentes = myProcs.filter(p => {
-          const st = STATE.students.find(s => s.docNumber === p.docNumber);
-          return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
-        }).length;
-        const sinContactar = myProcs.filter(p => p.state === 'instructor_assigned').length;
-        const initials = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid var(--border-color)';
-        row.innerHTML = `
-          <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:.78rem;font-weight:800;color:white;flex-shrink:0">${initials}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${inst.name}</div>
-            <div style="font-size:.7rem;color:var(--text-muted);margin-top:.05rem">${myProcs.length} proceso(s) activos</div>
-          </div>
-          <div style="display:flex;gap:.5rem;align-items:center;flex-shrink:0">
-            ${urgentes > 0 ? `<span style="font-size:.7rem;font-weight:700;color:var(--danger)">🚨 ${urgentes} urgente(s)</span>` : sinContactar > 0 ? `<span style="font-size:.7rem;color:var(--warning)">⏳ ${sinContactar} sin contactar</span>` : ''}
-            <span style="font-size:.85rem;font-weight:800;color:${myProcs.length > 5 ? 'var(--warning)' : myProcs.length > 0 ? 'var(--brand-light)' : 'var(--text-muted)'}">${myProcs.length}</span>
-          </div>`;
-        summaryEl.appendChild(row);
-      });
-    }
   }
 
   // Wire search/filter listeners (una sola vez)
