@@ -1521,7 +1521,8 @@ function normalizeCoordinator(obj) {
   return {
     username: String(k('username') || k('usuario') || '').trim().toLowerCase(),
     password: String(k('password') || k('contraseña') || k('clave') || '').trim(),
-    active: String(k('active') || 'true').trim(),
+    name:     String(k('name') || k('nombre') || '').trim(),
+    active:   String(k('active') || 'true').trim(),
   };
 }
 
@@ -3583,6 +3584,8 @@ function openCoordModal(username) {
         <button class="btn-close-modal" onclick="document.getElementById('coord-edit-modal').remove()">&times;</button>
       </div>
       <div class="modal-body">
+        <label class="config-label">Nombre completo</label>
+        <input id="ce-name" class="config-input" value="${isEdit ? (STATE.coordinators.find(c=>c.username===username)?.name||'') : ''}" placeholder="Ej: Ana Lucía Martínez">
         <label class="config-label">Usuario</label>
         <input id="ce-user" class="config-input" value="${username||''}" ${isEdit?'readonly style="opacity:.5;cursor:not-allowed"':''} placeholder="coordinador3">
         <label class="config-label">Contraseña ${isEdit?'<span style="color:var(--text-muted);font-size:.68rem">(dejar vacío para no cambiar)</span>':''}</label>
@@ -3599,6 +3602,7 @@ function openCoordModal(username) {
 }
 
 async function saveCoordinator(oldUser) {
+  const name = document.getElementById('ce-name').value.trim();
   const user = document.getElementById('ce-user').value.trim().toLowerCase();
   const pass = document.getElementById('ce-pass').value.trim();
   const msg = document.getElementById('ce-msg');
@@ -3609,7 +3613,7 @@ async function saveCoordinator(oldUser) {
   }
   msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
   const action = oldUser ? 'updateCoordinator' : 'addCoordinator';
-  await postData(action, { username: oldUser || user, newUsername: user, password: pass, active: 'true' });
+  await postData(action, { username: oldUser || user, newUsername: user, password: pass, name, active: 'true' });
   await writeLog(`Coordinador ${oldUser ? 'editado' : 'agregado'}: ${user}`);
   document.getElementById('coord-edit-modal').remove();
   toast(`✅ Coordinador ${oldUser ? 'actualizado' : 'agregado'}`, 'success');
@@ -4556,6 +4560,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
     if (url) fetch(url + '?warmup=1&t=' + Date.now()).catch(() => {});
   }, 800);
+
+  // Hash routing: #register abre formulario de registro directamente (QR link)
+  if (location.hash === '#register') showRegisterView();
   // Keyboard submit
   document.getElementById('student-id').addEventListener('keydown', e => { if (e.key === 'Enter') loginStudent(); });
   document.getElementById('instructor-code').addEventListener('keydown', e => { if (e.key === 'Enter') loginInstructor(); });
