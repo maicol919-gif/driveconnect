@@ -3908,10 +3908,12 @@ async function savePinModal(instructorId) {
 // =============================================================================
 let _assignDocNumber = null;
 let _assignSelectedInstId = null;
+let _assignLicense = null;
 
-function openModal(docNumber) {
+function openModal(docNumber, license) {
   _assignDocNumber = docNumber;
   _assignSelectedInstId = null;
+  _assignLicense = license || null;
   const student = STATE.students.find(s => s.docNumber === docNumber);
   document.getElementById('modal-student-name').textContent = student.name;
   document.getElementById('modal-student-doc').textContent = getDocLabel(student.docType) + ' ' + docNumber;
@@ -3988,6 +3990,7 @@ function closeModal() {
   document.getElementById('assign-modal').classList.remove('active');
   _assignDocNumber = null;
   _assignSelectedInstId = null;
+  _assignLicense = null;
 }
 
 async function confirmAssign() {
@@ -3995,14 +3998,21 @@ async function confirmAssign() {
   const student = STATE.students.find(s => s.docNumber === _assignDocNumber);
   const inst = STATE.instructors.find(i => i.id === _assignSelectedInstId);
   if (student && inst) {
-    student.instructorId = _assignSelectedInstId;
-    student.state = 'instructor_assigned';
     closeModal();
-    // Refresh whichever portal is active
     if (STATE.currentUser?.role === 'coordinator') renderCoordinatorPortal();
     else renderAdminPortal();
     toast(`${inst.name} asignado a ${student.name}`, 'success');
-    await postData('assignInstructor', { docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, state: 'instructor_assigned' });
+    if (_assignLicense) {
+      // Modelo Procesos: actualizar proceso específico por licencia
+      const proc = STATE.procesos.find(p => p.docNumber === _assignDocNumber && p.license === _assignLicense.toUpperCase());
+      if (proc) { proc.instructorId = _assignSelectedInstId; proc.state = 'instructor_assigned'; }
+      await postData('assignInstructor', { docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, license: _assignLicense, state: 'instructor_assigned' });
+    } else {
+      // Fallback sin licencia (vista admin legacy)
+      student.instructorId = _assignSelectedInstId;
+      student.state = 'instructor_assigned';
+      await postData('assignInstructor', { docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, state: 'instructor_assigned' });
+    }
   }
 }
 
@@ -4087,6 +4097,9 @@ async function approveStudentExec(docNumber) {
     showToast('✓ Alumno aprobado. Ya puede ingresar al portal.', 'success');
     renderPendingList();
     renderCoordinatorPortal();
+    // Auto-cerrar si ya no hay pendientes
+    const stillPending = STATE.students.filter(s => s.active === 'false' || s.active === '');
+    if (stillPending.length === 0) setTimeout(() => closePendingModal(), 800);
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
