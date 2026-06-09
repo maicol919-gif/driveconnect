@@ -2061,7 +2061,7 @@ async function loginCoordinator() {
     if (String(coord.active || 'true').trim() === 'false') throw new Error('Usuario desactivado. Contacta al administrador.');
     registerSuccessLogin('coordinator');
 
-    STATE.currentUser = { role: 'coordinator', data: { username: user } };
+    STATE.currentUser = { role: 'coordinator', data: { username: user, name: coord.name || '' } };
     document.querySelector('.logo-container').classList.add('no-click');
     renderCoordinatorPortal();
     showView('view-coordinator');
