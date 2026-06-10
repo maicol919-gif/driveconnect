@@ -736,13 +736,13 @@
         <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0" onclick="coordShowPending()">Revisar</button>
       </div>
 
-      <div id="coord-ready-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.25rem;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
-        <span style="font-size:1.2rem">🎓</span>
+      <div id="coord-ready-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.25rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
+        <span style="font-size:1.2rem">⏰</span>
         <div style="flex:1">
-          <strong style="font-size:.88rem">Alumnos listos para cerrar expediente</strong>
-          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem">El instructor finalizó a <span id="coord-ready-count">0</span> alumno(s).</p>
+          <strong style="font-size:.88rem;color:var(--warning)">Alumnos pendientes de iniciar clases</strong>
+          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem"><span id="coord-ready-count">0</span> alumno(s) confirmaron contacto pero el instructor no ha registrado inicio de clases.</p>
         </div>
-        <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0" onclick="switchCoordTab('students');coordMetricClick('ready')">Ver y cerrar</button>
+        <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0;background:var(--warning);border-color:var(--warning)" onclick="switchCoordTab('students');coordMetricClick('contact_confirmed')">Revisar</button>
       </div>
 
       <!-- ACCIONES RÁPIDAS -->
@@ -808,7 +808,7 @@
           <option value="contacted">Contactado por instructor</option>
           <option value="contact_confirmed">Confirmado por alumno</option>
           <option value="practice_started">Clases en curso</option>
-          <option value="ready_to_graduate">Finalizados — pendiente cierre</option>
+          <option value="completed">Completados</option>
         </select>
         <button id="coord-clear-filter" class="btn-sec" style="font-size:.75rem;padding:.4rem .75rem;display:none" onclick="coordClearFilter()">✕ Limpiar</button>
         <div style="margin-left:auto;display:flex;gap:.5rem">
@@ -1312,8 +1312,10 @@
 const CONFIG = {
   SCRIPT_URL: localStorage.getItem('dc_script_url') || 'https://script.google.com/macros/s/AKfycbz2MwhNpoMEraFJwnpimc1gI4K_6QMquTF1Dwwvg7udM5nIzY_v5WSSMiPuTyIlt3QxQw/exec',
   get ADMIN_PASS() { return localStorage.getItem('dc_admin_pass') || null; },
-  WAIT_DAYS_WARNING: 10,
-  WAIT_DAYS_CRITICAL: 20,
+  WAIT_DAYS_WARNING:           10,
+  WAIT_DAYS_CRITICAL:          20,
+  WAIT_DAYS_INST_CONTACT:      15,   // días sin contacto → instructor ve WhatsApp alumno + coord alerta
+  WAIT_DAYS_CONFIRM_STALE:      7,   // días en contact_confirmed sin practice_started → alerta coord
   get COORD_PHONE() { return localStorage.getItem('dc_coord_phone') || ''; },
 };
 
@@ -1488,7 +1490,7 @@ function getProceso(docNumber, license) {
 function getStudentUrgentState(docNumber) {
   const procs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
   if (!procs.length) return 'completed';
-  const order = ['theory_passed','instructor_assigned','contacted','contact_confirmed','ready_to_graduate','practice_started'];
+  const order = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
   return procs.sort((a,b) => order.indexOf(a.state) - order.indexOf(b.state))[0].state;
 }
 
@@ -1710,7 +1712,6 @@ function translateState(state) {
     contacted:           'Contactado por instructor — pendiente confirmación del alumno',
     contact_confirmed:   'Contacto confirmado',
     practice_started:    'Clases en curso',
-    ready_to_graduate:   'Clases finalizadas — pendiente cierre',
     completed:           'Proceso completado',
   };
   return map[state] || state;
@@ -2172,7 +2173,8 @@ let _studentActiveLicense = null;
 
 function renderStudentPortal() {
   const s = STATE.currentUser.data;
-  const procs = getStudentProcesos(s.docNumber).filter(p => p.state !== 'completed');
+  const allProcs = getStudentProcesos(s.docNumber);
+  const procs = allProcs.filter(p => p.state !== 'completed');
 
   document.getElementById('student-name-title').textContent = 'Hola, ' + s.name.split(' ')[0];
   document.getElementById('student-doc-subtitle').textContent = getDocLabel(s.docType) + ' ' + s.docNumber;
@@ -2180,6 +2182,29 @@ function renderStudentPortal() {
   const dateEl = document.getElementById('student-theory-date');
   if (dateEl) dateEl.innerHTML = `¡Felicitaciones! Aprobado el <strong>${formatDate(s.theoryPassedDate, true)}</strong>
     <span style="display:block;margin-top:.25rem;font-size:.72rem;color:var(--text-muted)">¿Esta no es tu fecha? Acércate a la administración para corregirla.</span>`;
+
+  // ── PANTALLA DE CIERRE: todos los procesos completados ──────────────────────
+  if (allProcs.length > 0 && procs.length === 0) {
+    document.getElementById('student-license-tabs').innerHTML = '';
+    document.getElementById('student-timeline-panel').innerHTML = '';
+    document.getElementById('student-active-panel').innerHTML = `
+      <div style="text-align:center;padding:1.5rem 0">
+        <div style="font-size:3rem;margin-bottom:.75rem">🎓</div>
+        <h3 style="font-family:var(--font-title);font-size:1.3rem;font-weight:800;color:var(--success);margin-bottom:.5rem">¡Felicitaciones, completaste tu proceso práctico!</h3>
+        <p style="font-size:.88rem;color:var(--text-secondary);margin-bottom:1.25rem">Tu instructor reportó que finalizaste satisfactoriamente todas tus clases prácticas.</p>
+        <div style="background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);border-radius:var(--r-md);padding:1.1rem;text-align:left;margin-bottom:1rem">
+          <div style="font-size:.78rem;font-weight:700;color:var(--success);margin-bottom:.5rem">📋 Próximo paso — Área de Certificación</div>
+          <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:.6rem">Acércate a la academia con tu documento de identidad para completar el proceso de certificación y obtener tu licencia.</p>
+          <div style="font-size:.78rem;color:var(--text-secondary);line-height:1.9">
+            <strong style="color:var(--text-primary)">Horario de atención:</strong><br>
+            Lunes a viernes: 8:00 a.m. – 12:00 m. &nbsp;|&nbsp; 2:00 p.m. – 6:00 p.m.<br>
+            Sábados: 8:00 a.m. – 12:00 m.
+          </div>
+        </div>
+        <p style="font-size:.78rem;color:var(--text-muted)">¿Tienes dudas? Comunícate directamente con la academia.</p>
+      </div>`;
+    return;
+  }
 
   const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const tabsEl = document.getElementById('student-license-tabs');
@@ -2197,7 +2222,7 @@ function renderStudentPortal() {
     const isOverdue = procDays >= CONFIG.WAIT_DAYS_CRITICAL && ['theory_passed','instructor_assigned'].includes(proc.state);
     const isWarning = procDays >= CONFIG.WAIT_DAYS_WARNING && !isOverdue && ['theory_passed','instructor_assigned'].includes(proc.state);
     const needsConfirm = proc.state === 'contacted';
-    const isOk = ['contact_confirmed','practice_started','ready_to_graduate'].includes(proc.state);
+    const isOk = ['contact_confirmed','practice_started'].includes(proc.state);
 
     let badge = '';
     if (isOverdue)      badge = ' <span style="background:var(--danger);color:white;border-radius:9999px;padding:.1rem .45rem;font-size:.65rem;font-weight:800">!</span>';
@@ -2376,15 +2401,13 @@ function renderStudentProcessPanel(s, proc) {
         <div style="margin-bottom:1rem;padding:.85rem 1rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--r-sm)">
           <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem">
             <span style="font-size:1.2rem">📞</span>
-            <strong style="font-size:.9rem;color:var(--warning)">Tu instructor te contactó</strong>
+            <strong style="font-size:.9rem;color:var(--warning)">Tu instructor ya registró que se comunicó contigo</strong>
           </div>
-          <p style="font-size:.82rem;color:var(--text-muted)">Confirma si ya fue así para continuar con tus clases.</p>
+          <p style="font-size:.84rem;color:var(--text-secondary);line-height:1.6">Por favor confirma este contacto para <strong>habilitar el inicio de tus clases prácticas</strong>. Hasta que confirmes, tu instructor no podrá registrar el comienzo de las clases.</p>
         </div>
-        <div style="display:flex;gap:.5rem;margin-bottom:1rem">
-          <button class="btn-success-action" style="flex:1;padding:.65rem;font-size:.82rem" onclick="studentConfirmContact(true,'${proc.license}')">✅ Sí, ya me contactó</button>
-          <button onclick="studentConfirmContact(false,'${proc.license}')" style="flex:1;padding:.65rem;background:rgba(244,63,94,.1);color:var(--danger);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-sm);font-weight:700;cursor:pointer;font-size:.82rem">❌ Aún no</button>
-        </div>
-        ${inst ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp" style="font-size:.8rem">Contactar instructor</a>` : ''}`;
+        <button class="btn-success-action" style="width:100%;padding:.7rem;font-size:.86rem;margin-bottom:.6rem" onclick="studentConfirmContact(true,'${proc.license}')">✅ Sí, ya me contactó — confirmar</button>
+        ${inst ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp" style="font-size:.8rem;margin-bottom:.6rem">Escribir al instructor por WhatsApp</a>` : ''}
+        <button onclick="studentConfirmContact(false,'${proc.license}')" style="width:100%;padding:.55rem;background:rgba(244,63,94,.07);color:var(--danger);border:1px solid rgba(244,63,94,.2);border-radius:var(--r-sm);font-weight:600;cursor:pointer;font-size:.8rem">❌ No me han contactado</button>`;
       break;
     }
 
@@ -2423,28 +2446,6 @@ function renderStudentProcessPanel(s, proc) {
           <div class="instructor-meta"><span class="instructor-badge">Tu Instructor</span><h3>${inst.name}</h3></div>
         </div>
         <a href="${waUrl}" target="_blank" class="btn-whatsapp" style="margin-top:.75rem">Contactar instructor</a>` : ''}`;
-      break;
-    }
-
-    case 'ready_to_graduate': {
-      const initials = inst ? inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase() : '';
-      const waMsg = inst ? `Hola ${inst.name}, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Tengo una consulta sobre el cierre de mis clases de ${licenseLabel}.` : '';
-      const waUrl = inst ? `https://wa.me/${inst.phone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}` : '';
-      rightHTML += `
-        <div style="text-align:center;padding:.5rem 0 1rem">
-          <div style="font-size:2.5rem;margin-bottom:.5rem">🎓</div>
-          <h4 style="color:var(--success);font-size:1.1rem;margin-bottom:.3rem">Tu instructor finalizó tus clases</h4>
-          <p style="font-size:.84rem;color:var(--text-secondary);margin-bottom:1rem">Acércate lo antes posible a la academia para <strong>cerrar el curso con la certificadora</strong>.</p>
-          <div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:var(--r-sm);padding:.85rem;margin-bottom:.85rem;text-align:left">
-            <div style="font-size:.78rem;font-weight:700;color:var(--success);margin-bottom:.25rem">📋 Próximos pasos</div>
-            <div style="font-size:.78rem;color:var(--text-secondary);line-height:1.6">
-              1. Acércate a la academia con tu documento<br>
-              2. Solicita el cierre de curso en administración<br>
-              3. La certificadora emitirá tu licencia
-            </div>
-          </div>
-          ${inst ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp" style="font-size:.8rem">Consultar con instructor</a>` : ''}
-        </div>`;
       break;
     }
 
@@ -2547,7 +2548,7 @@ function renderInstructorPortal() {
 
   const sorted = [...myProcesos].sort((a,b) => {
     // Primero por urgencia de estado, luego por días
-    const stateOrder = { instructor_assigned: 0, contacted: 1, contact_confirmed: 2, practice_started: 3, ready_to_graduate: 4 };
+    const stateOrder = { instructor_assigned: 0, contacted: 1, contact_confirmed: 2, practice_started: 3, completed: 4 };
     const sa = STATE.students.find(s => s.docNumber === a.docNumber);
     const sb = STATE.students.find(s => s.docNumber === b.docNumber);
     const da = daysWaiting(a, sa), db = daysWaiting(b, sb);
@@ -2601,9 +2602,9 @@ function renderInstructorPortal() {
       cardBorder = 'border:1px solid rgba(16,185,129,.3);';
       urgencyBadge = `<span style="background:rgba(16,185,129,.12);color:var(--success);border:1px solid rgba(16,185,129,.25);border-radius:9999px;padding:.2rem .6rem;font-size:.72rem;font-weight:600">🚗 Clases en curso</span>`;
       urgencyLabel = 'success';
-    } else if (proc.state === 'ready_to_graduate') {
-      cardBorder = 'border:1px solid rgba(16,185,129,.4);';
-      urgencyBadge = `<span style="background:rgba(16,185,129,.15);color:var(--success);border:1px solid rgba(16,185,129,.3);border-radius:9999px;padding:.2rem .6rem;font-size:.72rem;font-weight:700">🎓 Clases finalizadas</span>`;
+    } else if (proc.state === 'completed') {
+      cardBorder = 'border:1px solid var(--border-color);opacity:.6;';
+      urgencyBadge = `<span style="background:rgba(16,185,129,.08);color:var(--success);border:1px solid rgba(16,185,129,.2);border-radius:9999px;padding:.2rem .6rem;font-size:.72rem;font-weight:600">✓ Completado</span>`;
       urgencyLabel = 'success';
     }
 
@@ -2620,13 +2621,18 @@ function renderInstructorPortal() {
     } else if (proc.state === 'contacted') {
       actionBtns = `
         <span style="font-size:.75rem;color:#a78bfa;font-style:italic">Esperando que el alumno confirme en su portal</span>`;
-    } else if (proc.state === 'contact_confirmed' || proc.state === 'practice_started') {
+    } else if (proc.state === 'contact_confirmed') {
+      actionBtns = `
+        <button class="btn-primary" style="width:auto;padding:.4rem .85rem;font-size:.78rem;background:linear-gradient(135deg,#059669,#0891b2)" onclick="instMarkPracticeStarted('${proc.docNumber}','${proc.license}')">
+          🚗 Clases iniciadas
+        </button>`;
+    } else if (proc.state === 'practice_started') {
       actionBtns = `
         <button class="btn-sec" style="font-size:.75rem;padding:.35rem .75rem;border-color:var(--success);color:var(--success)" onclick="instMarkReady('${proc.docNumber}','${proc.license}')">
-          🎓 Finalizar alumno
+          🎓 Alumno finalizó clases
         </button>`;
-    } else if (proc.state === 'ready_to_graduate') {
-      actionBtns = `<span style="font-size:.75rem;color:var(--success)">✓ Finalizado — coordinación cerrará el expediente</span>`;
+    } else if (proc.state === 'completed') {
+      actionBtns = `<span style="font-size:.75rem;color:var(--success)">✓ Proceso completado</span>`;
     }
 
     const card = document.createElement('div');
@@ -2702,6 +2708,43 @@ async function instMarkContactedConfirm(docNumber, license) {
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
 
+async function instMarkPracticeStarted(docNumber, license) {
+  const student = STATE.students.find(s => s.docNumber === docNumber);
+  if (!student) return;
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
+
+  const existing = document.getElementById('inst-started-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'inst-started-modal';
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:380px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:.75rem">🚗</div>
+      <h3 style="font-family:var(--font-title);font-size:1.15rem;font-weight:700;margin-bottom:.4rem">Clases iniciadas con ${student.name.split(' ')[0]}</h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem">Confirmas que ya comenzaron las clases prácticas de <strong>${LICENSE_FULL[license] || license}</strong> con <strong>${student.name}</strong>.</p>
+      <div style="display:flex;gap:.65rem">
+        <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('inst-started-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="flex:1;background:linear-gradient(135deg,#059669,#0891b2);border-color:#059669" onclick="instMarkPracticeStartedConfirm('${docNumber}','${license}')">Sí, iniciamos clases</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function instMarkPracticeStartedConfirm(docNumber, license) {
+  document.getElementById('inst-started-modal')?.remove();
+  showToast('Registrando inicio de clases...', 'info');
+  try {
+    const data = await apiCall({ action: 'updateProceso', docNumber, license, field: 'state', value: 'practice_started' });
+    if (data.success) {
+      const p = getProceso(docNumber, license);
+      if (p) p.state = 'practice_started';
+      showToast('🚗 ¡Clases iniciadas registradas!', 'success');
+      renderInstructorPortal();
+    } else { showToast('Error: ' + (data.error || 'desconocido'), 'error'); }
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
 async function instMarkReady(docNumber, license) {
   const student = STATE.students.find(s => s.docNumber === docNumber);
   if (!student) return;
@@ -2718,7 +2761,7 @@ async function instMarkReady(docNumber, license) {
       <div style="font-size:2.5rem;margin-bottom:.75rem">🎓</div>
       <h3 style="font-family:var(--font-title);font-size:1.15rem;font-weight:700;margin-bottom:.4rem">Finalizar a ${student.name.split(' ')[0]}</h3>
       <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:.5rem">Confirmas que <strong>${student.name}</strong> completó todas sus clases prácticas de <strong>${LICENSE_FULL[license] || license}</strong>.</p>
-      <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:1.25rem">El coordinador recibirá la notificación para cerrar el expediente.</p>
+      <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:1.25rem">El proceso quedará registrado como completado.</p>
       <div style="display:flex;gap:.65rem">
         <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('inst-ready-modal').remove()">Cancelar</button>
         <button class="btn-action-confirm" style="flex:1;background:var(--success);border-color:var(--success)" onclick="instMarkReadyConfirm('${docNumber}','${license}')">Sí, finalizar alumno</button>
@@ -2731,11 +2774,17 @@ async function instMarkReadyConfirm(docNumber, license) {
   document.getElementById('inst-ready-modal')?.remove();
   showToast('Finalizando alumno...', 'info');
   try {
-    const data = await apiCall({ action: 'markReady', docNumber, license });
+    const data = await apiCall({ action: 'completeProceso', docNumber, license });
     if (data.success) {
       const p = getProceso(docNumber, license);
-      if (p) p.state = 'ready_to_graduate';
-      showToast('🎓 Alumno finalizado. El coordinador cerrará el expediente.', 'success');
+      if (p) p.state = 'completed';
+      // Si todos los procesos del alumno están completados, marcar active=false en STATE
+      const allDone = getStudentProcesos(docNumber).every(pr => pr.state === 'completed');
+      if (allDone) {
+        const st = STATE.students.find(s => s.docNumber === docNumber);
+        if (st) st.active = 'false';
+      }
+      showToast('🎓 Proceso completado exitosamente.', 'success');
       renderInstructorPortal();
     } else { showToast('Error: ' + (data.error || 'desconocido'), 'error'); }
   } catch(e) { showToast('Error de conexión', 'error'); }
@@ -2861,12 +2910,12 @@ function coordMetricClick(type) {
     if (titleEl) titleEl.textContent = '⚠ Alertas de tiempo (+8d y +15d)';
   } else if (type === 'active') {
     filterEl.value = '';
-    _coordCustomFilter = (p) => ['contact_confirmed','practice_started'].includes(p.state);
+    _coordCustomFilter = (p) => p.state === 'practice_started';
     if (titleEl) titleEl.textContent = '🚗 En clases actualmente';
-  } else if (type === 'ready') {
+  } else if (type === 'contact_confirmed') {
     filterEl.value = '';
-    _coordCustomFilter = (p) => p.state === 'ready_to_graduate';
-    if (titleEl) titleEl.textContent = '🎓 Listos para cerrar expediente';
+    _coordCustomFilter = (p) => p.state === 'contact_confirmed';
+    if (titleEl) titleEl.textContent = '⏰ Contacto confirmado — pendiente inicio de clases';
   } else if (type === 'completed') {
     filterEl.value = '';
     _coordCustomFilter = (p) => p.state === 'completed';
@@ -2902,7 +2951,6 @@ function renderCoordTable() {
     contacted:           { text:'Contactado',               color:'#a78bfa',          bg:'rgba(139,92,246,.1)' },
     contact_confirmed:   { text:'Confirmado',               color:'var(--success)',   bg:'rgba(16,185,129,.1)' },
     practice_started:    { text:'En clases',                color:'var(--success)',   bg:'rgba(16,185,129,.12)' },
-    ready_to_graduate:   { text:'Listo para cerrar',        color:'var(--success)',   bg:'rgba(16,185,129,.15)' },
     completed:           { text:'Completado',               color:'var(--text-muted)','bg':'transparent' },
   };
 
@@ -2934,7 +2982,7 @@ function renderCoordTable() {
   }
 
   // Ordenar por urgencia: el estado más urgente del alumno primero
-  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','ready_to_graduate'];
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
   entries.sort((a, b) => {
     const urgA = a.procs.map(p => STATE_ORDER.indexOf(p.state)).filter(i => i >= 0);
     const urgB = b.procs.map(p => STATE_ORDER.indexOf(p.state)).filter(i => i >= 0);
@@ -2971,10 +3019,10 @@ function renderCoordTable() {
       `<span style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;font-weight:600;color:var(--brand-light);white-space:nowrap">${LICENSE_LABELS[p.license] || p.license}</span>`
     ).join(' ');
 
-    const isReady = procs.some(p => p.state === 'ready_to_graduate');
+    const isCompleted = procs.some(p => p.state === 'completed');
 
     const tr = document.createElement('tr');
-    if (isReady) tr.style.background = 'rgba(16,185,129,.03)';
+    if (isCompleted) tr.style.opacity = '0.7';
     if (urgentState === 'theory_passed' || (urgentState === 'instructor_assigned' && maxDays >= CONFIG.WAIT_DAYS_CRITICAL)) {
       tr.style.background = 'rgba(244,63,94,.03)';
     }
@@ -3087,8 +3135,16 @@ async function renderCoordinatorPortal() {
   // Métricas
   const activeProcesos = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
   const unassigned = STATE.procesos.filter(p => p.state === 'theory_passed').length;
-  const readyList  = STATE.procesos.filter(p => p.state === 'ready_to_graduate');
-  const enClases   = STATE.procesos.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
+  const enClases   = STATE.procesos.filter(p => p.state === 'practice_started').length;
+
+  // Alerta: contact_confirmed estancado (alumno confirmó pero instructor no inicia clases)
+  const confirmStale = STATE.procesos.filter(p => {
+    if (p.state !== 'contact_confirmed') return false;
+    const date = p.confirmedDate || p.contactDate;
+    if (!date) return false;
+    const daysSince = businessDaysBetween(parseToISO(date) || today(), today());
+    return daysSince >= CONFIG.WAIT_DAYS_CONFIRM_STALE;
+  }).length;
 
   const warn = activeProcesos.filter(p => {
     const st = STATE.students.find(s => s.docNumber === p.docNumber);
@@ -3112,10 +3168,10 @@ async function renderCoordinatorPortal() {
   const urgentes = critical + unassigned;
   if (urgentes > 0) {
     contextMsg = `Tienes <strong style="color:var(--danger)">${urgentes} proceso(s) urgente(s)</strong> que necesitan atención inmediata.`;
+  } else if (confirmStale > 0) {
+    contextMsg = `<strong style="color:var(--warning)">${confirmStale} alumno(s)</strong> con contacto confirmado pero sin iniciar clases hace más de ${CONFIG.WAIT_DAYS_CONFIRM_STALE} días. Revisa con el instructor.`;
   } else if (warn > 0) {
     contextMsg = `Hay <strong style="color:var(--warning)">${warn} proceso(s) en zona de alerta</strong>. Revísalos pronto.`;
-  } else if (readyList.length > 0) {
-    contextMsg = `<strong style="color:var(--success)">${readyList.length} alumno(s) listo(s) para cerrar expediente.</strong> ¡Todo va bien!`;
   } else {
     contextMsg = `Todo en orden. <strong style="color:var(--success)">${enClases} alumno(s) en clases actualmente.</strong> ¡Buen trabajo!`;
   }
@@ -3163,12 +3219,12 @@ async function renderCoordinatorPortal() {
     if (cEl) cEl.textContent = pendingStudents.length;
   }
 
-  // Banner listos para cerrar
+  // Banner: alerta contact_confirmed estancado (sin inicio de clases tras confirmación)
   const readyBanner = document.getElementById('coord-ready-banner');
   if (readyBanner) {
-    readyBanner.style.display = readyList.length > 0 ? 'flex' : 'none';
+    readyBanner.style.display = confirmStale > 0 ? 'flex' : 'none';
     const rEl = document.getElementById('coord-ready-count');
-    if (rEl) rEl.textContent = readyList.length;
+    if (rEl) rEl.textContent = confirmStale;
   }
 
   // Wire search/filter listeners (una sola vez)
@@ -3704,8 +3760,8 @@ function adminChangeState(docNumber, license) {
   if (!procs.length) { showToast('Este alumno no tiene procesos activos.', 'warning'); return; }
 
   const ex = document.getElementById('state-modal'); if (ex) ex.remove();
-  const states = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','ready_to_graduate','completed'];
-  const labels = { theory_passed:'Sin instructor', instructor_assigned:'Instructor asignado — pendiente contacto', contacted:'Contactado por instructor', contact_confirmed:'Confirmado por alumno', practice_started:'Clases en curso', ready_to_graduate:'Clases finalizadas — pendiente cierre', completed:'Proceso completado' };
+  const states = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
+  const labels = { theory_passed:'Sin instructor', instructor_assigned:'Instructor asignado', contacted:'Contactado por instructor', contact_confirmed:'Confirmado por alumno', practice_started:'Clases en curso', completed:'Proceso completado' };
   const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
 
   const procOptions = procs.map(p => `<option value="${p.license}" ${p.license===license?'selected':''}>${LICENSE_LABELS[p.license]||p.license}</option>`).join('');
@@ -4320,7 +4376,7 @@ function openStudentProfile(docNumber) {
   const allProcs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
   const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const LICENSE_SHORT  = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
-  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','ready_to_graduate'];
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
 
   const urgentProc = allProcs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
   const stateMap = {
@@ -4329,7 +4385,6 @@ function openStudentProfile(docNumber) {
     contacted:           { label:'📞 Contactado',               cls:'s-contacted' },
     contact_confirmed:   { label:'✅ Contacto confirmado',       cls:'s-confirmed' },
     practice_started:    { label:'🚗 En clases',                cls:'s-practice' },
-    ready_to_graduate:   { label:'🎓 Listo para cerrar',         cls:'s-confirmed' },
     completed:           { label:'🏆 Completado',               cls:'s-confirmed' },
   };
 
@@ -4427,9 +4482,6 @@ function openStudentProfile(docNumber) {
       actionsDiv.innerHTML += `<button class="btn-sec" style="font-size:.72rem;padding:.25rem .6rem" onclick="closeStudentProfile();openModal('${proc.docNumber}','${proc.license}')">🔄 Cambiar instructor</button>`;
     }
     actionsDiv.innerHTML += `<button class="btn-sec" style="font-size:.72rem;padding:.25rem .6rem" onclick="closeStudentProfile();coordChangeState('${proc.docNumber}','${proc.license}')">✏️ Estado</button>`;
-    if (proc.state === 'ready_to_graduate') {
-      actionsDiv.innerHTML += `<button class="btn-primary" style="width:auto;font-size:.72rem;padding:.25rem .6rem;background:var(--success);border-color:var(--success)" onclick="closeStudentProfile();confirmGraduate('${proc.docNumber}','${proc.license}')">🎓 Cerrar expediente</button>`;
-    }
     tl.appendChild(actionsDiv);
   });
 
@@ -4468,9 +4520,8 @@ function openStudentProfile(docNumber) {
 
   document.getElementById('profile-btn-reassign').style.display = withInst.length ? 'flex' : 'none';
 
-  // Mostrar botón "Licencia lista" solo si hay procesos en ready_to_graduate o completed
-  const hasReady = allProcs.some(p => ['ready_to_graduate','completed'].includes(p.state)) ||
-                   getStudentProcesos(docNumber).some(p => p.state === 'completed');
+  // Mostrar botón "Licencia lista" solo si hay procesos completados
+  const hasReady = allProcs.some(p => p.state === 'completed');
   const licBtn = document.getElementById('profile-btn-licencia');
   if (licBtn) licBtn.style.display = hasReady ? 'flex' : 'none';
 
