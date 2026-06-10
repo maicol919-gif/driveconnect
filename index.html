@@ -745,6 +745,24 @@
         <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0;background:var(--warning);border-color:var(--warning)" onclick="switchCoordTab('students');coordMetricClick('contact_confirmed')">Revisar</button>
       </div>
 
+      <div id="coord-practice-stale-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.25rem;background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
+        <span style="font-size:1.2rem">⚠️</span>
+        <div style="flex:1">
+          <strong style="font-size:.88rem;color:var(--danger)">Posible finalización sin registrar</strong>
+          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem"><span id="coord-practice-stale-count">0</span> alumno(s) llevan más de 15 días en prácticas sin que el instructor registre finalización.</p>
+        </div>
+        <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0;background:var(--danger);border-color:var(--danger)" onclick="switchCoordTab('students');coordMetricClick('practice_started')">Verificar</button>
+      </div>
+
+      <div id="coord-dual-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.25rem;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
+        <span style="font-size:1.2rem">🔄</span>
+        <div style="flex:1">
+          <strong style="font-size:.88rem;color:var(--brand-light)">Segunda licencia pendiente de instructor</strong>
+          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem"><span id="coord-dual-count">0</span> alumno(s) finalizaron una licencia — asignar instructor para la segunda en los próximos 5 días hábiles.</p>
+        </div>
+        <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0" onclick="switchCoordTab('students');coordMetricClick('dual_pending')">Asignar</button>
+      </div>
+
       <!-- ACCIONES RÁPIDAS -->
       <div style="display:flex;gap:.65rem;margin-bottom:1.5rem;flex-wrap:wrap">
         <button class="btn-primary" style="width:auto;padding:.5rem 1rem;font-size:.82rem" onclick="coordShowRegisterQR()">📱 Mostrar QR</button>
@@ -1316,6 +1334,8 @@ const CONFIG = {
   WAIT_DAYS_CRITICAL:          20,
   WAIT_DAYS_INST_CONTACT:      15,   // días sin contacto → instructor ve WhatsApp alumno + coord alerta
   WAIT_DAYS_CONFIRM_STALE:      7,   // días en contact_confirmed sin practice_started → alerta coord
+  WAIT_DAYS_PRACTICE_STALE:    15,   // días en practice_started sin completed → "posible finalización sin registrar"
+  WAIT_DAYS_POST_COMPLETED:     5,   // días tras completed de primera licencia para asignar segunda
   get COORD_PHONE() { return localStorage.getItem('dc_coord_phone') || ''; },
 };
 
@@ -1695,6 +1715,58 @@ function daysWaiting(studentOrProceso, student) {
   if (!pending.length) return 0;
   const base = parseToISO(s.theoryPassedDate) || today();
   return Math.max(...pending.map(() => businessDaysBetween(base, today())));
+}
+
+// =============================================================================
+// CONTEXTO DE DOBLE LICENCIA
+// Devuelve información sobre el estado de las otras licencias del alumno
+// para modificar la interpretación de urgencia de un proceso específico.
+// =============================================================================
+function getDualLicenseContext(docNumber, thisLicense) {
+  const allProcs = getStudentProcesos(docNumber);
+  if (allProcs.length <= 1) return { isDual: false };
+
+  const others = allProcs.filter(p => p.license !== thisLicense);
+  const thisProc = allProcs.find(p => p.license === thisLicense);
+
+  // ¿Alguna otra licencia está en práctica activa o más avanzado?
+  const otherInPractice = others.find(p => p.state === 'practice_started');
+  // ¿Alguna otra licencia ya completó?
+  const otherCompleted  = others.find(p => p.state === 'completed');
+  // ¿Esta licencia aún no tiene instructor?
+  const thisPending = ['theory_passed','instructor_assigned'].includes(thisProc?.state);
+
+  // Caso A: esta licencia espera y la otra ya está en práctica → pausa urgencia
+  if (thisPending && otherInPractice) {
+    return { isDual: true, mode: 'waiting_while_active', activeLicense: otherInPractice.license };
+  }
+
+  // Caso B: esta licencia espera y la otra ya completó → plazo de 5 días
+  if (thisPending && otherCompleted) {
+    const completedDate = otherCompleted.completedDate || otherCompleted.contactDate;
+    const daysSinceCompleted = completedDate
+      ? businessDaysBetween(parseToISO(completedDate) || today(), today())
+      : 0;
+    return {
+      isDual: true, mode: 'post_completed',
+      completedLicense: otherCompleted.license,
+      daysSinceCompleted,
+      isOverdue: daysSinceCompleted > CONFIG.WAIT_DAYS_POST_COMPLETED
+    };
+  }
+
+  // Caso C: esta licencia está en practice_started hace mucho → "posible finalización sin registrar"
+  if (thisProc?.state === 'practice_started') {
+    const contactDate = thisProc.contactDate;
+    const daysInPractice = contactDate
+      ? businessDaysBetween(parseToISO(contactDate) || today(), today())
+      : 0;
+    if (daysInPractice >= CONFIG.WAIT_DAYS_PRACTICE_STALE) {
+      return { isDual: true, mode: 'practice_stale', daysInPractice };
+    }
+  }
+
+  return { isDual: true, mode: 'normal' };
 }
 
 function formatDate(dateStr, long = false) {
@@ -2223,13 +2295,18 @@ function renderStudentPortal() {
   procsToShow.forEach(proc => {
     const isActive  = proc.license === _studentActiveLicense;
     const procDays  = daysWaiting(proc, s);
-    const isOverdue = procDays >= CONFIG.WAIT_DAYS_CRITICAL && ['theory_passed','instructor_assigned'].includes(proc.state);
-    const isWarning = procDays >= CONFIG.WAIT_DAYS_WARNING && !isOverdue && ['theory_passed','instructor_assigned'].includes(proc.state);
+    const dualCtx   = getDualLicenseContext(s.docNumber, proc.license);
+    const isPaused  = dualCtx.mode === 'waiting_while_active';
+    const isPostCompleted = dualCtx.mode === 'post_completed';
+    const isOverdue = !isPaused && procDays >= CONFIG.WAIT_DAYS_CRITICAL && ['theory_passed','instructor_assigned'].includes(proc.state);
+    const isWarning = !isPaused && procDays >= CONFIG.WAIT_DAYS_WARNING && !isOverdue && ['theory_passed','instructor_assigned'].includes(proc.state);
     const needsConfirm = proc.state === 'contacted';
     const isOk = ['contact_confirmed','practice_started'].includes(proc.state);
 
     let badge = '';
-    if (isOverdue)      badge = ' <span style="background:var(--danger);color:white;border-radius:9999px;padding:.1rem .45rem;font-size:.65rem;font-weight:800">!</span>';
+    if (isPaused)       badge = ' <span style="background:rgba(59,130,246,.3);color:white;border-radius:9999px;padding:.1rem .45rem;font-size:.65rem;font-weight:800">⏸</span>';
+    else if (isPostCompleted) badge = ' <span style="background:var(--warning);color:white;border-radius:9999px;padding:.1rem .45rem;font-size:.65rem;font-weight:800">!</span>';
+    else if (isOverdue) badge = ' <span style="background:var(--danger);color:white;border-radius:9999px;padding:.1rem .45rem;font-size:.65rem;font-weight:800">!</span>';
     else if (needsConfirm) badge = ' <span style="background:var(--warning);color:white;border-radius:9999px;padding:.1rem .45rem;font-size:.65rem;font-weight:800">?</span>';
     else if (isWarning) badge = ' <span style="background:var(--warning);color:white;border-radius:9999px;padding:.1rem .45rem;font-size:.65rem;font-weight:800">·</span>';
     else if (isOk)      badge = ' <span style="color:var(--success);font-size:.75rem">✓</span>';
@@ -2252,6 +2329,7 @@ function renderStudentProcessPanel(s, proc) {
   const licenseLabel  = LICENSE_FULL[proc.license] || proc.license || 'Tu proceso';
   const inst          = proc.instructorId ? STATE.instructors.find(i => i.id === proc.instructorId) : null;
   const procDays      = daysWaiting(proc, s);
+  const dualCtx       = getDualLicenseContext(s.docNumber, proc.license);
   const gradients     = ['linear-gradient(135deg,var(--brand),#6366f1)', 'linear-gradient(135deg,#059669,#0891b2)'];
   const gradIdx       = (proc.license === 'A2' || proc.license === 'A1') ? 1 : 0;
   const barColor      = gradients[gradIdx];
@@ -2345,6 +2423,44 @@ function renderStudentProcessPanel(s, proc) {
       const coordPhone = CONFIG.COORD_PHONE;
       const waMsg = `Hola, soy ${s.name} (${getDocLabel(s.docType)} ${s.docNumber}). Llevo ${procDays} días hábiles desde mi examen teórico y aún no tengo instructor para ${licenseLabel}. ¿Me pueden ayudar?`;
       const waUrl = coordPhone ? `https://wa.me/57${coordPhone.replace(/\D/g,'')}?text=${encodeURIComponent(waMsg)}` : null;
+
+      // Modo: esperando mientras la otra licencia está en prácticas
+      if (dualCtx.mode === 'waiting_while_active') {
+        const otherLabel = LICENSE_FULL[dualCtx.activeLicense] || dualCtx.activeLicense;
+        rightHTML += `<div style="text-align:center;padding:.5rem 0">
+          <div style="font-size:2.5rem;margin-bottom:.5rem">🔄</div>
+          <h4 style="margin-bottom:.4rem">Ya tienes clases activas</h4>
+          <p style="font-size:.84rem;color:var(--text-secondary);margin-bottom:1rem">Estás disfrutando tus clases de <strong>${otherLabel}</strong>. La academia también te está buscando instructor para <strong>${licenseLabel}</strong>.</p>
+          <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--r-sm);padding:.75rem;font-size:.78rem;color:var(--text-muted)">
+            Te notificaremos en cuanto esté asignado.
+          </div>
+        </div>`;
+        break;
+      }
+
+      // Modo: la otra licencia ya completó → plazo de 5 días
+      if (dualCtx.mode === 'post_completed') {
+        const otherLabel = LICENSE_FULL[dualCtx.completedLicense] || dualCtx.completedLicense;
+        const d = dualCtx.daysSinceCompleted;
+        const isLate = dualCtx.isOverdue;
+        rightHTML += `<div style="text-align:center;padding:.5rem 0">
+          <div style="font-size:2.5rem;margin-bottom:.5rem">${isLate ? '🚨' : '⏳'}</div>
+          <h4 style="color:${isLate ? 'var(--danger)' : 'var(--warning)'};margin-bottom:.4rem">${isLate ? 'Pendiente asignación — plazo vencido' : 'Próximamente tu instructor'}</h4>
+          <p style="font-size:.84rem;color:var(--text-secondary);margin-bottom:1rem">Terminaste <strong>${otherLabel}</strong>. La academia tiene un plazo de <strong>${CONFIG.WAIT_DAYS_POST_COMPLETED} días hábiles</strong> para asignarte instructor de <strong>${licenseLabel}</strong>.</p>
+          <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:var(--r-md);padding:.85rem">
+            <div style="font-size:.65rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.35rem">Días transcurridos</div>
+            <div style="font-family:var(--font-title);font-size:2.25rem;font-weight:800;color:${isLate ? 'var(--danger)' : 'var(--warning)'}">${d}</div>
+            <div style="font-size:.72rem;color:var(--text-muted);margin-top:.2rem">de ${CONFIG.WAIT_DAYS_POST_COMPLETED} días hábiles</div>
+            <div style="margin-top:.6rem;background:rgba(255,255,255,.05);border-radius:9999px;height:5px;overflow:hidden">
+              <div style="height:100%;border-radius:9999px;width:${Math.min(100,Math.round(d/CONFIG.WAIT_DAYS_POST_COMPLETED*100))}%;background:${isLate ? 'var(--danger)' : 'var(--warning)'}"></div>
+            </div>
+          </div>
+          ${isLate && waUrl ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp" style="font-size:.82rem;margin-top:.75rem">Escribir a la Academia</a>` : ''}
+        </div>`;
+        break;
+      }
+
+      // Modo normal (una sola licencia, o ambas sin prácticas activas)
       rightHTML += procDays >= CONFIG.WAIT_DAYS_CRITICAL
         ? `<div style="text-align:center;padding:.5rem 0">
              <div style="font-size:2.5rem;margin-bottom:.75rem">🚨</div>
@@ -2920,6 +3036,13 @@ function coordMetricClick(type) {
     filterEl.value = '';
     _coordCustomFilter = (p) => p.state === 'contact_confirmed';
     if (titleEl) titleEl.textContent = '⏰ Contacto confirmado — pendiente inicio de clases';
+  } else if (type === 'dual_pending') {
+    filterEl.value = '';
+    _coordCustomFilter = (p) => {
+      if (!['theory_passed','instructor_assigned'].includes(p.state)) return false;
+      return getDualLicenseContext(p.docNumber, p.license).mode === 'post_completed';
+    };
+    if (titleEl) titleEl.textContent = '🔄 Segunda licencia — pendiente asignar instructor';
   } else if (type === 'completed') {
     filterEl.value = '';
     _coordCustomFilter = (p) => p.state === 'completed';
@@ -3014,36 +3137,64 @@ function renderCoordTable() {
     const urgentState = urgentProc?.state || 'theory_passed';
     const stateInfo = STATE_LABEL[urgentState] || { text: urgentState, color: 'var(--text-muted)', bg: 'transparent' };
 
-    // Días máximos de espera
-    const maxDays = Math.max(...procs.map(p => daysWaiting(p, st)));
+    // Días máximos — excluir procesos pausados por contexto dual
+    const effectiveDays = procs.map(p => {
+      if (!['theory_passed','instructor_assigned'].includes(p.state)) return 0;
+      const ctx = getDualLicenseContext(p.docNumber, p.license);
+      return ctx.mode === 'waiting_while_active' ? 0 : daysWaiting(p, st);
+    });
+    const maxDays = Math.max(...effectiveDays, 0);
     const daysCls = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'danger' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'warning' : 'success';
 
-    // Licencias (pills)
-    const licPills = procs.map(p =>
-      `<span style="background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;font-weight:600;color:var(--brand-light);white-space:nowrap">${LICENSE_LABELS[p.license] || p.license}</span>`
-    ).join(' ');
+    // Contexto dual para el proceso más urgente pendiente
+    const pendingProcs = procs.filter(p => ['theory_passed','instructor_assigned'].includes(p.state));
+    const dualCtxs = pendingProcs.map(p => getDualLicenseContext(p.docNumber, p.license));
+    const hasPostCompleted = dualCtxs.some(c => c.mode === 'post_completed');
+    const hasWaitingWhileActive = dualCtxs.some(c => c.mode === 'waiting_while_active') && !hasPostCompleted;
+
+    // Licencias (pills) — marcar las pausadas
+    const licPills = procs.map(p => {
+      const ctx = getDualLicenseContext(p.docNumber, p.license);
+      const isPaused = ctx.mode === 'waiting_while_active';
+      const isPost   = ctx.mode === 'post_completed';
+      const extra = isPaused ? ' ⏸' : isPost ? ' ⏳' : '';
+      const bg = isPaused ? 'rgba(59,130,246,.05)' : 'rgba(59,130,246,.1)';
+      const opacity = isPaused ? 'opacity:.6;' : '';
+      return `<span style="background:${bg};border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;font-weight:600;color:var(--brand-light);white-space:nowrap;${opacity}">${LICENSE_LABELS[p.license] || p.license}${extra}</span>`;
+    }).join(' ');
 
     const isCompleted = procs.some(p => p.state === 'completed');
 
     const tr = document.createElement('tr');
     if (isCompleted) tr.style.opacity = '0.7';
-    if (urgentState === 'theory_passed' || (urgentState === 'instructor_assigned' && maxDays >= CONFIG.WAIT_DAYS_CRITICAL)) {
+    if (hasPostCompleted) {
+      tr.style.background = 'rgba(245,158,11,.04)';
+      tr.style.borderLeft = '2px solid rgba(245,158,11,.5)';
+    } else if (urgentState === 'theory_passed' || (urgentState === 'instructor_assigned' && maxDays >= CONFIG.WAIT_DAYS_CRITICAL)) {
       tr.style.background = 'rgba(244,63,94,.03)';
+    } else if (hasWaitingWhileActive) {
+      tr.style.background = 'rgba(59,130,246,.03)';
+    }
+
+    // Texto de estado especial para doble licencia
+    let estadoCell = `<span style="display:inline-block;padding:.15rem .55rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:${stateInfo.bg};color:${stateInfo.color}">${stateInfo.text}</span>`;
+    if (hasPostCompleted) {
+      estadoCell += ` <span style="display:inline-block;padding:.1rem .4rem;border-radius:9999px;font-size:.65rem;font-weight:700;background:rgba(245,158,11,.15);color:var(--warning);margin-left:.25rem">🔄 2ª lic.</span>`;
+    } else if (hasWaitingWhileActive) {
+      estadoCell += ` <span style="display:inline-block;padding:.1rem .4rem;border-radius:9999px;font-size:.65rem;font-weight:700;background:rgba(59,130,246,.12);color:var(--brand-light);margin-left:.25rem">⏸ en prácticas</span>`;
     }
 
     tr.innerHTML = `
       <td><div class="student-name-cell" style="font-weight:600">${st?.name || docNum}</div></td>
       <td><code style="font-size:.72rem">${st?.docType || 'CC'} ${docNum}</code></td>
       <td><div style="display:flex;gap:.25rem;flex-wrap:wrap">${licPills}</div></td>
+      <td>${estadoCell}</td>
       <td>
-        <span style="display:inline-block;padding:.15rem .55rem;border-radius:9999px;font-size:.72rem;font-weight:600;background:${stateInfo.bg};color:${stateInfo.color}">
-          ${stateInfo.text}
-        </span>
-      </td>
-      <td>
-        ${['theory_passed','instructor_assigned'].includes(urgentState)
+        ${['theory_passed','instructor_assigned'].includes(urgentState) && !hasWaitingWhileActive
           ? `<span class="wait-badge ${daysCls}">${maxDays}d</span>`
-          : '<span style="color:var(--text-muted);font-size:.78rem">—</span>'}
+          : hasWaitingWhileActive
+            ? '<span style="color:var(--brand-light);font-size:.75rem">⏸ pausado</span>'
+            : '<span style="color:var(--text-muted);font-size:.78rem">—</span>'}
       </td>
       <td>
         <button class="btn-primary" style="width:auto;padding:.3rem .75rem;font-size:.75rem;display:inline-flex;align-items:center;gap:.3rem" onclick="openStudentProfile('${docNum}')">
@@ -3153,12 +3304,39 @@ async function renderCoordinatorPortal() {
   const warn = activeProcesos.filter(p => {
     const st = STATE.students.find(s => s.docNumber === p.docNumber);
     const d  = daysWaiting(p, st);
-    return ['theory_passed','instructor_assigned'].includes(p.state) && d >= CONFIG.WAIT_DAYS_WARNING && d < CONFIG.WAIT_DAYS_CRITICAL;
+    if (!['theory_passed','instructor_assigned'].includes(p.state)) return false;
+    if (d < CONFIG.WAIT_DAYS_WARNING || d >= CONFIG.WAIT_DAYS_CRITICAL) return false;
+    // No contar como alerta estándar si está pausado por otra licencia en prácticas
+    const ctx = getDualLicenseContext(p.docNumber, p.license);
+    return ctx.mode !== 'waiting_while_active';
   }).length;
 
   const critical = activeProcesos.filter(p => {
     const st = STATE.students.find(s => s.docNumber === p.docNumber);
-    return ['theory_passed','instructor_assigned'].includes(p.state) && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
+    if (!['theory_passed','instructor_assigned'].includes(p.state)) return false;
+    if (daysWaiting(p, st) < CONFIG.WAIT_DAYS_CRITICAL) return false;
+    const ctx = getDualLicenseContext(p.docNumber, p.license);
+    return ctx.mode !== 'waiting_while_active';
+  }).length;
+
+  // Alerta dual A: esperando instructor mientras la otra licencia está en prácticas
+  const dualWaiting = activeProcesos.filter(p => {
+    if (!['theory_passed','instructor_assigned'].includes(p.state)) return false;
+    return getDualLicenseContext(p.docNumber, p.license).mode === 'waiting_while_active';
+  }).length;
+
+  // Alerta dual B: post-completed — 5 días para asignar instructor segunda licencia
+  const dualPostCompleted = activeProcesos.filter(p => {
+    if (!['theory_passed','instructor_assigned'].includes(p.state)) return false;
+    return getDualLicenseContext(p.docNumber, p.license).mode === 'post_completed';
+  }).length;
+
+  // Alerta dual C: practice_started hace +15 días sin finalizar (posible olvido)
+  const practiceStale = STATE.procesos.filter(p => {
+    if (p.state !== 'practice_started') return false;
+    const contactDate = p.contactDate;
+    if (!contactDate) return false;
+    return businessDaysBetween(parseToISO(contactDate) || today(), today()) >= CONFIG.WAIT_DAYS_PRACTICE_STALE;
   }).length;
 
   const pendingProcs = activeProcesos.filter(p => ['theory_passed','instructor_assigned'].includes(p.state));
@@ -3167,13 +3345,19 @@ async function renderCoordinatorPortal() {
     return a + daysWaiting(p, st);
   }, 0) / pendingProcs.length) : 0;
 
-  // Armar mensaje de contexto según situación real
+  // Armar mensaje de contexto según situación real (prioridad descendente)
   let contextMsg = '';
   const urgentes = critical + unassigned;
-  if (urgentes > 0) {
+  if (dualPostCompleted > 0) {
+    contextMsg = `<strong style="color:var(--warning)">🔄 ${dualPostCompleted} alumno(s)</strong> finalizaron una licencia — tienes ${CONFIG.WAIT_DAYS_POST_COMPLETED} días hábiles para asignarles instructor de la segunda.`;
+  } else if (urgentes > 0) {
     contextMsg = `Tienes <strong style="color:var(--danger)">${urgentes} proceso(s) urgente(s)</strong> que necesitan atención inmediata.`;
+  } else if (practiceStale > 0) {
+    contextMsg = `<strong style="color:var(--warning)">⚠ ${practiceStale} alumno(s)</strong> llevan más de ${CONFIG.WAIT_DAYS_PRACTICE_STALE} días en prácticas sin que el instructor registre finalización. Verifica con el instructor.`;
   } else if (confirmStale > 0) {
     contextMsg = `<strong style="color:var(--warning)">${confirmStale} alumno(s)</strong> con contacto confirmado pero sin iniciar clases hace más de ${CONFIG.WAIT_DAYS_CONFIRM_STALE} días. Revisa con el instructor.`;
+  } else if (dualWaiting > 0) {
+    contextMsg = `<strong style="color:var(--brand-light)">🔄 ${dualWaiting} proceso(s)</strong> esperan instructor de segunda licencia mientras el alumno ya está en prácticas de otra.`;
   } else if (warn > 0) {
     contextMsg = `Hay <strong style="color:var(--warning)">${warn} proceso(s) en zona de alerta</strong>. Revísalos pronto.`;
   } else {
@@ -3229,6 +3413,22 @@ async function renderCoordinatorPortal() {
     readyBanner.style.display = confirmStale > 0 ? 'flex' : 'none';
     const rEl = document.getElementById('coord-ready-count');
     if (rEl) rEl.textContent = confirmStale;
+  }
+
+  // Banner: posible finalización sin registrar (practice_stale)
+  const practiceStaleEl = document.getElementById('coord-practice-stale-banner');
+  if (practiceStaleEl) {
+    practiceStaleEl.style.display = practiceStale > 0 ? 'flex' : 'none';
+    const psEl = document.getElementById('coord-practice-stale-count');
+    if (psEl) psEl.textContent = practiceStale;
+  }
+
+  // Banner: segunda licencia pendiente post-completed
+  const dualBanner = document.getElementById('coord-dual-banner');
+  if (dualBanner) {
+    dualBanner.style.display = dualPostCompleted > 0 ? 'flex' : 'none';
+    const dEl = document.getElementById('coord-dual-count');
+    if (dEl) dEl.textContent = dualPostCompleted;
   }
 
   // Wire search/filter listeners (una sola vez)
