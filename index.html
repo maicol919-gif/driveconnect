@@ -1562,11 +1562,11 @@ function getColombianHolidays(year) {
   ];
 
   // Traslado al lunes siguiente (Ley Emiliani)
-  function nextMonday(date) {
-    const d = new Date(date);
-    const day = d.getDay();
-    if (day === 1) return date; // ya es lunes
-    const diff = day === 0 ? 1 : 8 - day;
+  function nextMonday(dateStr) {
+    const d = new Date(dateStr + 'T12:00:00'); // noon UTC evita shift de zona horaria
+    const day = d.getDay(); // 0=Dom, 1=Lun, ..., 6=Sáb
+    if (day === 1) return dateStr; // ya es lunes, no mover
+    const diff = day === 0 ? 1 : 8 - day; // Dom→+1, Mar→+6, Mié→+5, Jue→+4, Vie→+3, Sáb→+2
     d.setDate(d.getDate() + diff);
     return d.toISOString().split('T')[0];
   }
