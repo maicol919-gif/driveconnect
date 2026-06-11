@@ -1011,6 +1011,45 @@
 </div>
 
 <!-- PENDING APPROVAL MODAL -->
+
+<!-- MODAL EDITAR ALUMNO -->
+<div class="modal-overlay" id="edit-student-modal">
+  <div class="modal-content" style="max-width:420px">
+    <div class="modal-header">
+      <h3>✏️ Editar datos del alumno</h3>
+      <button class="btn-close-modal" onclick="document.getElementById('edit-student-modal').classList.remove('active')">×</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:.75rem">
+      <div>
+        <label class="config-label">Nombre completo</label>
+        <input type="text" id="edit-st-name" class="config-input" style="margin-bottom:0" placeholder="Nombre completo">
+      </div>
+      <div>
+        <label class="config-label">Teléfono / WhatsApp</label>
+        <input type="text" id="edit-st-phone" class="config-input" style="margin-bottom:0" placeholder="10 dígitos">
+      </div>
+      <div>
+        <label class="config-label">Tipo de documento</label>
+        <select id="edit-st-doctype" class="config-input" style="margin-bottom:0">
+          <option value="CC">Cédula de ciudadanía</option>
+          <option value="TI">Tarjeta de identidad</option>
+          <option value="CE">Cédula de extranjería</option>
+          <option value="PA">Pasaporte</option>
+        </select>
+      </div>
+      <div>
+        <label class="config-label">Fecha examen teórico</label>
+        <input type="date" id="edit-st-date" class="config-input" style="margin-bottom:0">
+      </div>
+      <div id="edit-st-error" class="error-msg" style="display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-action-cancel" onclick="document.getElementById('edit-student-modal').classList.remove('active')">Cancelar</button>
+      <button class="btn-action-confirm" onclick="editStudentSubmit()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="pending-modal">
   <div class="modal-box" style="max-width:680px">
     <div class="modal-header">
@@ -1131,6 +1170,7 @@
     <div class="profile-footer">
       <button class="profile-btn-action secondary" onclick="closeStudentProfile()">Cerrar</button>
       <button class="profile-btn-action danger" id="profile-btn-temppin" onclick="adminSetTempPin(_profileDocNumber)">🔑 PIN temporal</button>
+      <button class="profile-btn-action secondary" id="profile-btn-edit" onclick="openEditStudent(_profileDocNumber)">✏️ Editar</button>
       <button class="profile-btn-action secondary" id="profile-btn-reassign" onclick="profileReassign()">🔄 Reasignar</button>
       <button class="profile-btn-action" id="profile-btn-licencia" style="display:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:white;border:none" onclick="notifyLicenciaLista()">🪪 Licencia lista</button>
       <button class="profile-btn-action primary" id="profile-btn-state" onclick="profileChangeState()">✏️ Estado</button>
@@ -2988,6 +3028,64 @@ async function coordCloseProcessExec(docNumber, license) {
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
 
+
+// =============================================================================
+// EDITAR DATOS DEL ALUMNO (coord + admin)
+// =============================================================================
+let _editStudentDoc = null;
+
+function openEditStudent(docNumber) {
+  _editStudentDoc = docNumber;
+  const s = STATE.students.find(st => st.docNumber === docNumber);
+  if (!s) return;
+
+  document.getElementById('edit-st-name').value    = s.name    || '';
+  document.getElementById('edit-st-phone').value   = s.phone   || '';
+  document.getElementById('edit-st-doctype').value = s.docType || 'CC';
+  document.getElementById('edit-st-date').value    = s.theoryPassedDate ? s.theoryPassedDate.substring(0,10) : '';
+  document.getElementById('edit-st-error').style.display = 'none';
+
+  // Close profile modal first
+  document.getElementById('student-profile-modal').classList.remove('active');
+  document.getElementById('edit-student-modal').classList.add('active');
+}
+
+async function editStudentSubmit() {
+  const errEl = document.getElementById('edit-st-error');
+  errEl.style.display = 'none';
+
+  const name  = document.getElementById('edit-st-name').value.trim();
+  const phone = document.getElementById('edit-st-phone').value.trim();
+  const docType = document.getElementById('edit-st-doctype').value;
+  const date  = document.getElementById('edit-st-date').value;
+
+  if (!name) { errEl.textContent = 'El nombre es obligatorio.'; errEl.style.display = 'block'; return; }
+
+  const btn = document.querySelector('#edit-student-modal .btn-action-confirm');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  try {
+    const data = await apiCall({ action: 'updateStudent', docNumber: _editStudentDoc, name, phone, docType, theoryPassedDate: date });
+    if (!data?.success) throw new Error(data?.error || 'Error desconocido');
+
+    // Update local STATE
+    const s = STATE.students.find(st => st.docNumber === _editStudentDoc);
+    if (s) { s.name = name; s.phone = phone; s.docType = docType; if (date) s.theoryPassedDate = date; }
+
+    document.getElementById('edit-student-modal').classList.remove('active');
+    showToast('✅ Datos del alumno actualizados.', 'success');
+    await writeLog(`Alumno editado: ${name} (${_editStudentDoc})`);
+
+    if (STATE.currentUser?.role === 'coordinator') await renderCoordinatorPortal();
+    else if (STATE.currentUser?.role === 'admin') renderAdminStudents();
+  } catch(e) {
+    errEl.textContent = '❌ ' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
+  }
+}
+
 function coordChangeState(docNumber, license) {
   adminChangeState(docNumber, license);
 }
@@ -3939,7 +4037,8 @@ async function saveInstructor(instId) {
 
   msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
   const action = instId ? 'updateInstructor' : 'addInstructor';
-  await postData(action, { id, name, phone, availability, specialty: '', email: '', photo: '' });
+  const rInst = await apiCall({ action, id, name, phone, availability, specialty: '', email: '', photo: '' });
+  if (!rInst?.success) { msg.textContent = '❌ Error: ' + (rInst?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
   await writeLog(`Instructor ${instId ? 'editado' : 'agregado'}: ${name} (CC ${id})`);
   document.getElementById('inst-edit-modal').remove();
   toast(`✅ Instructor ${instId ? 'actualizado' : 'agregado'}`, 'success');
@@ -3953,7 +4052,8 @@ async function toggleInstructor(instId) {
   if (!inst) return;
   const isActive = inst.active !== 'false' && inst.active !== false;
   const newVal = isActive ? 'false' : 'true';
-  await postData('updateInstructor', { id: instId, active: newVal });
+  const rTog = await apiCall({ action: 'updateInstructor', id: instId, active: newVal });
+  if (!rTog?.success) { showToast('❌ Error al cambiar estado del instructor', 'error'); return; }
   await writeLog(`Instructor ${isActive ? 'desactivado' : 'activado'}: ${inst.name}`);
   inst.active = newVal;
   toast(`${isActive ? '🚫 Instructor desactivado' : '✅ Instructor activado'}`, isActive ? 'warning' : 'success');
@@ -4035,7 +4135,8 @@ async function saveCoordinator(oldUser) {
   }
   msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
   const action = oldUser ? 'updateCoordinator' : 'addCoordinator';
-  await postData(action, { username: oldUser || user, newUsername: user, password: pass, name, active: 'true' });
+  const rCoord = await apiCall({ action, username: oldUser || user, newUsername: user, password: pass, name, active: 'true' });
+  if (!rCoord?.success) { msg.textContent = '❌ Error: ' + (rCoord?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
   await writeLog(`Coordinador ${oldUser ? 'editado' : 'agregado'}: ${user}`);
   document.getElementById('coord-edit-modal').remove();
   toast(`✅ Coordinador ${oldUser ? 'actualizado' : 'agregado'}`, 'success');
@@ -4048,7 +4149,8 @@ async function toggleCoordinator(username) {
   if (!coord) return;
   const isActive = String(coord.active || 'true').trim() !== 'false';
   const newVal = isActive ? 'false' : 'true';
-  await postData('updateCoordinator', { username, active: newVal });
+  const rTogC = await apiCall({ action: 'updateCoordinator', username, active: newVal });
+  if (!rTogC?.success) { showToast('❌ Error al cambiar estado del coordinador', 'error'); return; }
   await writeLog(`Coordinador ${isActive ? 'desactivado' : 'activado'}: ${username}`);
   coord.active = newVal;
   toast(`${isActive ? '🚫 Coordinador desactivado' : '✅ Coordinador activado'}`, isActive ? 'warning' : 'success');
@@ -4108,7 +4210,8 @@ async function adminAddStudent() {
   if (!name || !docNum || !date) { msg.textContent = '⚠ Todos los campos son obligatorios.'; msg.style.color='var(--danger)'; return; }
   if (STATE.students.find(s => s.docNumber === docNum)) { msg.textContent = '⚠ Ese documento ya existe.'; msg.style.color='var(--danger)'; return; }
   msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
-  await postData('addStudent', { docNumber: docNum, docType, name, theoryPassedDate: date });
+  const rAddSt = await apiCall({ action: 'addStudent', docNumber: docNum, docType, name, theoryPassedDate: date });
+  if (!rAddSt?.success) { msg.textContent = '❌ Error: ' + (rAddSt?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
   await writeLog(`Alumno agregado: ${name} (${docType} ${docNum})`);
   msg.textContent = '✅ Alumno agregado correctamente.'; msg.style.color = 'var(--success)';
   document.getElementById('new-st-name').value = '';
@@ -4283,10 +4386,15 @@ async function savePinModal(instructorId) {
   feedback.textContent = '⏳ Enviando al servidor...';
   feedback.style.color = 'var(--brand-light)';
 
-  // Send update
-  await postData('updatePin', { instructorId, pin: newPin });
+  // Send update via apiCall (verified)
+  const rPin = await apiCall({ action: 'updatePin', instructorId, pin: newPin });
+  if (!rPin?.success) {
+    feedback.textContent = '❌ Error al guardar PIN: ' + (rPin?.error || 'desconocido');
+    feedback.style.color = 'var(--danger)';
+    btn.disabled = false; btn.textContent = 'Guardar PIN';
+    return;
+  }
 
-  // Update local state optimistically
   const inst = STATE.instructors.find(i => i.id === instructorId);
   if (inst) inst.pin = newPin;
 
@@ -4428,12 +4536,13 @@ async function confirmAssign() {
       // Modelo Procesos: actualizar proceso específico por licencia
       const proc = STATE.procesos.find(p => p.docNumber === _assignDocNumber && p.license === _assignLicense.toUpperCase());
       if (proc) { proc.instructorId = _assignSelectedInstId; proc.state = 'instructor_assigned'; }
-      await postData('assignInstructor', { docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, license: _assignLicense, state: 'instructor_assigned' });
+      const r1 = await apiCall({ action: 'assignInstructor', docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, license: _assignLicense, state: 'instructor_assigned' });
+      if (!r1?.success) { showToast('❌ Error al asignar instructor: ' + (r1?.error || 'desconocido'), 'error'); return; }
     } else {
-      // Fallback sin licencia (vista admin legacy)
       student.instructorId = _assignSelectedInstId;
       student.state = 'instructor_assigned';
-      await postData('assignInstructor', { docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, state: 'instructor_assigned' });
+      const r2 = await apiCall({ action: 'assignInstructor', docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, state: 'instructor_assigned' });
+      if (!r2?.success) { showToast('❌ Error al asignar instructor: ' + (r2?.error || 'desconocido'), 'error'); return; }
     }
   }
 }
