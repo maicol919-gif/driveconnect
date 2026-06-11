@@ -2100,11 +2100,35 @@ async function loginInstructor() {
     document.querySelector('.logo-container').classList.add('no-click');
     renderInstructorPortal();
     showView('view-instructor');
+    startPolling();
   } catch(e) {
     showError(e.message);
   } finally {
     loadEl.style.display = 'none';
   }
+}
+
+
+// =============================================================================
+// POLLING — refresca datos cada 3 min para coordinadora e instructor
+// =============================================================================
+let _pollingInterval = null;
+
+function startPolling() {
+  if (_pollingInterval) clearInterval(_pollingInterval);
+  _pollingInterval = setInterval(async () => {
+    const role = STATE.currentUser?.role;
+    if (!role || role === 'student' || role === 'admin') return;
+    try {
+      await loadData();
+      if (role === 'coordinator') await renderCoordinatorPortal();
+      else if (role === 'instructor') renderInstructorPortal();
+    } catch(e) { /* silencioso — no interrumpir UI */ }
+  }, 3 * 60 * 1000); // cada 3 minutos
+}
+
+function stopPolling() {
+  if (_pollingInterval) { clearInterval(_pollingInterval); _pollingInterval = null; }
 }
 
 async function loginCoordinator() {
@@ -2142,6 +2166,7 @@ async function loginCoordinator() {
     document.querySelector('.logo-container').classList.add('no-click');
     renderCoordinatorPortal();
     showView('view-coordinator');
+    startPolling();
   } catch(e) {
     showError(e.message);
   } finally {
@@ -2527,7 +2552,7 @@ function renderStudentProcessPanel(s, proc) {
         </div>
         <button class="btn-success-action" style="width:100%;padding:.7rem;font-size:.86rem;margin-bottom:.6rem" onclick="studentConfirmContact(true,'${proc.license}')">✅ Sí, ya me contactó — confirmar</button>
         ${inst ? `<a href="${waUrl}" target="_blank" class="btn-whatsapp" style="font-size:.8rem;margin-bottom:.6rem">Escribir al instructor por WhatsApp</a>` : ''}
-        <button onclick="studentConfirmContact(false,'${proc.license}')" style="width:100%;padding:.55rem;background:rgba(244,63,94,.07);color:var(--danger);border:1px solid rgba(244,63,94,.2);border-radius:var(--r-sm);font-weight:600;cursor:pointer;font-size:.8rem">❌ No me han contactado</button>`;
+`;
       break;
     }
 
@@ -2943,6 +2968,81 @@ async function confirmGraduateExec(docNumber, license) {
       showToast('🎓 Expediente cerrado exitosamente.', 'success');
       renderCoordinatorPortal();
     } else { showToast('Error: ' + (data.error || 'desconocido'), 'error'); }
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+
+// =============================================================================
+// ACCIONES SEMÁNTICAS DE COORDINADORA
+// =============================================================================
+async function coordMarkPracticeStarted(docNumber, license) {
+  const s = STATE.students.find(st => st.docNumber === docNumber);
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const existing = document.getElementById('coord-start-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'coord-start-modal';
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:380px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:.75rem">🚗</div>
+      <h3 style="font-family:var(--font-title);font-size:1.15rem;font-weight:700;margin-bottom:.4rem">Marcar clases iniciadas</h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem">Confirmas que <strong>${s?.name || docNumber}</strong> ya inició clases prácticas de <strong>${LICENSE_FULL[license] || license}</strong>.</p>
+      <div style="display:flex;gap:.65rem">
+        <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('coord-start-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="flex:1;background:linear-gradient(135deg,#059669,#0891b2);border-color:#059669" onclick="coordMarkPracticeStartedExec('${docNumber}','${license}')">Sí, confirmar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function coordMarkPracticeStartedExec(docNumber, license) {
+  document.getElementById('coord-start-modal')?.remove();
+  showToast('Registrando inicio de clases...', 'info');
+  try {
+    const data = await apiCall({ action: 'updateProceso', docNumber, license, field: 'state', value: 'practice_started' });
+    if (data?.success !== false) {
+      const p = getProceso(docNumber, license);
+      if (p) p.state = 'practice_started';
+      showToast('🚗 Clases iniciadas registradas.', 'success');
+      await renderCoordinatorPortal();
+    } else { showToast('Error: ' + (data?.error || 'desconocido'), 'error'); }
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+async function coordCloseProcess(docNumber, license) {
+  const s = STATE.students.find(st => st.docNumber === docNumber);
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const existing = document.getElementById('coord-close-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'coord-close-modal';
+  modal.className = 'modal-overlay active';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:380px;text-align:center">
+      <div style="font-size:2.5rem;margin-bottom:.75rem">🎓</div>
+      <h3 style="font-family:var(--font-title);font-size:1.15rem;font-weight:700;margin-bottom:.4rem">Cerrar proceso</h3>
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:.5rem">Confirmas que <strong>${s?.name || docNumber}</strong> completó las clases de <strong>${LICENSE_FULL[license] || license}</strong>.</p>
+      <p style="font-size:.76rem;color:var(--text-muted);margin-bottom:1.25rem">El proceso quedará registrado como completado.</p>
+      <div style="display:flex;gap:.65rem">
+        <button class="btn-action-cancel" style="flex:1" onclick="document.getElementById('coord-close-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="flex:1;background:var(--success);border-color:var(--success)" onclick="coordCloseProcessExec('${docNumber}','${license}')">Sí, cerrar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function coordCloseProcessExec(docNumber, license) {
+  document.getElementById('coord-close-modal')?.remove();
+  showToast('Cerrando proceso...', 'info');
+  try {
+    const data = await apiCall({ action: 'completeProceso', docNumber, license });
+    if (data?.success) {
+      const p = getProceso(docNumber, license);
+      if (p) p.state = 'completed';
+      showToast('🎓 Proceso cerrado exitosamente.', 'success');
+      await renderCoordinatorPortal();
+    } else { showToast('Error: ' + (data?.error || 'desconocido'), 'error'); }
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
 
@@ -4684,6 +4784,12 @@ function openStudentProfile(docNumber) {
       actionsDiv.innerHTML += `<button class="btn-primary" style="width:auto;font-size:.75rem;padding:.3rem .75rem" onclick="closeStudentProfile();openModal('${proc.docNumber}','${proc.license}')">+ Asignar instructor</button>`;
     } else {
       actionsDiv.innerHTML += `<button class="btn-sec" style="font-size:.72rem;padding:.25rem .6rem" onclick="closeStudentProfile();openModal('${proc.docNumber}','${proc.license}')">🔄 Cambiar instructor</button>`;
+    }
+    if (proc.state === 'contact_confirmed') {
+      actionsDiv.innerHTML += `<button class="btn-primary" style="font-size:.75rem;padding:.3rem .75rem;width:auto;background:linear-gradient(135deg,#059669,#0891b2);border-color:#059669" onclick="closeStudentProfile();coordMarkPracticeStarted('${proc.docNumber}','${proc.license}')">🚗 Iniciar clases</button>`;
+    }
+    if (proc.state === 'practice_started') {
+      actionsDiv.innerHTML += `<button class="btn-primary" style="font-size:.75rem;padding:.3rem .75rem;width:auto;background:var(--success);border-color:var(--success)" onclick="closeStudentProfile();coordCloseProcess('${proc.docNumber}','${proc.license}')">🎓 Cerrar proceso</button>`;
     }
     actionsDiv.innerHTML += `<button class="btn-sec" style="font-size:.72rem;padding:.25rem .6rem" onclick="closeStudentProfile();coordChangeState('${proc.docNumber}','${proc.license}')">✏️ Estado</button>`;
     tl.appendChild(actionsDiv);
