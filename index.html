@@ -500,6 +500,13 @@
 </head>
 <body>
 
+<div id="app-loading" style="position:fixed;inset:0;background:var(--bg-dark,#0f1923);display:flex;align-items:center;justify-content:center;z-index:9999;transition:opacity .2s">
+  <div style="text-align:center;color:#fff;opacity:.7">
+    <div style="font-size:2rem;font-weight:700;letter-spacing:.05em">D</div>
+    <div style="font-size:.8rem;margin-top:.5rem">Cargando...</div>
+  </div>
+</div>
+
 <header>
   <div class="logo-container" onclick="goHome()">
     <div class="logo-icon">D</div>
@@ -1229,7 +1236,7 @@
         <div id="reg-license-pills" style="display:flex;flex-wrap:wrap;gap:.5rem">
           <button type="button" class="reg-pill" data-val="B1" onclick="toggleLicense(this)">🚗 B1 — Carro particular</button>
           <button type="button" class="reg-pill" data-val="C1" onclick="toggleLicense(this)">🚌 C1 — Carro público</button>
-          <button type="button" class="reg-pill" data-val="C2" onclick="toggleLicense(this)">🚛 C2 — Camión</button>
+          <button type="button" class="reg-pill" data-val="C2" onclick="toggleLicense(this)">🚛 C2 — Carro público pesado</button>
           <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this)">🏍 A2 — Moto +125cc</button>
           <button type="button" class="reg-pill" data-val="A1" onclick="toggleLicense(this)">🛵 A1 — Moto -125cc</button>
           <button type="button" class="reg-pill" data-val="B2" onclick="toggleLicense(this)">🚐 B2 — Camioneta/Bus</button>
@@ -1851,6 +1858,7 @@ function setDocType(btn, type) {
 
 function logout() {
   STATE.currentUser = null;
+  localStorage.removeItem('dc_session');
   document.querySelector('.logo-container').classList.remove('no-click');
   showView('view-login');
   document.getElementById('login-error').style.display = 'none';
@@ -2008,6 +2016,7 @@ async function loginStudent() {
     registerSuccessLogin('student');
 
     STATE.currentUser = { role: 'student', data: student };
+    localStorage.setItem('dc_session', JSON.stringify({ session: STATE.currentUser, ts: Date.now() }));
     document.querySelector('.logo-container').classList.add('no-click');
 
     // Check if PIN is temporary — must change
@@ -2094,6 +2103,7 @@ async function loginInstructor() {
     if (instructor.pin !== pin) { registerFailedAttempt('instructor'); throw new Error('PIN incorrecto.'); }
     registerSuccessLogin('instructor');
     STATE.currentUser = { role: 'instructor', data: instructor };
+    localStorage.setItem('dc_session', JSON.stringify({ session: STATE.currentUser, ts: Date.now() }));
     document.querySelector('.logo-container').classList.add('no-click');
     renderInstructorPortal();
     showView('view-instructor');
@@ -2160,6 +2170,7 @@ async function loginCoordinator() {
     registerSuccessLogin('coordinator');
 
     STATE.currentUser = { role: 'coordinator', data: { username: user, name: coord.name || '' } };
+    localStorage.setItem('dc_session', JSON.stringify({ session: STATE.currentUser, ts: Date.now() }));
     document.querySelector('.logo-container').classList.add('no-click');
     renderCoordinatorPortal();
     showView('view-coordinator');
@@ -2242,6 +2253,7 @@ async function confirmAdminLogin() {
 
   document.getElementById('admin-auth-modal').remove();
   STATE.currentUser = { role: 'admin', data: null };
+  localStorage.setItem('dc_session', JSON.stringify({ session: STATE.currentUser, ts: Date.now() }));
   document.querySelector('.logo-container').classList.add('no-click');
 
   // Show skeleton/loading state immediately
@@ -2304,7 +2316,7 @@ function renderStudentPortal() {
     return;
   }
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Camión', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const tabsEl = document.getElementById('student-license-tabs');
   tabsEl.innerHTML = '';
 
@@ -2347,7 +2359,7 @@ function renderStudentPortal() {
 function renderStudentProcessPanel(s, proc) {
   const timelinePanel = document.getElementById('student-timeline-panel');
   const rightPanel    = document.getElementById('student-active-panel');
-  const LICENSE_FULL  = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Camión', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_FULL  = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const licenseLabel  = LICENSE_FULL[proc.license] || proc.license || 'Tu proceso';
   const inst          = proc.instructorId ? STATE.instructors.find(i => i.id === proc.instructorId) : null;
   const procDays      = daysWaiting(proc, s);
@@ -2686,7 +2698,7 @@ function renderInstructorPortal() {
   }
 
   const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
-  const LICENSE_FULL   = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Camión' };
+  const LICENSE_FULL   = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
 
   const sorted = [...myProcesos].sort((a,b) => {
     // Primero por urgencia de estado, luego por días
@@ -2853,7 +2865,7 @@ async function instMarkContactedConfirm(docNumber, license) {
 async function instMarkPracticeStarted(docNumber, license) {
   const student = STATE.students.find(s => s.docNumber === docNumber);
   if (!student) return;
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Camión' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
 
   const existing = document.getElementById('inst-started-modal');
   if (existing) existing.remove();
@@ -2897,7 +2909,7 @@ async function instMarkReady(docNumber, license) {
   const modal = document.createElement('div');
   modal.id = 'inst-ready-modal';
   modal.className = 'modal-overlay active';
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Camión' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
   modal.innerHTML = `
     <div class="modal-content" style="max-width:380px;text-align:center">
       <div style="font-size:2.5rem;margin-bottom:.75rem">🎓</div>
@@ -2934,7 +2946,7 @@ async function instMarkReadyConfirm(docNumber, license) {
 
 async function confirmGraduate(docNumber, license) {
   const s = STATE.students.find(st => st.docNumber === docNumber);
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Camión' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
 
   document.getElementById('grad-confirm-modal')?.remove();
   const modal = document.createElement('div');
@@ -2975,7 +2987,7 @@ async function confirmGraduateExec(docNumber, license) {
 // =============================================================================
 async function coordMarkPracticeStarted(docNumber, license) {
   const s = STATE.students.find(st => st.docNumber === docNumber);
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Camión', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const existing = document.getElementById('coord-start-modal');
   if (existing) existing.remove();
   const modal = document.createElement('div');
@@ -3011,7 +3023,7 @@ async function coordMarkPracticeStartedExec(docNumber, license) {
 
 async function coordCloseProcess(docNumber, license) {
   const s = STATE.students.find(st => st.docNumber === docNumber);
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Camión', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const existing = document.getElementById('coord-close-modal');
   if (existing) existing.remove();
   const modal = document.createElement('div');
@@ -3376,7 +3388,7 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   if (!container) return;
 
   const LICENSE_FULL   = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
-  const LICENSE_LABELS = { B1:'Carro particular', C1:'Carro público', C2:'Camión', A2:'Moto +125cc', A1:'Moto -125cc', B2:'Camioneta' };
+  const LICENSE_LABELS = { B1:'Carro particular', C1:'Carro público', C2:'Carro público pesado', A2:'Moto +125cc', A1:'Moto -125cc', B2:'Camioneta' };
 
   // Helper: badges de licencia(s) para un proceso (muestra A2 adicional si aplica)
   function licBadges(p) {
@@ -4120,23 +4132,6 @@ function openInstructorModal(instId) {
             </label>
           </div>
         </div>
-        <div class="form-group" style="margin-bottom:.5rem">
-          <label class="config-label">Licencias que maneja</label>
-          <div style="display:flex;gap:.5rem;margin-top:.25rem;flex-wrap:wrap">
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
-              <input type="checkbox" id="ie-lic-A2" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('A2')?'checked':''}> A2 — Moto
-            </label>
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
-              <input type="checkbox" id="ie-lic-B1" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('B1')?'checked':''}> B1 — Automóvil
-            </label>
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
-              <input type="checkbox" id="ie-lic-C1" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('C1')?'checked':''}> C1 — Carro público
-            </label>
-            <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
-              <input type="checkbox" id="ie-lic-C2" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('C2')?'checked':''}> C2 — Camión
-            </label>
-          </div>
-        </div>
         <div id="ie-msg" style="font-size:.78rem;min-height:1rem;color:var(--danger);margin-top:.5rem"></div>
       </div>
       <div class="modal-footer">
@@ -4157,40 +4152,18 @@ async function saveInstructor(instId) {
   const night = document.getElementById('ie-night').checked;
   const msg = document.getElementById('ie-msg');
 
-  // Leer licencias seleccionadas
-  const ALL_LICENSES = ['A2','B1','C1','C2'];
-  const selectedLics = ALL_LICENSES.filter(l => document.getElementById('ie-lic-' + l)?.checked);
-
   if (!instId && !cedula) { msg.textContent = '⚠ La cédula es obligatoria.'; return; }
   if (!instId && !/^\d{6,12}$/.test(cedula)) { msg.textContent = '⚠ La cédula debe tener entre 6 y 12 dígitos numéricos.'; return; }
   if (!instId && STATE.instructors.find(i => i.id === cedula)) { msg.textContent = '⚠ Ya existe un instructor con esa cédula.'; return; }
   if (!name || !phone) { msg.textContent = '⚠ Nombre y teléfono son obligatorios.'; return; }
-  if (selectedLics.length === 0) { msg.textContent = '⚠ Selecciona al menos una licencia.'; return; }
-
-  // Validar: no quitar licencias si tiene alumnos activos en esa licencia
-  if (instId) {
-    const instActual = STATE.instructors.find(i => i.id === instId);
-    const licsActuales = (instActual?.specialty || '').toUpperCase().split(',').map(s => s.trim()).filter(Boolean);
-    const quitadas = licsActuales.filter(l => !selectedLics.includes(l));
-    if (quitadas.length > 0) {
-      const conflictos = quitadas.filter(l =>
-        STATE.procesos.some(p => p.instructorId === instId && p.license?.toUpperCase() === l && p.state !== 'completed')
-      );
-      if (conflictos.length > 0) {
-        msg.textContent = '⚠ No puedes quitar ' + conflictos.join(', ') + ': tiene alumnos activos en esa(s) licencia(s).';
-        return;
-      }
-    }
-  }
 
   const slots = [morning&&'mañana', afternoon&&'tarde', night&&'noche'].filter(Boolean);
   const availability = slots.join(', ');
   const id = instId || cedula;
-  const specialty = selectedLics.join(',');
 
   msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
   const action = instId ? 'updateInstructor' : 'addInstructor';
-  const rInst = await apiCall({ action, id, name, phone, availability, specialty, email: '', photo: '' });
+  const rInst = await apiCall({ action, id, name, phone, availability, specialty: '', email: '', photo: '' });
   if (!rInst?.success) { msg.textContent = '❌ Error: ' + (rInst?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
   await writeLog(`Instructor ${instId ? 'editado' : 'agregado'}: ${name} (CC ${id})`);
   document.getElementById('inst-edit-modal').remove();
@@ -4725,7 +4698,7 @@ async function confirmAssign() {
 // =============================================================================
 // PENDING APPROVAL FUNCTIONS
 // =============================================================================
-const LICENSE_LABELS = { B1:'B1 — Automóvil', B2:'B2 — Camioneta/Bus', A1:'A1 — Moto hasta 125cc', A2:'A2 — Moto +125cc', C1:'C1 — Carro público', C2:'C2 — Camión' };
+const LICENSE_LABELS = { B1:'B1 — Automóvil', B2:'B2 — Camioneta/Bus', A1:'A1 — Moto hasta 125cc', A2:'A2 — Moto +125cc', C1:'C1 — Camión', C2:'C2 — Tractocamión' };
 const SCHEDULE_LABELS = { morning:'Mañanas', afternoon:'Tardes', evening:'Noches', weekend:'Fines de semana', flexible:'Flexible' };
 
 function coordShowPending() {
@@ -4998,7 +4971,7 @@ async function coordRegisterSubmit() {
 // CONFIRMACIÓN DE CONTACTO POR EL ALUMNO (sin depender del instructor)
 // =============================================================================
 async function studentSelfConfirmContact(license) {
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Camión' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
   document.getElementById('self-confirm-modal')?.remove();
   const modal = document.createElement('div');
   modal.id = 'self-confirm-modal';
@@ -5026,7 +4999,7 @@ function openStudentProfile(docNumber) {
   if (!s) return;
 
   const allProcs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
-  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Camión', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const LICENSE_SHORT  = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
   const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
 
@@ -5279,6 +5252,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!localStorage.getItem('dc_admin_pass')) {
     localStorage.setItem('dc_admin_pass', 'admin2026');
   }
+
+  // Restore session from localStorage with 8h TTL (persists on reload, renews on each visit)
+  const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 horas
+  const savedSession = localStorage.getItem('dc_session');
+  if (savedSession && location.hash !== '#register') {
+    try {
+      const { session, ts } = JSON.parse(savedSession);
+      if (session?.role && session?.data !== undefined && (Date.now() - ts) < SESSION_TTL) {
+        await loadData();
+        STATE.currentUser = session;
+        localStorage.setItem('dc_session', JSON.stringify({ session, ts: Date.now() })); // renovar tiempo
+        document.querySelector('.logo-container').classList.add('no-click');
+        if (session.role === 'student') { renderStudentPortal(); showView('view-student'); }
+        else if (session.role === 'instructor') { renderInstructorPortal(); showView('view-instructor'); startPolling(); }
+        else if (session.role === 'coordinator') { renderCoordinatorPortal(); showView('view-coordinator'); startPolling(); }
+        else if (session.role === 'admin') { showView('view-admin'); renderAdminPortal(); }
+      } else {
+        localStorage.removeItem('dc_session');
+      }
+    } catch(e) {
+      localStorage.removeItem('dc_session');
+    }
+  }
+  const _ol = document.getElementById('app-loading');
+  if (_ol) { _ol.style.opacity = '0'; setTimeout(() => _ol.remove(), 200); }
 
   // Warm up the Apps Script in background so it's ready when user logs in
   setTimeout(() => {
