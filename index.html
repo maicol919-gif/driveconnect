@@ -3559,18 +3559,6 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
     countBg: 'var(--danger)',
     rowsFn: buildRojosRows
   });
-  if (verdes.length > 0) cards.push({
-    id: 'verdes', icon: '✅',
-    title: 'Listo para avanzar',
-    desc: 'Alumnos esperando tu acción',
-    count: verdes.length,
-    accentColor: 'var(--success)',
-    borderColor: 'rgba(16,185,129,.3)',
-    bgCard: 'rgba(16,185,129,.06)',
-    bgActive: 'rgba(16,185,129,.12)',
-    countBg: 'var(--success)',
-    rowsFn: buildVerdesRows
-  });
   if (enSeguimiento.length > 0) cards.push({
     id: 'amarillos', icon: '🟡',
     title: 'En seguimiento',
@@ -3582,6 +3570,18 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
     bgActive: 'rgba(245,158,11,.12)',
     countBg: 'rgba(245,158,11,.25)',
     rowsFn: buildAmarillosRows
+  });
+  if (verdes.length > 0) cards.push({
+    id: 'verdes', icon: '✅',
+    title: 'Listo para avanzar',
+    desc: 'Alumnos esperando tu acción',
+    count: verdes.length,
+    accentColor: 'var(--success)',
+    borderColor: 'rgba(16,185,129,.3)',
+    bgCard: 'rgba(16,185,129,.06)',
+    bgActive: 'rgba(16,185,129,.12)',
+    countBg: 'var(--success)',
+    rowsFn: buildVerdesRows
   });
 
   // Grid de cards
