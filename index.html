@@ -3411,8 +3411,15 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
            getDualLicenseContext(p.docNumber, p.license).mode !== 'waiting_while_active';
   });
 
-  // Ordenar rojos por días hábiles desde teórico DESC (más urgente primero)
-  const rojos = [...sinInstructor, ...criticos].sort((a, b) => businessDaysFromTheory(b) - businessDaysFromTheory(a));
+  // Ordenar rojos por días hábiles desde teórico DESC, agrupar licencias del mismo alumno juntas
+  const rojosRaw = [...sinInstructor, ...criticos].sort((a, b) => businessDaysFromTheory(b) - businessDaysFromTheory(a));
+  const seenOrder = [];
+  const rojosByDoc = {};
+  rojosRaw.forEach(p => {
+    if (!rojosByDoc[p.docNumber]) { rojosByDoc[p.docNumber] = []; seenOrder.push(p.docNumber); }
+    rojosByDoc[p.docNumber].push(p);
+  });
+  const rojos = seenOrder.flatMap(doc => rojosByDoc[doc]);
 
   const confirmados = STATE.procesos.filter(p => p.state === 'contact_confirmed');
   const staleClases = STATE.procesos.filter(p => {
@@ -3470,21 +3477,35 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   // ── CARD ROJA ─────────────────────────────────────────────────────────────
   if (rojos.length > 0) {
     let rowsHtml = '';
+    const seenNames = new Set();
     rojos.forEach((p, i) => {
       const st        = STATE.students.find(s => s.docNumber === p.docNumber);
       const bdDays    = businessDaysFromTheory(p);
       const isOverdue = bdDays >= CONFIG.WAIT_DAYS_CRITICAL;
       const dayColor  = isOverdue ? 'var(--danger)' : 'var(--warning)';
       const dayBg     = isOverdue ? 'rgba(244,63,94,.12)' : 'rgba(245,158,11,.12)';
-      const border    = i < rojos.length - 1 ? 'border-bottom:1px solid rgba(244,63,94,.1)' : '';
+      const isRepeat  = seenNames.has(p.docNumber);
+      seenNames.add(p.docNumber);
+      // Borde: línea normal entre filas distintas, línea punteada entre licencias del mismo alumno
+      const nextP     = rojos[i + 1];
+      const sameNext  = nextP && nextP.docNumber === p.docNumber;
+      const border    = i < rojos.length - 1
+        ? (sameNext ? 'border-bottom:1px dashed rgba(244,63,94,.15)' : 'border-bottom:1px solid rgba(244,63,94,.1)')
+        : '';
+      const namePart  = isRepeat
+        ? `<div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.1rem;padding-left:.1rem">↳ también</div>`
+        : `<div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>`;
+      const theoryPart = !isRepeat
+        ? `<span style="font-size:.72rem;color:var(--text-muted)">Teórico: ${fmtTheory(p)}</span>
+           <span style="background:${dayBg};border-radius:9999px;padding:.1rem .45rem;font-size:.72rem;font-weight:700;color:${dayColor}">${bdDays}d hábiles</span>`
+        : `<span style="font-size:.72rem;color:var(--text-muted)">misma fecha · ${bdDays}d hábiles</span>`;
       rowsHtml += `
-        <div style="padding:.7rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
+        <div style="padding:.6rem 1rem ${isRepeat ? '.6rem 1.8rem' : ''};display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}${isRepeat ? ';background:rgba(244,63,94,.02)' : ''}">
           <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
-            <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">
-              ${licBadges(p)}
-              <span style="font-size:.72rem;color:var(--text-muted)">Teórico: ${fmtTheory(p)}</span>
-              <span style="background:${dayBg};border-radius:9999px;padding:.1rem .45rem;font-size:.72rem;font-weight:700;color:${dayColor}">${bdDays}d hábiles</span>
+            ${namePart}
+            <div style="display:flex;align-items:center;gap:.4rem;margin-top:.2rem;flex-wrap:wrap">
+              <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_FULL[p.license] || p.license} ${LICENSE_LABELS[p.license] || ''}</span>
+              ${theoryPart}
             </div>
           </div>
           <button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--danger);border-color:var(--danger);flex-shrink:0"
