@@ -4582,7 +4582,14 @@ function openModal(docNumber, license) {
   }
 
   // Build instructor options sorted: compatible + less load first
-  const withMeta = STATE.instructors.map(i => {
+  // Filter by license specialty — only show instructors who handle this license
+  const eligibleInstructors = STATE.instructors.filter(i => {
+    if (!i.specialty) return true; // sin especialidad definida: mostrar igual
+    const specs = i.specialty.split(',').map(s => s.trim().toUpperCase());
+    return specs.includes((_assignLicense || '').toUpperCase());
+  });
+
+  const withMeta = eligibleInstructors.map(i => {
     const load = STATE.procesos.filter(p => p.instructorId === i.id && p.state !== 'completed').length;
     const iSlots = parseSchedule(i.availability || '');
     const match = scheduleMatch(iSlots, studSlots); // true / false / null
@@ -4596,6 +4603,13 @@ function openModal(docNumber, license) {
 
   const list = document.getElementById('modal-instructor-list');
   list.innerHTML = '';
+  if (withMeta.length === 0) {
+    list.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text-muted);font-size:.85rem;">
+      No hay instructores disponibles para la licencia <strong>${_assignLicense || ''}</strong>.<br>Verifica las especialidades en el panel de administración.
+    </div>`;
+    document.getElementById('assign-modal').classList.add('active');
+    return;
+  }
   withMeta.forEach((inst, idx) => {
     const matchLabel = inst.match === true
       ? '<span class="match-badge match-good">✓ Horario compatible</span>'
