@@ -3411,7 +3411,7 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
            getDualLicenseContext(p.docNumber, p.license).mode !== 'waiting_while_active';
   });
 
-  // Ordenar rojos por días hábiles desde teórico DESC, agrupar licencias del mismo alumno juntas
+  // Ordenar rojos: desc dias habiles, agrupar licencias del mismo alumno juntas v2
   const rojosRaw = [...sinInstructor, ...criticos].sort((a, b) => businessDaysFromTheory(b) - businessDaysFromTheory(a));
   const seenOrder = [];
   const rojosByDoc = {};
