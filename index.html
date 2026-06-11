@@ -726,92 +726,34 @@
     <!-- ===== VISTA INICIO ===== -->
     <div id="coord-view-main">
 
-      <!-- BANNERS -->
-      <div id="coord-pending-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.25rem;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
-        <span style="font-size:1.2rem">📋</span>
-        <div style="flex:1">
-          <strong style="font-size:.88rem">Registros pendientes de activación</strong>
-          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem"><span id="coord-pending-count">0</span> alumno(s) esperan ser activados.</p>
-        </div>
-        <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0" onclick="coordShowPending()">Revisar</button>
-      </div>
-
-      <div id="coord-ready-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.25rem;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
-        <span style="font-size:1.2rem">⏰</span>
-        <div style="flex:1">
-          <strong style="font-size:.88rem;color:var(--warning)">Alumnos pendientes de iniciar clases</strong>
-          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem"><span id="coord-ready-count">0</span> alumno(s) confirmaron contacto pero el instructor no ha registrado inicio de clases.</p>
-        </div>
-        <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0;background:var(--warning);border-color:var(--warning)" onclick="switchCoordTab('students');coordMetricClick('contact_confirmed')">Revisar</button>
-      </div>
-
-      <div id="coord-practice-stale-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.25rem;background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
-        <span style="font-size:1.2rem">⚠️</span>
-        <div style="flex:1">
-          <strong style="font-size:.88rem;color:var(--danger)">Posible finalización sin registrar</strong>
-          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem"><span id="coord-practice-stale-count">0</span> alumno(s) llevan más de 15 días en prácticas sin que el instructor registre finalización.</p>
-        </div>
-        <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0;background:var(--danger);border-color:var(--danger)" onclick="switchCoordTab('students');coordMetricClick('practice_started')">Verificar</button>
-      </div>
-
-      <div id="coord-dual-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.25rem;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
-        <span style="font-size:1.2rem">🔄</span>
-        <div style="flex:1">
-          <strong style="font-size:.88rem;color:var(--brand-light)">Segunda licencia pendiente de instructor</strong>
-          <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.1rem"><span id="coord-dual-count">0</span> alumno(s) finalizaron una licencia — asignar instructor para la segunda en los próximos 5 días hábiles.</p>
-        </div>
-        <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem;flex-shrink:0" onclick="switchCoordTab('students');coordMetricClick('dual_pending')">Asignar</button>
-      </div>
+      <!-- IDs ocultos para compatibilidad con lógica existente -->
+      <span id="coord-pending-count" style="display:none">0</span>
+      <span id="coord-ready-count" style="display:none">0</span>
+      <span id="coord-practice-stale-count" style="display:none">0</span>
+      <span id="coord-dual-count" style="display:none">0</span>
+      <div id="coord-pending-banner" style="display:none"></div>
+      <div id="coord-ready-banner" style="display:none"></div>
+      <div id="coord-practice-stale-banner" style="display:none"></div>
+      <div id="coord-dual-banner" style="display:none"></div>
+      <span id="cmetric-unassigned" style="display:none">0</span>
+      <span id="cmetric-warn" style="display:none">0</span>
+      <span id="cmetric-alerts" style="display:none">0</span>
+      <span id="cmetric-active" style="display:none">0</span>
+      <span id="cmetric-avg" style="display:none">—</span>
+      <div id="mcard-unassigned" style="display:none"></div>
+      <div id="mcard-alerts" style="display:none"></div>
+      <div id="mcard-alerts-bar" style="display:none"></div>
+      <div id="mcard-alerts-icon" style="display:none"></div>
 
       <!-- ACCIONES RÁPIDAS -->
-      <div style="display:flex;gap:.65rem;margin-bottom:1.5rem;flex-wrap:wrap">
+      <div style="display:flex;gap:.65rem;margin-bottom:1.25rem;flex-wrap:wrap">
         <button class="btn-primary" style="width:auto;padding:.5rem 1rem;font-size:.82rem" onclick="coordShowRegisterQR()">📱 Mostrar QR</button>
-        <button class="btn-sec"     style="padding:.5rem 1rem;font-size:.82rem"             onclick="coordRegisterManual()">✏️ Registrar alumno</button>
+        <button class="btn-sec" style="padding:.5rem 1rem;font-size:.82rem" onclick="coordRegisterManual()">✏️ Registrar alumno</button>
+        <button class="btn-sec" style="padding:.5rem 1rem;font-size:.82rem" onclick="coordShowPending()" id="btn-pending-qr" style="display:none">📋 Activar registros <span id="coord-pending-badge" style="background:var(--danger);color:white;border-radius:9999px;padding:.05rem .4rem;font-size:.7rem;font-weight:700;margin-left:.3rem"></span></button>
       </div>
 
-      <!-- CARDS MÉTRICAS -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.85rem;margin-bottom:1.75rem">
-
-        <div id="mcard-unassigned" class="metric-card" style="cursor:pointer;position:relative;overflow:hidden;transition:var(--t-fast);padding:1rem" onclick="switchCoordTab('students');coordMetricClick('unassigned')">
-          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--danger)"></div>
-          <div style="font-size:1.5rem;margin-bottom:.4rem">⏰</div>
-          <div class="metric-val" id="cmetric-unassigned" style="font-size:2rem;color:var(--danger);line-height:1">0</div>
-          <div style="font-size:.72rem;color:var(--text-secondary);margin-top:.2rem;font-weight:600">Sin instructor</div>
-          <div style="font-size:.65rem;color:var(--text-muted)">procesos sin asignar</div>
-        </div>
-
-        <div id="mcard-alerts" class="metric-card" style="cursor:pointer;position:relative;overflow:hidden;transition:var(--t-fast);padding:1rem" onclick="switchCoordTab('students');coordMetricClick('alerts')">
-          <div style="position:absolute;top:0;left:0;right:0;height:3px" id="mcard-alerts-bar" style="background:var(--warning)"></div>
-          <div style="font-size:1.5rem;margin-bottom:.4rem" id="mcard-alerts-icon">⚠️</div>
-          <div style="display:flex;gap:.75rem;align-items:flex-end">
-            <div>
-              <div style="font-size:.6rem;color:var(--warning);font-weight:700;text-transform:uppercase;letter-spacing:.3px">+8d</div>
-              <div class="metric-val" id="cmetric-warn" style="font-size:1.5rem;color:var(--warning);line-height:1">0</div>
-            </div>
-            <div>
-              <div style="font-size:.6rem;color:var(--danger);font-weight:700;text-transform:uppercase;letter-spacing:.3px">+15d</div>
-              <div class="metric-val" id="cmetric-alerts" style="font-size:1.5rem;color:var(--danger);line-height:1">0</div>
-            </div>
-          </div>
-          <div style="font-size:.65rem;color:var(--text-muted);margin-top:.2rem">sin contactar</div>
-        </div>
-
-        <div class="metric-card" style="cursor:pointer;position:relative;overflow:hidden;transition:var(--t-fast);padding:1rem" onclick="switchCoordTab('students');coordMetricClick('active')">
-          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--success)"></div>
-          <div style="font-size:1.5rem;margin-bottom:.4rem">🚗</div>
-          <div class="metric-val" id="cmetric-active" style="font-size:2rem;color:var(--success);line-height:1">0</div>
-          <div style="font-size:.72rem;color:var(--text-secondary);margin-top:.2rem;font-weight:600">En clases</div>
-          <div style="font-size:.65rem;color:var(--text-muted)">actualmente</div>
-        </div>
-
-        <div class="metric-card" style="position:relative;overflow:hidden;padding:1rem">
-          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:var(--brand)"></div>
-          <div style="font-size:1.5rem;margin-bottom:.4rem">📊</div>
-          <div class="metric-val" id="cmetric-avg" style="font-size:2rem;line-height:1">—</div>
-          <div style="font-size:.72rem;color:var(--text-secondary);margin-top:.2rem;font-weight:600">Espera promedio</div>
-          <div style="font-size:.65rem;color:var(--text-muted)">días hábiles</div>
-        </div>
-      </div>
+      <!-- LISTA DE TAREAS -->
+      <div id="coord-task-list" style="display:flex;flex-direction:column;gap:.6rem"></div>
 
     </div>
 
@@ -3305,6 +3247,179 @@ function renderCoordTable() {
   });
 }
 
+
+// =============================================================================
+// LISTA DE TAREAS DEL HOME DE COORDINADORA
+// =============================================================================
+function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practiceStale, dualPostCompleted, dualWaiting, enClases, avg, pendingProcs }) {
+  const container = document.getElementById('coord-task-list');
+  if (!container) return;
+
+  const LICENSE_FULL  = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+  const LICENSE_LABELS = { B1:'Carro particular', C1:'Carro público', C2:'Carro público pesado', A2:'Moto +125cc', A1:'Moto -125cc', B2:'Camioneta' };
+
+  let html = '';
+
+  // ── BLOQUE ROJO: sin instructor (Pilar actúa) ──────────────────────────
+  const sinInstructor = STATE.procesos.filter(p => p.state === 'theory_passed');
+  const criticos      = STATE.procesos.filter(p => {
+    if (p.state !== 'instructor_assigned') return false;
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    return daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL &&
+           getDualLicenseContext(p.docNumber, p.license).mode !== 'waiting_while_active';
+  });
+  const rojos = [...sinInstructor, ...criticos];
+
+  if (rojos.length > 0) {
+    html += `<div style="background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-md);overflow:hidden">
+      <div style="padding:.7rem 1rem;background:rgba(244,63,94,.1);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid rgba(244,63,94,.2)">
+        <span style="font-size:1rem">🔴</span>
+        <strong style="font-size:.82rem;color:var(--danger)">Urgente — la academia responde</strong>
+        <span style="margin-left:auto;background:var(--danger);color:white;border-radius:9999px;padding:.1rem .5rem;font-size:.7rem;font-weight:700">${rojos.length}</span>
+      </div>
+      <div style="display:flex;flex-direction:column">`;
+
+    rojos.forEach((p, i) => {
+      const st    = STATE.students.find(s => s.docNumber === p.docNumber);
+      const days  = daysWaiting(p, st);
+      const lic   = LICENSE_FULL[p.license]  || p.license;
+      const licL  = LICENSE_LABELS[p.license] || p.license;
+      const isCrit = p.state === 'instructor_assigned';
+      const label  = isCrit
+        ? `<span style="color:var(--danger);font-size:.72rem;font-weight:700">${days}d sin contactar</span>`
+        : `<span style="color:var(--warning);font-size:.72rem">Sin instructor</span>`;
+      const border = i < rojos.length - 1 ? 'border-bottom:1px solid rgba(244,63,94,.12)' : '';
+      html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.15rem;flex-wrap:wrap">
+            <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .4rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${lic} ${licL}</span>
+            ${label}
+          </div>
+        </div>
+        <button class="btn-primary" style="width:auto;padding:.3rem .8rem;font-size:.75rem;background:var(--danger);border-color:var(--danger);flex-shrink:0" onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  }
+
+  // ── BLOQUE VERDE: acción puntual de Pilar ──────────────────────────────
+  const confirmados = STATE.procesos.filter(p => p.state === 'contact_confirmed');
+  const staleClases = STATE.procesos.filter(p => {
+    if (p.state !== 'practice_started') return false;
+    const cd = p.contactDate;
+    if (!cd) return false;
+    return businessDaysBetween(parseToISO(cd) || today(), today()) >= CONFIG.WAIT_DAYS_PRACTICE_STALE;
+  });
+  const dualPost = STATE.procesos.filter(p => {
+    if (!['theory_passed','instructor_assigned'].includes(p.state)) return false;
+    return getDualLicenseContext(p.docNumber, p.license).mode === 'post_completed';
+  });
+  const verdes = [...confirmados, ...staleClases, ...dualPost];
+
+  if (verdes.length > 0) {
+    html += `<div style="background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-md);overflow:hidden;margin-top:.5rem">
+      <div style="padding:.7rem 1rem;background:rgba(16,185,129,.08);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid rgba(16,185,129,.15)">
+        <span style="font-size:1rem">✅</span>
+        <strong style="font-size:.82rem;color:var(--success)">Listo para avanzar — acción de Pilar</strong>
+        <span style="margin-left:auto;background:var(--success);color:white;border-radius:9999px;padding:.1rem .5rem;font-size:.7rem;font-weight:700">${verdes.length}</span>
+      </div>
+      <div style="display:flex;flex-direction:column">`;
+
+    verdes.forEach((p, i) => {
+      const st   = STATE.students.find(s => s.docNumber === p.docNumber);
+      const lic  = LICENSE_FULL[p.license]  || p.license;
+      const licL = LICENSE_LABELS[p.license] || p.license;
+      const border = i < verdes.length - 1 ? 'border-bottom:1px solid rgba(16,185,129,.1)' : '';
+      let accionLabel = '', accionBtn = '';
+
+      if (p.state === 'contact_confirmed') {
+        accionLabel = `<span style="color:var(--success);font-size:.72rem">Contacto confirmado</span>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .8rem;font-size:.75rem;background:linear-gradient(135deg,#059669,#0891b2);border-color:#059669;flex-shrink:0" onclick="coordMarkPracticeStarted('${p.docNumber}','${p.license}')">🚗 Iniciar clases</button>`;
+      } else if (p.state === 'practice_started') {
+        const cd   = p.contactDate ? businessDaysBetween(parseToISO(p.contactDate) || today(), today()) : 0;
+        accionLabel = `<span style="color:var(--warning);font-size:.72rem">${cd}d en prácticas</span>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .8rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0" onclick="coordCloseProcess('${p.docNumber}','${p.license}')">🎓 Cerrar proceso</button>`;
+      } else {
+        const ctx  = getDualLicenseContext(p.docNumber, p.license);
+        const dCtx = ctx.daysSinceCompleted || 0;
+        accionLabel = `<span style="color:var(--warning);font-size:.72rem">2ª licencia — ${dCtx}d desde fin</span>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .8rem;font-size:.75rem;flex-shrink:0" onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>`;
+      }
+
+      html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.15rem;flex-wrap:wrap">
+            <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .4rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${lic} ${licL}</span>
+            ${accionLabel}
+          </div>
+        </div>
+        ${accionBtn}
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  }
+
+  // ── BLOQUE AMARILLO: en seguimiento (instructor responde) ──────────────
+  const enSeguimiento = STATE.procesos.filter(p => {
+    if (!['instructor_assigned','contacted'].includes(p.state)) return false;
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    const d  = daysWaiting(p, st);
+    if (p.state === 'instructor_assigned' && d >= CONFIG.WAIT_DAYS_CRITICAL) return false; // ya está en rojo
+    if (getDualLicenseContext(p.docNumber, p.license).mode === 'waiting_while_active') return false;
+    return true;
+  });
+
+  if (enSeguimiento.length > 0) {
+    html += `<div style="background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.25);border-radius:var(--r-md);overflow:hidden;margin-top:.5rem">
+      <div style="padding:.7rem 1rem;background:rgba(245,158,11,.08);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid rgba(245,158,11,.15)">
+        <span style="font-size:1rem">🟡</span>
+        <strong style="font-size:.82rem;color:var(--warning)">En seguimiento — instructor responde</strong>
+        <span style="margin-left:auto;background:rgba(245,158,11,.3);color:var(--warning);border-radius:9999px;padding:.1rem .5rem;font-size:.7rem;font-weight:700;border:1px solid rgba(245,158,11,.4)">${enSeguimiento.length}</span>
+      </div>
+      <div style="display:flex;flex-direction:column">`;
+
+    enSeguimiento.forEach((p, i) => {
+      const st   = STATE.students.find(s => s.docNumber === p.docNumber);
+      const inst = STATE.instructors.find(ins => ins.id === p.instructorId);
+      const lic  = LICENSE_FULL[p.license] || p.license;
+      const days = daysWaiting(p, st);
+      const border = i < enSeguimiento.length - 1 ? 'border-bottom:1px solid rgba(245,158,11,.1)' : '';
+      const dayColor = days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
+      const stateLabel = p.state === 'contacted'
+        ? `<span style="color:#a78bfa;font-size:.72rem">Esperando confirmación alumno</span>`
+        : `<span style="color:${dayColor};font-size:.72rem">${days}d — ${inst ? inst.name.split(' ')[0] : 'sin instructor'}</span>`;
+
+      html += `<div style="padding:.6rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.15rem;flex-wrap:wrap">
+            <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .4rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${lic}</span>
+            ${stateLabel}
+          </div>
+        </div>
+        <button class="btn-sec" style="font-size:.73rem;padding:.25rem .6rem;flex-shrink:0" onclick="openStudentProfile('${p.docNumber}')">📋 Ver</button>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  }
+
+  // ── Estado vacío ───────────────────────────────────────────────────────
+  if (rojos.length === 0 && verdes.length === 0 && enSeguimiento.length === 0) {
+    html = `<div style="text-align:center;padding:2.5rem 1rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:var(--r-md)">
+      <div style="font-size:2.5rem;margin-bottom:.65rem">🎉</div>
+      <h4 style="color:var(--success);margin-bottom:.3rem">Sin tareas pendientes</h4>
+      <p style="font-size:.82rem;color:var(--text-muted)">${enClases > 0 ? `${enClases} alumno(s) en clases actualmente.` : 'Todo al día.'}</p>
+    </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
 function renderCoordInstructors() {
   const container = document.getElementById('coord-inst-list');
   if (!container) return;
@@ -3445,91 +3560,38 @@ async function renderCoordinatorPortal() {
     return a + daysWaiting(p, st);
   }, 0) / pendingProcs.length) : 0;
 
-  // Armar mensaje de contexto según situación real (prioridad descendente)
-  let contextMsg = '';
-  const urgentes = critical + unassigned;
-  if (dualPostCompleted > 0) {
-    contextMsg = `<strong style="color:var(--warning)">🔄 ${dualPostCompleted} alumno(s)</strong> finalizaron una licencia — tienes ${CONFIG.WAIT_DAYS_POST_COMPLETED} días hábiles para asignarles instructor de la segunda.`;
-  } else if (urgentes > 0) {
-    contextMsg = `Tienes <strong style="color:var(--danger)">${urgentes} proceso(s) urgente(s)</strong> que necesitan atención inmediata.`;
-  } else if (practiceStale > 0) {
-    contextMsg = `<strong style="color:var(--warning)">⚠ ${practiceStale} alumno(s)</strong> llevan más de ${CONFIG.WAIT_DAYS_PRACTICE_STALE} días en prácticas sin que el instructor registre finalización. Verifica con el instructor.`;
-  } else if (confirmStale > 0) {
-    contextMsg = `<strong style="color:var(--warning)">${confirmStale} alumno(s)</strong> con contacto confirmado pero sin iniciar clases hace más de ${CONFIG.WAIT_DAYS_CONFIRM_STALE} días. Revisa con el instructor.`;
-  } else if (dualWaiting > 0) {
-    contextMsg = `<strong style="color:var(--brand-light)">🔄 ${dualWaiting} proceso(s)</strong> esperan instructor de segunda licencia mientras el alumno ya está en prácticas de otra.`;
-  } else if (warn > 0) {
-    contextMsg = `Hay <strong style="color:var(--warning)">${warn} proceso(s) en zona de alerta</strong>. Revísalos pronto.`;
+  // Saludo dinámico
+  const totalTasks = unassigned + critical;
+  let welcomeMsg = '';
+  if (totalTasks > 0) {
+    welcomeMsg = `Tienes <strong style="color:var(--danger)">${totalTasks} tarea(s) urgente(s)</strong> que requieren tu atención.`;
+  } else if (warn > 0 || confirmStale > 0 || practiceStale > 0) {
+    welcomeMsg = `Todo bajo control. <strong style="color:var(--warning)">Hay items en seguimiento.</strong>`;
   } else {
-    contextMsg = `Todo en orden. <strong style="color:var(--success)">${enClases} alumno(s) en clases actualmente.</strong> ¡Buen trabajo!`;
+    welcomeMsg = `Todo en orden. <strong style="color:var(--success)">${enClases} alumno(s) en clases actualmente.</strong> ¡Buen trabajo!`;
   }
 
   const greetEl = document.getElementById('coord-greeting');
   if (greetEl) greetEl.innerHTML = `${emoji} ${saludo}, ${nombreFinal}`;
   const welcomeEl = document.getElementById('coord-welcome');
-  if (welcomeEl) welcomeEl.innerHTML = contextMsg;
+  if (welcomeEl) welcomeEl.innerHTML = welcomeMsg;
 
-  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  setEl('cmetric-unassigned', unassigned);
-  setEl('cmetric-warn',       warn);
-  setEl('cmetric-alerts',     critical);
-  setEl('cmetric-active',     enClases);
-  setEl('cmetric-avg',        pendingProcs.length ? avg + 'd' : '—');
-
-  // Color dinámico card sin instructor
-  const mcardU = document.getElementById('mcard-unassigned');
-  if (mcardU) mcardU.style.borderColor = unassigned >= 3 ? 'rgba(244,63,94,.5)' : unassigned >= 1 ? 'rgba(245,158,11,.4)' : 'var(--border-color)';
-
-  // Color barra + ícono card alertas
-  const alertBar  = document.getElementById('mcard-alerts-bar');
-  const alertIcon = document.getElementById('mcard-alerts-icon');
-  if (alertBar)  alertBar.style.background  = critical > 0 ? 'var(--danger)' : warn > 0 ? 'var(--warning)' : 'var(--border-color)';
-  if (alertIcon) alertIcon.textContent      = critical > 0 ? '🚨' : warn > 0 ? '⚠️' : '✅';
-
-  // Animación pulsante si hay críticos
-  const mcardAlerts = document.getElementById('mcard-alerts');
-  if (mcardAlerts) {
-    if (critical > 0) {
-      mcardAlerts.style.animation = 'pulseBg 2.5s infinite ease-in-out';
-      mcardAlerts.style.borderColor = 'rgba(244,63,94,.4)';
-    } else {
-      mcardAlerts.style.animation = '';
-      mcardAlerts.style.borderColor = '';
-    }
-  }
-
-  // Banner pendientes de activación
+  // Botón activar registros pendientes
   const pendingStudents = STATE.students.filter(s => s.active === 'false' || s.active === '');
-  const pendingBanner = document.getElementById('coord-pending-banner');
-  if (pendingBanner) {
-    pendingBanner.style.display = pendingStudents.length > 0 ? 'flex' : 'none';
-    const cEl = document.getElementById('coord-pending-count');
-    if (cEl) cEl.textContent = pendingStudents.length;
+  const btnPending = document.getElementById('btn-pending-qr');
+  const badgePending = document.getElementById('coord-pending-badge');
+  if (btnPending) {
+    btnPending.style.display = pendingStudents.length > 0 ? 'inline-flex' : 'none';
+    if (badgePending) badgePending.textContent = pendingStudents.length || '';
   }
 
-  // Banner: alerta contact_confirmed estancado (sin inicio de clases tras confirmación)
-  const readyBanner = document.getElementById('coord-ready-banner');
-  if (readyBanner) {
-    readyBanner.style.display = confirmStale > 0 ? 'flex' : 'none';
-    const rEl = document.getElementById('coord-ready-count');
-    if (rEl) rEl.textContent = confirmStale;
-  }
-
-  // Banner: posible finalización sin registrar (practice_stale)
-  const practiceStaleEl = document.getElementById('coord-practice-stale-banner');
-  if (practiceStaleEl) {
-    practiceStaleEl.style.display = practiceStale > 0 ? 'flex' : 'none';
-    const psEl = document.getElementById('coord-practice-stale-count');
-    if (psEl) psEl.textContent = practiceStale;
-  }
-
-  // Banner: segunda licencia pendiente post-completed
-  const dualBanner = document.getElementById('coord-dual-banner');
-  if (dualBanner) {
-    dualBanner.style.display = dualPostCompleted > 0 ? 'flex' : 'none';
-    const dEl = document.getElementById('coord-dual-count');
-    if (dEl) dEl.textContent = dualPostCompleted;
-  }
+  // Construir lista de tareas
+  renderCoordTaskList({
+    unassigned, critical, warn,
+    confirmStale, practiceStale,
+    dualPostCompleted, dualWaiting,
+    enClases, avg, pendingProcs
+  });
 
   // Wire search/filter listeners (una sola vez)
   const searchEl = document.getElementById('coord-search');
