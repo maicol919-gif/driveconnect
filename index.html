@@ -3375,12 +3375,34 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   const container = document.getElementById('coord-task-list');
   if (!container) return;
 
-  const LICENSE_FULL  = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+  const LICENSE_FULL   = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
   const LICENSE_LABELS = { B1:'Carro particular', C1:'Carro público', C2:'Carro público pesado', A2:'Moto +125cc', A1:'Moto -125cc', B2:'Camioneta' };
 
-  let html = '';
+  // Helper: badges de licencia(s) para un proceso (muestra A2 adicional si aplica)
+  function licBadges(p) {
+    const allProcs = getStudentProcesos(p.docNumber);
+    const otherA2  = allProcs.find(op => op.license === 'A2' && op.docNumber === p.docNumber && op.license !== p.license);
+    let badges = `<span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_FULL[p.license] || p.license} ${LICENSE_LABELS[p.license] || ''}</span>`;
+    if (p.license !== 'A2' && otherA2) {
+      badges += `<span style="background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:#a78bfa;font-weight:600">🏍 A2 Moto</span>`;
+    }
+    return badges;
+  }
 
-  // ── BLOQUE ROJO: sin instructor (Pilar actúa) ──────────────────────────
+  // Helper: días hábiles desde theoryPassedDate del alumno
+  function businessDaysFromTheory(p) {
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    if (!st?.theoryPassedDate) return 0;
+    return businessDaysBetween(parseToISO(st.theoryPassedDate) || today(), today());
+  }
+
+  // Helper: formatear fecha teorico legible
+  function fmtTheory(p) {
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    return formatDate(st?.theoryPassedDate) || '—';
+  }
+
+  // ── DATOS ────────────────────────────────────────────────────────────────
   const sinInstructor = STATE.procesos.filter(p => p.state === 'theory_passed');
   const criticos      = STATE.procesos.filter(p => {
     if (p.state !== 'instructor_assigned') return false;
@@ -3388,43 +3410,10 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
     return daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL &&
            getDualLicenseContext(p.docNumber, p.license).mode !== 'waiting_while_active';
   });
-  const rojos = [...sinInstructor, ...criticos];
 
-  if (rojos.length > 0) {
-    html += `<div style="background:rgba(244,63,94,.06);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-md);overflow:hidden">
-      <div style="padding:.7rem 1rem;background:rgba(244,63,94,.1);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid rgba(244,63,94,.2)">
-        <span style="font-size:1rem">🔴</span>
-        <strong style="font-size:.82rem;color:var(--danger)">Urgente — la academia responde</strong>
-        <span style="margin-left:auto;background:var(--danger);color:white;border-radius:9999px;padding:.1rem .5rem;font-size:.7rem;font-weight:700">${rojos.length}</span>
-      </div>
-      <div style="display:flex;flex-direction:column">`;
+  // Ordenar rojos por días hábiles desde teórico DESC (más urgente primero)
+  const rojos = [...sinInstructor, ...criticos].sort((a, b) => businessDaysFromTheory(b) - businessDaysFromTheory(a));
 
-    rojos.forEach((p, i) => {
-      const st    = STATE.students.find(s => s.docNumber === p.docNumber);
-      const days  = daysWaiting(p, st);
-      const lic   = LICENSE_FULL[p.license]  || p.license;
-      const licL  = LICENSE_LABELS[p.license] || p.license;
-      const isCrit = p.state === 'instructor_assigned';
-      const label  = isCrit
-        ? `<span style="color:var(--danger);font-size:.72rem;font-weight:700">${days}d sin contactar</span>`
-        : `<span style="color:var(--warning);font-size:.72rem">Sin instructor</span>`;
-      const border = i < rojos.length - 1 ? 'border-bottom:1px solid rgba(244,63,94,.12)' : '';
-      html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
-          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.15rem;flex-wrap:wrap">
-            <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .4rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${lic} ${licL}</span>
-            ${label}
-          </div>
-        </div>
-        <button class="btn-primary" style="width:auto;padding:.3rem .8rem;font-size:.75rem;background:var(--danger);border-color:var(--danger);flex-shrink:0" onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>
-      </div>`;
-    });
-
-    html += `</div></div>`;
-  }
-
-  // ── BLOQUE VERDE: acción puntual de Pilar ──────────────────────────────
   const confirmados = STATE.procesos.filter(p => p.state === 'contact_confirmed');
   const staleClases = STATE.procesos.filter(p => {
     if (p.state !== 'practice_started') return false;
@@ -3438,106 +3427,180 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   });
   const verdes = [...confirmados, ...staleClases, ...dualPost];
 
-  if (verdes.length > 0) {
-    html += `<div style="background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-md);overflow:hidden;margin-top:.5rem">
-      <div style="padding:.7rem 1rem;background:rgba(16,185,129,.08);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid rgba(16,185,129,.15)">
-        <span style="font-size:1rem">✅</span>
-        <strong style="font-size:.82rem;color:var(--success)">Listo para avanzar — acción de Pilar</strong>
-        <span style="margin-left:auto;background:var(--success);color:white;border-radius:9999px;padding:.1rem .5rem;font-size:.7rem;font-weight:700">${verdes.length}</span>
-      </div>
-      <div style="display:flex;flex-direction:column">`;
-
-    verdes.forEach((p, i) => {
-      const st   = STATE.students.find(s => s.docNumber === p.docNumber);
-      const lic  = LICENSE_FULL[p.license]  || p.license;
-      const licL = LICENSE_LABELS[p.license] || p.license;
-      const border = i < verdes.length - 1 ? 'border-bottom:1px solid rgba(16,185,129,.1)' : '';
-      let accionLabel = '', accionBtn = '';
-
-      if (p.state === 'contact_confirmed') {
-        accionLabel = `<span style="color:var(--success);font-size:.72rem">Contacto confirmado</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .8rem;font-size:.75rem;background:linear-gradient(135deg,#059669,#0891b2);border-color:#059669;flex-shrink:0" onclick="coordMarkPracticeStarted('${p.docNumber}','${p.license}')">🚗 Iniciar clases</button>`;
-      } else if (p.state === 'practice_started') {
-        const cd   = p.contactDate ? businessDaysBetween(parseToISO(p.contactDate) || today(), today()) : 0;
-        accionLabel = `<span style="color:var(--warning);font-size:.72rem">${cd}d en prácticas</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .8rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0" onclick="coordCloseProcess('${p.docNumber}','${p.license}')">🎓 Cerrar proceso</button>`;
-      } else {
-        const ctx  = getDualLicenseContext(p.docNumber, p.license);
-        const dCtx = ctx.daysSinceCompleted || 0;
-        accionLabel = `<span style="color:var(--warning);font-size:.72rem">2ª licencia — ${dCtx}d desde fin</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .8rem;font-size:.75rem;flex-shrink:0" onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>`;
-      }
-
-      html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
-          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.15rem;flex-wrap:wrap">
-            <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .4rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${lic} ${licL}</span>
-            ${accionLabel}
-          </div>
-        </div>
-        ${accionBtn}
-      </div>`;
-    });
-
-    html += `</div></div>`;
-  }
-
-  // ── BLOQUE AMARILLO: en seguimiento (instructor responde) ──────────────
   const enSeguimiento = STATE.procesos.filter(p => {
     if (!['instructor_assigned','contacted'].includes(p.state)) return false;
     const st = STATE.students.find(s => s.docNumber === p.docNumber);
     const d  = daysWaiting(p, st);
-    if (p.state === 'instructor_assigned' && d >= CONFIG.WAIT_DAYS_CRITICAL) return false; // ya está en rojo
+    if (p.state === 'instructor_assigned' && d >= CONFIG.WAIT_DAYS_CRITICAL) return false;
     if (getDualLicenseContext(p.docNumber, p.license).mode === 'waiting_while_active') return false;
     return true;
   });
 
-  if (enSeguimiento.length > 0) {
-    html += `<div style="background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.25);border-radius:var(--r-md);overflow:hidden;margin-top:.5rem">
-      <div style="padding:.7rem 1rem;background:rgba(245,158,11,.08);display:flex;align-items:center;gap:.5rem;border-bottom:1px solid rgba(245,158,11,.15)">
-        <span style="font-size:1rem">🟡</span>
-        <strong style="font-size:.82rem;color:var(--warning)">En seguimiento — instructor responde</strong>
-        <span style="margin-left:auto;background:rgba(245,158,11,.3);color:var(--warning);border-radius:9999px;padding:.1rem .5rem;font-size:.7rem;font-weight:700;border:1px solid rgba(245,158,11,.4)">${enSeguimiento.length}</span>
-      </div>
-      <div style="display:flex;flex-direction:column">`;
+  // ── ESTADO VACÍO ─────────────────────────────────────────────────────────
+  if (rojos.length === 0 && verdes.length === 0 && enSeguimiento.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:2.5rem 1rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:var(--r-md)">
+      <div style="font-size:2.5rem;margin-bottom:.65rem">🎉</div>
+      <h4 style="color:var(--success);margin-bottom:.3rem">Sin tareas pendientes</h4>
+      <p style="font-size:.82rem;color:var(--text-muted)">${enClases > 0 ? `${enClases} alumno(s) en clases actualmente.` : 'Todo al día.'}</p>
+    </div>`;
+    return;
+  }
 
+  // ── RENDER DE CARDS ACORDEÓN ─────────────────────────────────────────────
+  function cardAccordion({ id, color, borderColor, bgHeader, bgBody, icon, title, count, countBg, countColor, bodyHtml, mt }) {
+    return `
+    <div style="border:1px solid ${borderColor};border-radius:var(--r-md);overflow:hidden;${mt?'margin-top:.6rem':''}">
+      <button onclick="toggleTaskCard('${id}')"
+        style="width:100%;background:${bgHeader};border:none;cursor:pointer;padding:.75rem 1rem;
+               display:flex;align-items:center;gap:.55rem;text-align:left">
+        <span style="font-size:1rem">${icon}</span>
+        <strong style="font-size:.84rem;color:${color};flex:1">${title}</strong>
+        <span style="background:${countBg};color:${countColor};border-radius:9999px;
+                     padding:.15rem .55rem;font-size:.72rem;font-weight:700">${count}</span>
+        <span id="${id}-chevron" style="font-size:.7rem;color:${color};margin-left:.25rem;transition:transform .2s">▼</span>
+      </button>
+      <div id="${id}-body" style="display:none;background:${bgBody}">
+        ${bodyHtml}
+      </div>
+    </div>`;
+  }
+
+  let html = '';
+
+  // ── CARD ROJA ─────────────────────────────────────────────────────────────
+  if (rojos.length > 0) {
+    let rowsHtml = '';
+    rojos.forEach((p, i) => {
+      const st        = STATE.students.find(s => s.docNumber === p.docNumber);
+      const bdDays    = businessDaysFromTheory(p);
+      const isOverdue = bdDays >= CONFIG.WAIT_DAYS_CRITICAL;
+      const dayColor  = isOverdue ? 'var(--danger)' : 'var(--warning)';
+      const dayBg     = isOverdue ? 'rgba(244,63,94,.12)' : 'rgba(245,158,11,.12)';
+      const border    = i < rojos.length - 1 ? 'border-bottom:1px solid rgba(244,63,94,.1)' : '';
+      rowsHtml += `
+        <div style="padding:.7rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
+            <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">
+              ${licBadges(p)}
+              <span style="font-size:.72rem;color:var(--text-muted)">Teórico: ${fmtTheory(p)}</span>
+              <span style="background:${dayBg};border-radius:9999px;padding:.1rem .45rem;font-size:.72rem;font-weight:700;color:${dayColor}">${bdDays}d hábiles</span>
+            </div>
+          </div>
+          <button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--danger);border-color:var(--danger);flex-shrink:0"
+            onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>
+        </div>`;
+    });
+
+    html += cardAccordion({
+      id: 'card-rojos', mt: false,
+      color: 'var(--danger)', borderColor: 'rgba(244,63,94,.3)',
+      bgHeader: 'rgba(244,63,94,.1)', bgBody: 'var(--bg-card)',
+      icon: '🔴', title: 'Urgente — la academia responde',
+      count: rojos.length, countBg: 'var(--danger)', countColor: 'white',
+      bodyHtml: rowsHtml
+    });
+  }
+
+  // ── CARD VERDE ────────────────────────────────────────────────────────────
+  if (verdes.length > 0) {
+    let rowsHtml = '';
+    verdes.forEach((p, i) => {
+      const st     = STATE.students.find(s => s.docNumber === p.docNumber);
+      const border = i < verdes.length - 1 ? 'border-bottom:1px solid rgba(16,185,129,.1)' : '';
+      let accionLabel = '', accionBtn = '';
+
+      if (p.state === 'contact_confirmed') {
+        accionLabel = `<span style="color:var(--success);font-size:.72rem;font-weight:600">Contacto confirmado</span>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0"
+          onclick="coordMarkPracticeStarted('${p.docNumber}','${p.license}')">🚗 Iniciar clases</button>`;
+      } else if (p.state === 'practice_started') {
+        const cd    = p.contactDate ? businessDaysBetween(parseToISO(p.contactDate) || today(), today()) : 0;
+        accionLabel = `<span style="color:var(--warning);font-size:.72rem">${cd}d en prácticas</span>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0"
+          onclick="coordCloseProcess('${p.docNumber}','${p.license}')">🎓 Cerrar proceso</button>`;
+      } else {
+        const ctx   = getDualLicenseContext(p.docNumber, p.license);
+        const dCtx  = ctx.daysSinceCompleted || 0;
+        accionLabel = `<span style="color:var(--warning);font-size:.72rem">2ª licencia — ${dCtx}d desde fin</span>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;flex-shrink:0"
+          onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>`;
+      }
+
+      rowsHtml += `
+        <div style="padding:.7rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
+            <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">
+              ${licBadges(p)}
+              ${accionLabel}
+            </div>
+          </div>
+          ${accionBtn}
+        </div>`;
+    });
+
+    html += cardAccordion({
+      id: 'card-verdes', mt: rojos.length > 0,
+      color: 'var(--success)', borderColor: 'rgba(16,185,129,.25)',
+      bgHeader: 'rgba(16,185,129,.08)', bgBody: 'var(--bg-card)',
+      icon: '✅', title: 'Listo para avanzar — acción de coordinación',
+      count: verdes.length, countBg: 'var(--success)', countColor: 'white',
+      bodyHtml: rowsHtml
+    });
+  }
+
+  // ── CARD AMARILLA ────────────────────────────────────────────────────────
+  if (enSeguimiento.length > 0) {
+    let rowsHtml = '';
     enSeguimiento.forEach((p, i) => {
-      const st   = STATE.students.find(s => s.docNumber === p.docNumber);
-      const inst = STATE.instructors.find(ins => ins.id === p.instructorId);
-      const lic  = LICENSE_FULL[p.license] || p.license;
-      const days = daysWaiting(p, st);
+      const st     = STATE.students.find(s => s.docNumber === p.docNumber);
+      const inst   = STATE.instructors.find(ins => ins.id === p.instructorId);
+      const days   = daysWaiting(p, st);
       const border = i < enSeguimiento.length - 1 ? 'border-bottom:1px solid rgba(245,158,11,.1)' : '';
       const dayColor = days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
       const stateLabel = p.state === 'contacted'
         ? `<span style="color:#a78bfa;font-size:.72rem">Esperando confirmación alumno</span>`
         : `<span style="color:${dayColor};font-size:.72rem">${days}d — ${inst ? inst.name.split(' ')[0] : 'sin instructor'}</span>`;
 
-      html += `<div style="padding:.6rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
-          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.15rem;flex-wrap:wrap">
-            <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .4rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${lic}</span>
-            ${stateLabel}
+      rowsHtml += `
+        <div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
+            <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">
+              ${licBadges(p)}
+              ${stateLabel}
+            </div>
           </div>
-        </div>
-        <button class="btn-sec" style="font-size:.73rem;padding:.25rem .6rem;flex-shrink:0" onclick="openStudentProfile('${p.docNumber}')">📋 Ver</button>
-      </div>`;
+          <button class="btn-sec" style="font-size:.73rem;padding:.25rem .65rem;flex-shrink:0"
+            onclick="openStudentProfile('${p.docNumber}')">📋 Ver</button>
+        </div>`;
     });
 
-    html += `</div></div>`;
-  }
-
-  // ── Estado vacío ───────────────────────────────────────────────────────
-  if (rojos.length === 0 && verdes.length === 0 && enSeguimiento.length === 0) {
-    html = `<div style="text-align:center;padding:2.5rem 1rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:var(--r-md)">
-      <div style="font-size:2.5rem;margin-bottom:.65rem">🎉</div>
-      <h4 style="color:var(--success);margin-bottom:.3rem">Sin tareas pendientes</h4>
-      <p style="font-size:.82rem;color:var(--text-muted)">${enClases > 0 ? `${enClases} alumno(s) en clases actualmente.` : 'Todo al día.'}</p>
-    </div>`;
+    html += cardAccordion({
+      id: 'card-amarillos', mt: rojos.length > 0 || verdes.length > 0,
+      color: 'var(--warning)', borderColor: 'rgba(245,158,11,.25)',
+      bgHeader: 'rgba(245,158,11,.08)', bgBody: 'var(--bg-card)',
+      icon: '🟡', title: 'En seguimiento — instructor responde',
+      count: enSeguimiento.length, countBg: 'rgba(245,158,11,.3)', countColor: 'var(--warning)',
+      bodyHtml: rowsHtml
+    });
   }
 
   container.innerHTML = html;
+
+  // Abrir automáticamente la primera card con contenido
+  const firstId = rojos.length > 0 ? 'card-rojos' : verdes.length > 0 ? 'card-verdes' : 'card-amarillos';
+  toggleTaskCard(firstId);
+}
+
+function toggleTaskCard(id) {
+  const body    = document.getElementById(id + '-body');
+  const chevron = document.getElementById(id + '-chevron');
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display    = isOpen ? 'none' : 'block';
+  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
 }
 
 function renderCoordInstructors() {
