@@ -3625,14 +3625,26 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 }
 
 function toggleDashCard(id) {
-  const list    = document.getElementById('card-list-' + id);
-  const chevron = document.getElementById('card-btn-' + id + '-chevron');
-  const btn     = document.getElementById('card-btn-' + id);
-  if (!list) return;
-  const isOpen  = list.style.display !== 'none';
-  list.style.display = isOpen ? 'none' : 'block';
-  if (chevron) chevron.innerHTML = isOpen ? '▼ ver lista' : '▲ ocultar lista';
-  if (btn) btn.style.borderWidth = isOpen ? '1.5px' : '2px';
+  const ALL_IDS = ['rojos', 'verdes', 'amarillos'];
+  const isOpen  = document.getElementById('card-list-' + id)?.style.display !== 'none';
+  // Cerrar todas primero
+  ALL_IDS.forEach(cid => {
+    const l = document.getElementById('card-list-' + cid);
+    const ch = document.getElementById('card-btn-' + cid + '-chevron');
+    const b  = document.getElementById('card-btn-' + cid);
+    if (l)  l.style.display = 'none';
+    if (ch) ch.innerHTML = '▼ ver lista';
+    if (b)  b.style.borderWidth = '1.5px';
+  });
+  // Abrir la seleccionada solo si estaba cerrada
+  if (!isOpen) {
+    const list    = document.getElementById('card-list-' + id);
+    const chevron = document.getElementById('card-btn-' + id + '-chevron');
+    const btn     = document.getElementById('card-btn-' + id);
+    if (list)    list.style.display = 'block';
+    if (chevron) chevron.innerHTML = '▲ ocultar lista';
+    if (btn)     btn.style.borderWidth = '2px';
+  }
 }
 
 // legacy alias por si algo lo llama
