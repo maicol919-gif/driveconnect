@@ -4965,6 +4965,7 @@ async function studentSelfConfirmContact(license) {
 
 // =============================================================================
 let _profileDocNumber = null;
+let _profileLicense = null;
 
 function openStudentProfile(docNumber) {
   _profileDocNumber = docNumber;
@@ -4977,6 +4978,7 @@ function openStudentProfile(docNumber) {
   const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
 
   const urgentProc = allProcs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
+  _profileLicense = urgentProc?.license || null;
   const stateMap = {
     theory_passed:       { label:'⏳ Pendiente instructor',     cls:'s-pending' },
     instructor_assigned: { label:'👤 Pendiente contacto',       cls:'s-assigned' },
@@ -5185,12 +5187,14 @@ function notifyLicenciaLista() {
 function closeStudentProfile() {
   document.getElementById('student-profile-modal').classList.remove('active');
   _profileDocNumber = null;
+  _profileLicense = null;
 }
 
 function profileReassign() {
   const doc = _profileDocNumber;
+  const lic = _profileLicense;
   closeStudentProfile();
-  if (doc) openModal(doc);
+  if (doc) openModal(doc, lic);
 }
 
 function profileChangeState() {
