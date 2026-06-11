@@ -1229,7 +1229,7 @@
         <div id="reg-license-pills" style="display:flex;flex-wrap:wrap;gap:.5rem">
           <button type="button" class="reg-pill" data-val="B1" onclick="toggleLicense(this)">🚗 B1 — Carro particular</button>
           <button type="button" class="reg-pill" data-val="C1" onclick="toggleLicense(this)">🚌 C1 — Carro público</button>
-          <button type="button" class="reg-pill" data-val="C2" onclick="toggleLicense(this)">🚛 C2 — Carro público pesado</button>
+          <button type="button" class="reg-pill" data-val="C2" onclick="toggleLicense(this)">🚛 C2 — Camión</button>
           <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this)">🏍 A2 — Moto +125cc</button>
           <button type="button" class="reg-pill" data-val="A1" onclick="toggleLicense(this)">🛵 A1 — Moto -125cc</button>
           <button type="button" class="reg-pill" data-val="B2" onclick="toggleLicense(this)">🚐 B2 — Camioneta/Bus</button>
@@ -2304,7 +2304,7 @@ function renderStudentPortal() {
     return;
   }
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Camión', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const tabsEl = document.getElementById('student-license-tabs');
   tabsEl.innerHTML = '';
 
@@ -2347,7 +2347,7 @@ function renderStudentPortal() {
 function renderStudentProcessPanel(s, proc) {
   const timelinePanel = document.getElementById('student-timeline-panel');
   const rightPanel    = document.getElementById('student-active-panel');
-  const LICENSE_FULL  = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_FULL  = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Camión', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const licenseLabel  = LICENSE_FULL[proc.license] || proc.license || 'Tu proceso';
   const inst          = proc.instructorId ? STATE.instructors.find(i => i.id === proc.instructorId) : null;
   const procDays      = daysWaiting(proc, s);
@@ -2686,7 +2686,7 @@ function renderInstructorPortal() {
   }
 
   const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
-  const LICENSE_FULL   = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL   = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Camión' };
 
   const sorted = [...myProcesos].sort((a,b) => {
     // Primero por urgencia de estado, luego por días
@@ -2853,7 +2853,7 @@ async function instMarkContactedConfirm(docNumber, license) {
 async function instMarkPracticeStarted(docNumber, license) {
   const student = STATE.students.find(s => s.docNumber === docNumber);
   if (!student) return;
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Camión' };
 
   const existing = document.getElementById('inst-started-modal');
   if (existing) existing.remove();
@@ -2897,7 +2897,7 @@ async function instMarkReady(docNumber, license) {
   const modal = document.createElement('div');
   modal.id = 'inst-ready-modal';
   modal.className = 'modal-overlay active';
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Camión' };
   modal.innerHTML = `
     <div class="modal-content" style="max-width:380px;text-align:center">
       <div style="font-size:2.5rem;margin-bottom:.75rem">🎓</div>
@@ -2934,7 +2934,7 @@ async function instMarkReadyConfirm(docNumber, license) {
 
 async function confirmGraduate(docNumber, license) {
   const s = STATE.students.find(st => st.docNumber === docNumber);
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Camión' };
 
   document.getElementById('grad-confirm-modal')?.remove();
   const modal = document.createElement('div');
@@ -2975,7 +2975,7 @@ async function confirmGraduateExec(docNumber, license) {
 // =============================================================================
 async function coordMarkPracticeStarted(docNumber, license) {
   const s = STATE.students.find(st => st.docNumber === docNumber);
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Camión', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const existing = document.getElementById('coord-start-modal');
   if (existing) existing.remove();
   const modal = document.createElement('div');
@@ -3011,7 +3011,7 @@ async function coordMarkPracticeStartedExec(docNumber, license) {
 
 async function coordCloseProcess(docNumber, license) {
   const s = STATE.students.find(st => st.docNumber === docNumber);
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Camión', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const existing = document.getElementById('coord-close-modal');
   if (existing) existing.remove();
   const modal = document.createElement('div');
@@ -3376,7 +3376,7 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   if (!container) return;
 
   const LICENSE_FULL   = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
-  const LICENSE_LABELS = { B1:'Carro particular', C1:'Carro público', C2:'Carro público pesado', A2:'Moto +125cc', A1:'Moto -125cc', B2:'Camioneta' };
+  const LICENSE_LABELS = { B1:'Carro particular', C1:'Carro público', C2:'Camión', A2:'Moto +125cc', A1:'Moto -125cc', B2:'Camioneta' };
 
   // Helper: badges de licencia(s) para un proceso (muestra A2 adicional si aplica)
   function licBadges(p) {
@@ -4130,10 +4130,10 @@ function openInstructorModal(instId) {
               <input type="checkbox" id="ie-lic-B1" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('B1')?'checked':''}> B1 — Automóvil
             </label>
             <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
-              <input type="checkbox" id="ie-lic-C1" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('C1')?'checked':''}> C1 — Camión
+              <input type="checkbox" id="ie-lic-C1" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('C1')?'checked':''}> C1 — Carro público
             </label>
             <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
-              <input type="checkbox" id="ie-lic-C2" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('C2')?'checked':''}> C2 — Articulado
+              <input type="checkbox" id="ie-lic-C2" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('C2')?'checked':''}> C2 — Camión
             </label>
           </div>
         </div>
@@ -4725,7 +4725,7 @@ async function confirmAssign() {
 // =============================================================================
 // PENDING APPROVAL FUNCTIONS
 // =============================================================================
-const LICENSE_LABELS = { B1:'B1 — Automóvil', B2:'B2 — Camioneta/Bus', A1:'A1 — Moto hasta 125cc', A2:'A2 — Moto +125cc', C1:'C1 — Camión', C2:'C2 — Tractocamión' };
+const LICENSE_LABELS = { B1:'B1 — Automóvil', B2:'B2 — Camioneta/Bus', A1:'A1 — Moto hasta 125cc', A2:'A2 — Moto +125cc', C1:'C1 — Carro público', C2:'C2 — Camión' };
 const SCHEDULE_LABELS = { morning:'Mañanas', afternoon:'Tardes', evening:'Noches', weekend:'Fines de semana', flexible:'Flexible' };
 
 function coordShowPending() {
@@ -4998,7 +4998,7 @@ async function coordRegisterSubmit() {
 // CONFIRMACIÓN DE CONTACTO POR EL ALUMNO (sin depender del instructor)
 // =============================================================================
 async function studentSelfConfirmContact(license) {
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta', C2:'🚛 Camión' };
   document.getElementById('self-confirm-modal')?.remove();
   const modal = document.createElement('div');
   modal.id = 'self-confirm-modal';
@@ -5026,7 +5026,7 @@ function openStudentProfile(docNumber) {
   if (!s) return;
 
   const allProcs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
-  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
+  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Camión', A2:'🏍 Moto +125cc', A1:'🛵 Moto -125cc', B2:'🚐 Camioneta' };
   const LICENSE_SHORT  = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
   const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
 
