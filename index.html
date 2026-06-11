@@ -5254,7 +5254,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Restore session from localStorage with 8h TTL (persists on reload, renews on each visit)
-  const SESSION_TTL = 8 * 60 * 60 * 1000; // 8 horas
+  const SESSION_TTL = 5 * 60 * 1000; // 5 minutos
+  // Verificar expiración cada 30 segundos mientras la página está abierta
+  setInterval(() => {
+    if (!STATE.currentUser) return;
+    const s = localStorage.getItem('dc_session');
+    if (!s) { logout(); return; }
+    try { const { ts } = JSON.parse(s); if ((Date.now() - ts) >= SESSION_TTL) logout(); } catch(e) { logout(); }
+  }, 30000);
+  // Renovar timestamp con cualquier interacción del usuario
+  ['click', 'keydown'].forEach(ev => document.addEventListener(ev, () => {
+    const s = localStorage.getItem('dc_session');
+    if (s) { try { const p = JSON.parse(s); localStorage.setItem('dc_session', JSON.stringify({ session: p.session, ts: Date.now() })); } catch(e){} }
+  }, { passive: true }));
   const savedSession = localStorage.getItem('dc_session');
   if (savedSession && location.hash !== '#register') {
     try {
