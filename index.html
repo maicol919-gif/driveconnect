@@ -500,13 +500,6 @@
 </head>
 <body>
 
-<div id="app-loading" style="position:fixed;inset:0;background:var(--bg-dark,#0f1923);display:flex;align-items:center;justify-content:center;z-index:9999;transition:opacity .2s">
-  <div style="text-align:center;color:#fff;opacity:.7">
-    <div style="font-size:2rem;font-weight:700;letter-spacing:.05em">D</div>
-    <div style="font-size:.8rem;margin-top:.5rem">Cargando...</div>
-  </div>
-</div>
-
 <header>
   <div class="logo-container" onclick="goHome()">
     <div class="logo-icon">D</div>
@@ -1858,7 +1851,6 @@ function setDocType(btn, type) {
 
 function logout() {
   STATE.currentUser = null;
-  sessionStorage.removeItem('dc_session');
   document.querySelector('.logo-container').classList.remove('no-click');
   showView('view-login');
   document.getElementById('login-error').style.display = 'none';
@@ -2016,7 +2008,6 @@ async function loginStudent() {
     registerSuccessLogin('student');
 
     STATE.currentUser = { role: 'student', data: student };
-    sessionStorage.setItem('dc_session', JSON.stringify(STATE.currentUser));
     document.querySelector('.logo-container').classList.add('no-click');
 
     // Check if PIN is temporary — must change
@@ -2103,7 +2094,6 @@ async function loginInstructor() {
     if (instructor.pin !== pin) { registerFailedAttempt('instructor'); throw new Error('PIN incorrecto.'); }
     registerSuccessLogin('instructor');
     STATE.currentUser = { role: 'instructor', data: instructor };
-    sessionStorage.setItem('dc_session', JSON.stringify(STATE.currentUser));
     document.querySelector('.logo-container').classList.add('no-click');
     renderInstructorPortal();
     showView('view-instructor');
@@ -2170,7 +2160,6 @@ async function loginCoordinator() {
     registerSuccessLogin('coordinator');
 
     STATE.currentUser = { role: 'coordinator', data: { username: user, name: coord.name || '' } };
-    sessionStorage.setItem('dc_session', JSON.stringify(STATE.currentUser));
     document.querySelector('.logo-container').classList.add('no-click');
     renderCoordinatorPortal();
     showView('view-coordinator');
@@ -2253,7 +2242,6 @@ async function confirmAdminLogin() {
 
   document.getElementById('admin-auth-modal').remove();
   STATE.currentUser = { role: 'admin', data: null };
-  sessionStorage.setItem('dc_session', JSON.stringify(STATE.currentUser));
   document.querySelector('.logo-container').classList.add('no-click');
 
   // Show skeleton/loading state immediately
@@ -4132,6 +4120,23 @@ function openInstructorModal(instId) {
             </label>
           </div>
         </div>
+        <div class="form-group" style="margin-bottom:.5rem">
+          <label class="config-label">Licencias que maneja</label>
+          <div style="display:flex;gap:.5rem;margin-top:.25rem;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
+              <input type="checkbox" id="ie-lic-A2" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('A2')?'checked':''}> A2 — Moto
+            </label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
+              <input type="checkbox" id="ie-lic-B1" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('B1')?'checked':''}> B1 — Automóvil
+            </label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
+              <input type="checkbox" id="ie-lic-C1" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('C1')?'checked':''}> C1 — Camión
+            </label>
+            <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
+              <input type="checkbox" id="ie-lic-C2" ${(inst?.specialty||'').toUpperCase().split(',').map(s=>s.trim()).includes('C2')?'checked':''}> C2 — Articulado
+            </label>
+          </div>
+        </div>
         <div id="ie-msg" style="font-size:.78rem;min-height:1rem;color:var(--danger);margin-top:.5rem"></div>
       </div>
       <div class="modal-footer">
@@ -4152,18 +4157,40 @@ async function saveInstructor(instId) {
   const night = document.getElementById('ie-night').checked;
   const msg = document.getElementById('ie-msg');
 
+  // Leer licencias seleccionadas
+  const ALL_LICENSES = ['A2','B1','C1','C2'];
+  const selectedLics = ALL_LICENSES.filter(l => document.getElementById('ie-lic-' + l)?.checked);
+
   if (!instId && !cedula) { msg.textContent = '⚠ La cédula es obligatoria.'; return; }
   if (!instId && !/^\d{6,12}$/.test(cedula)) { msg.textContent = '⚠ La cédula debe tener entre 6 y 12 dígitos numéricos.'; return; }
   if (!instId && STATE.instructors.find(i => i.id === cedula)) { msg.textContent = '⚠ Ya existe un instructor con esa cédula.'; return; }
   if (!name || !phone) { msg.textContent = '⚠ Nombre y teléfono son obligatorios.'; return; }
+  if (selectedLics.length === 0) { msg.textContent = '⚠ Selecciona al menos una licencia.'; return; }
+
+  // Validar: no quitar licencias si tiene alumnos activos en esa licencia
+  if (instId) {
+    const instActual = STATE.instructors.find(i => i.id === instId);
+    const licsActuales = (instActual?.specialty || '').toUpperCase().split(',').map(s => s.trim()).filter(Boolean);
+    const quitadas = licsActuales.filter(l => !selectedLics.includes(l));
+    if (quitadas.length > 0) {
+      const conflictos = quitadas.filter(l =>
+        STATE.procesos.some(p => p.instructorId === instId && p.license?.toUpperCase() === l && p.state !== 'completed')
+      );
+      if (conflictos.length > 0) {
+        msg.textContent = '⚠ No puedes quitar ' + conflictos.join(', ') + ': tiene alumnos activos en esa(s) licencia(s).';
+        return;
+      }
+    }
+  }
 
   const slots = [morning&&'mañana', afternoon&&'tarde', night&&'noche'].filter(Boolean);
   const availability = slots.join(', ');
   const id = instId || cedula;
+  const specialty = selectedLics.join(',');
 
   msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
   const action = instId ? 'updateInstructor' : 'addInstructor';
-  const rInst = await apiCall({ action, id, name, phone, availability, specialty: '', email: '', photo: '' });
+  const rInst = await apiCall({ action, id, name, phone, availability, specialty, email: '', photo: '' });
   if (!rInst?.success) { msg.textContent = '❌ Error: ' + (rInst?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
   await writeLog(`Instructor ${instId ? 'editado' : 'agregado'}: ${name} (CC ${id})`);
   document.getElementById('inst-edit-modal').remove();
@@ -5252,27 +5279,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!localStorage.getItem('dc_admin_pass')) {
     localStorage.setItem('dc_admin_pass', 'admin2026');
   }
-
-  // Restore session from sessionStorage (persists on reload, clears on tab close)
-  const savedSession = sessionStorage.getItem('dc_session');
-  if (savedSession && location.hash !== '#register') {
-    try {
-      const session = JSON.parse(savedSession);
-      if (session?.role && session?.data !== undefined) {
-        await loadData();
-        STATE.currentUser = session;
-        document.querySelector('.logo-container').classList.add('no-click');
-        if (session.role === 'student') { renderStudentPortal(); showView('view-student'); }
-        else if (session.role === 'instructor') { renderInstructorPortal(); showView('view-instructor'); startPolling(); }
-        else if (session.role === 'coordinator') { renderCoordinatorPortal(); showView('view-coordinator'); startPolling(); }
-        else if (session.role === 'admin') { showView('view-admin'); renderAdminPortal(); }
-      }
-    } catch(e) {
-      sessionStorage.removeItem('dc_session');
-    }
-  }
-  const _ol = document.getElementById('app-loading');
-  if (_ol) { _ol.style.opacity = '0'; setTimeout(() => _ol.remove(), 200); }
 
   // Warm up the Apps Script in background so it's ready when user logs in
   setTimeout(() => {
