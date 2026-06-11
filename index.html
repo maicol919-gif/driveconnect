@@ -1851,6 +1851,7 @@ function setDocType(btn, type) {
 
 function logout() {
   STATE.currentUser = null;
+  sessionStorage.removeItem('dc_session');
   document.querySelector('.logo-container').classList.remove('no-click');
   showView('view-login');
   document.getElementById('login-error').style.display = 'none';
@@ -2008,6 +2009,7 @@ async function loginStudent() {
     registerSuccessLogin('student');
 
     STATE.currentUser = { role: 'student', data: student };
+    sessionStorage.setItem('dc_session', JSON.stringify(STATE.currentUser));
     document.querySelector('.logo-container').classList.add('no-click');
 
     // Check if PIN is temporary — must change
@@ -2094,6 +2096,7 @@ async function loginInstructor() {
     if (instructor.pin !== pin) { registerFailedAttempt('instructor'); throw new Error('PIN incorrecto.'); }
     registerSuccessLogin('instructor');
     STATE.currentUser = { role: 'instructor', data: instructor };
+    sessionStorage.setItem('dc_session', JSON.stringify(STATE.currentUser));
     document.querySelector('.logo-container').classList.add('no-click');
     renderInstructorPortal();
     showView('view-instructor');
@@ -2160,6 +2163,7 @@ async function loginCoordinator() {
     registerSuccessLogin('coordinator');
 
     STATE.currentUser = { role: 'coordinator', data: { username: user, name: coord.name || '' } };
+    sessionStorage.setItem('dc_session', JSON.stringify(STATE.currentUser));
     document.querySelector('.logo-container').classList.add('no-click');
     renderCoordinatorPortal();
     showView('view-coordinator');
@@ -2242,6 +2246,7 @@ async function confirmAdminLogin() {
 
   document.getElementById('admin-auth-modal').remove();
   STATE.currentUser = { role: 'admin', data: null };
+  sessionStorage.setItem('dc_session', JSON.stringify(STATE.currentUser));
   document.querySelector('.logo-container').classList.add('no-click');
 
   // Show skeleton/loading state immediately
@@ -5239,6 +5244,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Set default admin password on first run only
   if (!localStorage.getItem('dc_admin_pass')) {
     localStorage.setItem('dc_admin_pass', 'admin2026');
+  }
+
+  // Restore session from sessionStorage (persists on reload, clears on tab close)
+  const savedSession = sessionStorage.getItem('dc_session');
+  if (savedSession && location.hash !== '#register') {
+    try {
+      const session = JSON.parse(savedSession);
+      if (session?.role && session?.data !== undefined) {
+        await loadData();
+        STATE.currentUser = session;
+        document.querySelector('.logo-container').classList.add('no-click');
+        if (session.role === 'student') { renderStudentPortal(); showView('view-student'); }
+        else if (session.role === 'instructor') { renderInstructorPortal(); showView('view-instructor'); startPolling(); }
+        else if (session.role === 'coordinator') { renderCoordinatorPortal(); showView('view-coordinator'); startPolling(); }
+        else if (session.role === 'admin') { showView('view-admin'); renderAdminPortal(); }
+      }
+    } catch(e) {
+      sessionStorage.removeItem('dc_session');
+    }
   }
 
   // Warm up the Apps Script in background so it's ready when user logs in
