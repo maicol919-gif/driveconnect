@@ -3531,8 +3531,8 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
       const border = i < enSeguimiento.length - 1 ? 'border-bottom:1px solid rgba(245,158,11,.1)' : '';
       const dayColor = days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
       const stateLabel = p.state === 'contacted'
-        ? `<span style="color:#a78bfa;font-size:.72rem">Esperando confirmación alumno</span>`
-        : `<span style="color:${dayColor};font-size:.72rem">${days}d — ${inst ? inst.name.split(' ')[0] : 'sin instructor'}</span>`;
+        ? `<span style="color:#a78bfa;font-size:.72rem">Alumno aún no confirma contacto</span>`
+        : `<span style="color:${dayColor};font-size:.72rem">${days}d — instructor aún no contacta · ${inst ? inst.name.split(' ')[0] : '—'}</span>`;
       html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st?.name||p.docNumber}</div>
