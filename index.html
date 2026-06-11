@@ -511,6 +511,16 @@
 <main>
 
   <!-- ===== LOGIN ===== -->
+  <!-- PANTALLA DE ERROR DE CONEXIÓN -->
+  <section id="view-connection-error" class="view-section">
+    <div class="auth-container glass-panel" style="text-align:center;padding:2.5rem 2rem">
+      <div style="font-size:3rem;margin-bottom:1rem">⚠️</div>
+      <h2 style="font-family:var(--font-title);font-size:1.3rem;font-weight:700;margin-bottom:.65rem;color:var(--text-primary)">No se pudo conectar</h2>
+      <p style="color:var(--text-secondary);font-size:.88rem;margin-bottom:1.75rem;line-height:1.6">Verifica tu conexión a internet e intenta de nuevo.<br>Si el problema persiste, contacta a la academia.</p>
+      <button class="btn-primary" onclick="retryConnection()" style="width:auto;padding:.65rem 2rem">🔄 Reintentar</button>
+    </div>
+  </section>
+
   <section id="view-login" class="view-section active">
     <div class="auth-container glass-panel">
       <div class="auth-header">
@@ -616,6 +626,7 @@
 
       <div id="login-loading" class="loading-msg">⏳ Consultando base de datos...</div>
       <div id="login-error" class="error-msg"></div>
+      <div id="login-hint" style="display:none;margin-top:.5rem;font-size:.78rem;color:var(--text-muted);text-align:center">Si aún no tienes cuenta, acércate a la academia para que te registren.</div>
 
       <div class="config-hint" id="config-hint" style="display:none">
         ⚙️ La base de datos en la nube no está configurada aún. <a href="#" onclick="adminDirect()">Configurar ahora →</a>
@@ -1844,6 +1855,7 @@ function logout() {
   showView('view-login');
   document.getElementById('login-error').style.display = 'none';
   document.getElementById('login-loading').style.display = 'none';
+  const _lh = document.getElementById('login-hint'); if (_lh) _lh.style.display = 'none';
 }
 
 // =============================================================================
@@ -1858,6 +1870,7 @@ function switchTab(tab) {
   document.getElementById('group-instructor').style.display = tab === 'instructor' ? 'block' : 'none';
   document.getElementById('group-coordinator').style.display = tab === 'coordinator' ? 'block' : 'none';
   document.getElementById('login-error').style.display = 'none';
+  const _lh2 = document.getElementById('login-hint'); if (_lh2) _lh2.style.display = 'none';
 }
 
 function setDocType(btn, type) {
@@ -1976,10 +1989,10 @@ async function loginStudent() {
 
   try {
     const ok = await loadData();
-    if (!ok) throw new Error('No se pudo conectar a la base de datos.');
+    if (!ok) { showView('view-connection-error'); return; }
 
     const student = STATE.students.find(s => s.docNumber === docNum);
-    if (!student) throw new Error('Documento no encontrado. Verifica el número o regístrate si es tu primera vez.');
+    if (!student) throw new Error('Documento no encontrado. Verifica el número ingresado.');
 
     // Check if pending approval
     if (student.active === 'false' || student.active === '') {
@@ -2007,6 +2020,8 @@ async function loginStudent() {
     showView('view-student');
   } catch(e) {
     showError(e.message);
+    const hint = document.getElementById('login-hint');
+    if (hint) hint.style.display = e.message.includes('Documento no encontrado') ? 'block' : 'none';
   } finally {
     loadEl.style.display = 'none';
     document.querySelector('#group-student .btn-primary').disabled = false;
@@ -2948,6 +2963,7 @@ async function confirmGraduateExec(docNumber, license) {
       const p = getProceso(docNumber, license);
       if (p) p.state = 'completed';
       showToast('🎓 Expediente cerrado exitosamente.', 'success');
+      await writeLog(`Expediente cerrado: ${STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber} [${license}]`);
       renderCoordinatorPortal();
     } else { showToast('Error: ' + (data.error || 'desconocido'), 'error'); }
   } catch(e) { showToast('Error de conexión', 'error'); }
@@ -2987,6 +3003,7 @@ async function coordMarkPracticeStartedExec(docNumber, license) {
       const p = getProceso(docNumber, license);
       if (p) p.state = 'practice_started';
       showToast('🚗 Clases iniciadas registradas.', 'success');
+      await writeLog(`Clases iniciadas: ${STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber} [${license}]`);
       await renderCoordinatorPortal();
     } else { showToast('Error: ' + (data?.error || 'desconocido'), 'error'); }
   } catch(e) { showToast('Error de conexión', 'error'); }
@@ -3023,6 +3040,7 @@ async function coordCloseProcessExec(docNumber, license) {
       const p = getProceso(docNumber, license);
       if (p) p.state = 'completed';
       showToast('🎓 Proceso cerrado exitosamente.', 'success');
+      await writeLog(`Proceso cerrado: ${STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber} [${license}]`);
       await renderCoordinatorPortal();
     } else { showToast('Error: ' + (data?.error || 'desconocido'), 'error'); }
   } catch(e) { showToast('Error de conexión', 'error'); }
@@ -3142,6 +3160,10 @@ function switchCoordTab(tab) {
   });
   if (tab === 'students') renderCoordTable();
   if (tab === 'instructors') renderCoordInstructors();
+  if (tab === 'main' || tab === 'instructors') {
+    const titleEl = document.getElementById('coord-table-title');
+    if (titleEl) titleEl.textContent = 'Todos los alumnos activos';
+  }
 }
 
 function coordMetricClick(type) {
@@ -3552,7 +3574,15 @@ function renderCoordInstructors() {
 
     const row = document.createElement('div');
     row.className = 'instructor-row-card';
-    row.style.cssText = 'flex-wrap:wrap;gap:.75rem;opacity:' + (isActive?'1':'.5') + ';' + (urgentes>0?'border-color:rgba(244,63,94,.4);':'');
+    row.style.cssText = 'flex-wrap:wrap;gap:.75rem;opacity:' + (isActive?'1':'.5') + ';cursor:pointer;' + (urgentes>0?'border-color:rgba(244,63,94,.4);':'');
+    row.title = 'Ver alumnos de ' + inst.name;
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('button') || e.target.closest('a')) return; // no interceptar botones/links
+      _coordCustomFilter = (p) => p.instructorId === inst.id;
+      const titleEl = document.getElementById('coord-table-title');
+      if (titleEl) titleEl.textContent = 'Alumnos de ' + inst.name;
+      switchCoordTab('students');
+    });
     row.innerHTML =
       '<div class="instructor-row-info" style="flex:1;min-width:200px">' +
         '<div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:.9rem;font-weight:800;color:white;flex-shrink:0">' + initials + '</div>' +
@@ -4285,6 +4315,10 @@ async function confirmStateChange(docNumber) {
 }
 
 // ── LOGS ─────────────────────────────────────────────────
+function retryConnection() {
+  showView('view-login');
+}
+
 async function writeLog(message) {
   const role = STATE.currentUser?.role || 'sistema';
   const who = role === 'admin' ? 'Superadmin'
@@ -4538,11 +4572,13 @@ async function confirmAssign() {
       if (proc) { proc.instructorId = _assignSelectedInstId; proc.state = 'instructor_assigned'; }
       const r1 = await apiCall({ action: 'assignInstructor', docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, license: _assignLicense, state: 'instructor_assigned' });
       if (!r1?.success) { showToast('❌ Error al asignar instructor: ' + (r1?.error || 'desconocido'), 'error'); return; }
+      await writeLog(`Instructor asignado: ${inst.name} → ${student.name} (${_assignDocNumber}) [${_assignLicense}]`);
     } else {
       student.instructorId = _assignSelectedInstId;
       student.state = 'instructor_assigned';
       const r2 = await apiCall({ action: 'assignInstructor', docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, state: 'instructor_assigned' });
       if (!r2?.success) { showToast('❌ Error al asignar instructor: ' + (r2?.error || 'desconocido'), 'error'); return; }
+      await writeLog(`Instructor asignado: ${inst.name} → ${student.name} (${_assignDocNumber})`);
     }
   }
 }
@@ -4626,6 +4662,7 @@ async function approveStudentExec(docNumber) {
     if (s) s.active = 'true';
     STATE.procesos.filter(p => p.docNumber === docNumber).forEach(p => p.state = 'theory_passed');
     showToast('✓ Alumno aprobado. Ya puede ingresar al portal.', 'success');
+    await writeLog(`Registro aprobado: ${STATE.students.find(x=>x.docNumber===docNumber)?.name||docNumber} (${docNumber})`);
     renderPendingList();
     renderCoordinatorPortal();
     // Auto-cerrar si ya no hay pendientes
@@ -4662,6 +4699,7 @@ async function rejectStudentExec(docNumber) {
     if (!data.success) throw new Error(data.error || 'Error');
     STATE.students = STATE.students.filter(s => s.docNumber !== docNumber);
     showToast('Registro rechazado y eliminado.', 'success');
+    await writeLog(`Registro rechazado/eliminado: ${docNumber}`);
     renderPendingList();
     renderCoordinatorPortal();
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
@@ -4807,6 +4845,7 @@ async function coordRegisterSubmit() {
 
     document.getElementById('manual-register-modal').classList.remove('active');
     showToast(`✓ Alumno registrado. PIN: ${pin} — entrégaselo en mano.`, 'success');
+    await writeLog(`Alumno registrado (manual): ${name} (${docType} ${docNumber}) [${licVals.join('+')}]`);
 
     // Reload data
     await loadData();
