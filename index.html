@@ -4650,20 +4650,16 @@ async function confirmAssign() {
     if (STATE.currentUser?.role === 'coordinator') renderCoordinatorPortal();
     else renderAdminPortal();
     toast(`${inst.name} asignado a ${student.name}`, 'success');
-    if (_assignLicense) {
-      // Modelo Procesos: actualizar proceso específico por licencia
-      const proc = STATE.procesos.find(p => p.docNumber === _assignDocNumber && p.license === _assignLicense.toUpperCase());
-      if (proc) { proc.instructorId = _assignSelectedInstId; proc.state = 'instructor_assigned'; }
-      const r1 = await apiCall({ action: 'assignInstructor', docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, license: _assignLicense, state: 'instructor_assigned' });
-      if (!r1?.success) { showToast('❌ Error al asignar instructor: ' + (r1?.error || 'desconocido'), 'error'); return; }
-      await writeLog(`Instructor asignado: ${inst.name} → ${student.name} (${_assignDocNumber}) [${_assignLicense}]`);
-    } else {
-      student.instructorId = _assignSelectedInstId;
-      student.state = 'instructor_assigned';
-      const r2 = await apiCall({ action: 'assignInstructor', docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, state: 'instructor_assigned' });
-      if (!r2?.success) { showToast('❌ Error al asignar instructor: ' + (r2?.error || 'desconocido'), 'error'); return; }
-      await writeLog(`Instructor asignado: ${inst.name} → ${student.name} (${_assignDocNumber})`);
-    }
+    // Siempre usar modelo Procesos; si no viene license, derivarla del proceso activo
+    const license = _assignLicense
+      ? _assignLicense.toUpperCase()
+      : (STATE.procesos.find(p => p.docNumber === _assignDocNumber && p.state !== 'completed')?.license || null);
+    if (!license) { showToast('❌ No se encontró proceso activo para este alumno', 'error'); return; }
+    const proc = STATE.procesos.find(p => p.docNumber === _assignDocNumber && p.license === license);
+    if (proc) { proc.instructorId = _assignSelectedInstId; proc.state = 'instructor_assigned'; }
+    const r = await apiCall({ action: 'assignInstructor', docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, license, state: 'instructor_assigned' });
+    if (!r?.success) { showToast('❌ Error al asignar instructor: ' + (r?.error || 'desconocido'), 'error'); return; }
+    await writeLog(`Instructor asignado: ${inst.name} → ${student.name} (${_assignDocNumber}) [${license}]`);
   }
 }
 
