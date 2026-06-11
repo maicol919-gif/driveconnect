@@ -4646,20 +4646,24 @@ async function confirmAssign() {
   const student = STATE.students.find(s => s.docNumber === _assignDocNumber);
   const inst = STATE.instructors.find(i => i.id === _assignSelectedInstId);
   if (student && inst) {
+    // Capturar antes de closeModal() que nullea estas variables
+    const docNumber = _assignDocNumber;
+    const instId = _assignSelectedInstId;
+    const rawLicense = _assignLicense;
     closeModal();
     if (STATE.currentUser?.role === 'coordinator') renderCoordinatorPortal();
     else renderAdminPortal();
     toast(`${inst.name} asignado a ${student.name}`, 'success');
     // Siempre usar modelo Procesos; si no viene license, derivarla del proceso activo
-    const license = _assignLicense
-      ? _assignLicense.toUpperCase()
-      : (STATE.procesos.find(p => p.docNumber === _assignDocNumber && p.state !== 'completed')?.license || null);
+    const license = rawLicense
+      ? rawLicense.toUpperCase()
+      : (STATE.procesos.find(p => p.docNumber === docNumber && p.state !== 'completed')?.license || null);
     if (!license) { showToast('❌ No se encontró proceso activo para este alumno', 'error'); return; }
-    const proc = STATE.procesos.find(p => p.docNumber === _assignDocNumber && p.license === license);
-    if (proc) { proc.instructorId = _assignSelectedInstId; proc.state = 'instructor_assigned'; }
-    const r = await apiCall({ action: 'assignInstructor', docNumber: _assignDocNumber, instructorId: _assignSelectedInstId, license, state: 'instructor_assigned' });
+    const proc = STATE.procesos.find(p => p.docNumber === docNumber && p.license === license);
+    if (proc) { proc.instructorId = instId; proc.state = 'instructor_assigned'; }
+    const r = await apiCall({ action: 'assignInstructor', docNumber, instructorId: instId, license, state: 'instructor_assigned' });
     if (!r?.success) { showToast('❌ Error al asignar instructor: ' + (r?.error || 'desconocido'), 'error'); return; }
-    await writeLog(`Instructor asignado: ${inst.name} → ${student.name} (${_assignDocNumber}) [${license}]`);
+    await writeLog(`Instructor asignado: ${inst.name} → ${student.name} (${docNumber}) [${license}]`);
   }
 }
 
