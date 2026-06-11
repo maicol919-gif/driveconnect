@@ -3390,25 +3390,16 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   const LICENSE_FULL   = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
   const LICENSE_LABELS = { B1:'Carro particular', C1:'Carro público', C2:'Carro público pesado', A2:'Moto +125cc', A1:'Moto -125cc', B2:'Camioneta' };
 
-  // Helper: badges de licencia(s) para un proceso (muestra A2 adicional si aplica)
   function licBadges(p) {
-    const allProcs = getStudentProcesos(p.docNumber);
-    const otherA2  = allProcs.find(op => op.license === 'A2' && op.docNumber === p.docNumber && op.license !== p.license);
-    let badges = `<span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_FULL[p.license] || p.license} ${LICENSE_LABELS[p.license] || ''}</span>`;
-    if (p.license !== 'A2' && otherA2) {
-      badges += `<span style="background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:#a78bfa;font-weight:600">🏍 A2 Moto</span>`;
-    }
-    return badges;
+    return `<span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_FULL[p.license] || p.license} ${LICENSE_LABELS[p.license] || ''}</span>`;
   }
 
-  // Helper: días hábiles desde theoryPassedDate del alumno
   function businessDaysFromTheory(p) {
     const st = STATE.students.find(s => s.docNumber === p.docNumber);
     if (!st?.theoryPassedDate) return 0;
     return businessDaysBetween(parseToISO(st.theoryPassedDate) || today(), today());
   }
 
-  // Helper: formatear fecha teorico legible
   function fmtTheory(p) {
     const st = STATE.students.find(s => s.docNumber === p.docNumber);
     return formatDate(st?.theoryPassedDate) || '—';
@@ -3423,7 +3414,6 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
            getDualLicenseContext(p.docNumber, p.license).mode !== 'waiting_while_active';
   });
 
-  // Ordenar rojos: desc dias habiles, agrupar licencias del mismo alumno juntas v2
   const rojosRaw = [...sinInstructor, ...criticos].sort((a, b) => businessDaysFromTheory(b) - businessDaysFromTheory(a));
   const seenOrder = [];
   const rojosByDoc = {};
@@ -3457,135 +3447,83 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 
   // ── ESTADO VACÍO ─────────────────────────────────────────────────────────
   if (rojos.length === 0 && verdes.length === 0 && enSeguimiento.length === 0) {
-    container.innerHTML = `<div style="text-align:center;padding:2.5rem 1rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:var(--r-md)">
-      <div style="font-size:2.5rem;margin-bottom:.65rem">🎉</div>
-      <h4 style="color:var(--success);margin-bottom:.3rem">Sin tareas pendientes</h4>
-      <p style="font-size:.82rem;color:var(--text-muted)">${enClases > 0 ? `${enClases} alumno(s) en clases actualmente.` : 'Todo al día.'}</p>
+    container.innerHTML = `<div style="text-align:center;padding:3rem 1rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:var(--r-md)">
+      <div style="font-size:3rem;margin-bottom:.75rem">🎉</div>
+      <h4 style="color:var(--success);margin-bottom:.4rem">Sin tareas pendientes</h4>
+      <p style="font-size:.85rem;color:var(--text-muted)">${enClases > 0 ? enClases + ' alumno(s) en clases actualmente.' : 'Todo al día.'}</p>
     </div>`;
     return;
   }
 
-  // ── RENDER DE CARDS ACORDEÓN ─────────────────────────────────────────────
-  function cardAccordion({ id, color, borderColor, bgHeader, bgBody, icon, title, count, countBg, countColor, bodyHtml, mt }) {
-    return `
-    <div style="border:1px solid ${borderColor};border-radius:var(--r-md);overflow:hidden;${mt?'margin-top:.6rem':''}">
-      <button onclick="toggleTaskCard('${id}')"
-        style="width:100%;background:${bgHeader};border:none;cursor:pointer;padding:.75rem 1rem;
-               display:flex;align-items:center;gap:.55rem;text-align:left">
-        <span style="font-size:1rem">${icon}</span>
-        <strong style="font-size:.84rem;color:${color};flex:1">${title}</strong>
-        <span style="background:${countBg};color:${countColor};border-radius:9999px;
-                     padding:.15rem .55rem;font-size:.72rem;font-weight:700">${count}</span>
-        <span id="${id}-chevron" style="font-size:.7rem;color:${color};margin-left:.25rem;transition:transform .2s">▼</span>
-      </button>
-      <div id="${id}-body" style="display:none;background:${bgBody}">
-        ${bodyHtml}
-      </div>
-    </div>`;
-  }
-
-  let html = '';
-
-  // ── CARD ROJA ─────────────────────────────────────────────────────────────
-  if (rojos.length > 0) {
-    let rowsHtml = '';
-    const seenNames = new Set();
+  // ── BUILDERS DE FILAS ────────────────────────────────────────────────────
+  function buildRojosRows() {
+    let html = '';
+    const seen = new Set();
     rojos.forEach((p, i) => {
       const st        = STATE.students.find(s => s.docNumber === p.docNumber);
       const bdDays    = businessDaysFromTheory(p);
       const isOverdue = bdDays >= CONFIG.WAIT_DAYS_CRITICAL;
       const dayColor  = isOverdue ? 'var(--danger)' : 'var(--warning)';
-      const dayBg     = isOverdue ? 'rgba(244,63,94,.12)' : 'rgba(245,158,11,.12)';
-      const isRepeat  = seenNames.has(p.docNumber);
-      seenNames.add(p.docNumber);
-      // Borde: línea normal entre filas distintas, línea punteada entre licencias del mismo alumno
-      const nextP     = rojos[i + 1];
-      const sameNext  = nextP && nextP.docNumber === p.docNumber;
-      const border    = i < rojos.length - 1
+      const dayBg     = isOverdue ? 'rgba(244,63,94,.15)' : 'rgba(245,158,11,.15)';
+      const isRepeat  = seen.has(p.docNumber);
+      seen.add(p.docNumber);
+      const nextP    = rojos[i + 1];
+      const sameNext = nextP && nextP.docNumber === p.docNumber;
+      const border   = i < rojos.length - 1
         ? (sameNext ? 'border-bottom:1px dashed rgba(244,63,94,.15)' : 'border-bottom:1px solid rgba(244,63,94,.1)')
         : '';
-      const namePart  = isRepeat
-        ? `<div style="font-size:.75rem;color:var(--text-muted);margin-bottom:.1rem;padding-left:.1rem">↳ también</div>`
-        : `<div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>`;
+      const namePart = isRepeat
+        ? `<div style="font-size:.73rem;color:var(--text-muted);margin-bottom:.1rem">↳ también</div>`
+        : `<div style="font-weight:600;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st?.name || p.docNumber}</div>`;
       const theoryPart = !isRepeat
         ? `<span style="font-size:.72rem;color:var(--text-muted)">Teórico: ${fmtTheory(p)}</span>
-           <span style="background:${dayBg};border-radius:9999px;padding:.1rem .45rem;font-size:.72rem;font-weight:700;color:${dayColor}">${bdDays}d hábiles</span>`
+           <span style="background:${dayBg};border-radius:9999px;padding:.1rem .5rem;font-size:.72rem;font-weight:700;color:${dayColor}">${bdDays}d hábiles</span>`
         : `<span style="font-size:.72rem;color:var(--text-muted)">misma fecha · ${bdDays}d hábiles</span>`;
-      rowsHtml += `
-        <div style="padding:.6rem 1rem ${isRepeat ? '.6rem 1.8rem' : ''};display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}${isRepeat ? ';background:rgba(244,63,94,.02)' : ''}">
-          <div style="flex:1;min-width:0">
-            ${namePart}
-            <div style="display:flex;align-items:center;gap:.4rem;margin-top:.2rem;flex-wrap:wrap">
-              <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_FULL[p.license] || p.license} ${LICENSE_LABELS[p.license] || ''}</span>
-              ${theoryPart}
-            </div>
+      html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}${isRepeat?';background:rgba(244,63,94,.02)':''}">
+        <div style="flex:1;min-width:0">
+          ${namePart}
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.2rem;flex-wrap:wrap">
+            <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_FULL[p.license]||p.license} ${LICENSE_LABELS[p.license]||''}</span>
+            ${theoryPart}
           </div>
-          <button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--danger);border-color:var(--danger);flex-shrink:0"
-            onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>
-        </div>`;
+        </div>
+        <button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--danger);border-color:var(--danger);flex-shrink:0"
+          onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>
+      </div>`;
     });
-
-    html += cardAccordion({
-      id: 'card-rojos', mt: false,
-      color: 'var(--danger)', borderColor: 'rgba(244,63,94,.3)',
-      bgHeader: 'rgba(244,63,94,.1)', bgBody: 'var(--bg-card)',
-      icon: '🔴', title: 'Urgente — la academia responde',
-      count: rojos.length, countBg: 'var(--danger)', countColor: 'white',
-      bodyHtml: rowsHtml
-    });
+    return html;
   }
 
-  // ── CARD VERDE ────────────────────────────────────────────────────────────
-  if (verdes.length > 0) {
-    let rowsHtml = '';
+  function buildVerdesRows() {
+    let html = '';
     verdes.forEach((p, i) => {
       const st     = STATE.students.find(s => s.docNumber === p.docNumber);
       const border = i < verdes.length - 1 ? 'border-bottom:1px solid rgba(16,185,129,.1)' : '';
       let accionLabel = '', accionBtn = '';
-
       if (p.state === 'contact_confirmed') {
         accionLabel = `<span style="color:var(--success);font-size:.72rem;font-weight:600">Contacto confirmado</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0"
-          onclick="coordMarkPracticeStarted('${p.docNumber}','${p.license}')">🚗 Iniciar clases</button>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0" onclick="coordMarkPracticeStarted('${p.docNumber}','${p.license}')">🚗 Iniciar clases</button>`;
       } else if (p.state === 'practice_started') {
-        const cd    = p.contactDate ? businessDaysBetween(parseToISO(p.contactDate) || today(), today()) : 0;
+        const cd    = p.contactDate ? businessDaysBetween(parseToISO(p.contactDate)||today(), today()) : 0;
         accionLabel = `<span style="color:var(--warning);font-size:.72rem">${cd}d en prácticas</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0"
-          onclick="coordCloseProcess('${p.docNumber}','${p.license}')">🎓 Cerrar proceso</button>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0" onclick="coordCloseProcess('${p.docNumber}','${p.license}')">🎓 Cerrar proceso</button>`;
       } else {
-        const ctx   = getDualLicenseContext(p.docNumber, p.license);
-        const dCtx  = ctx.daysSinceCompleted || 0;
-        accionLabel = `<span style="color:var(--warning);font-size:.72rem">2ª licencia — ${dCtx}d desde fin</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;flex-shrink:0"
-          onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>`;
+        const ctx  = getDualLicenseContext(p.docNumber, p.license);
+        accionLabel = `<span style="color:var(--warning);font-size:.72rem">2ª licencia — ${ctx.daysSinceCompleted||0}d desde fin</span>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;flex-shrink:0" onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>`;
       }
-
-      rowsHtml += `
-        <div style="padding:.7rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
-            <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">
-              ${licBadges(p)}
-              ${accionLabel}
-            </div>
-          </div>
-          ${accionBtn}
-        </div>`;
+      html += `<div style="padding:.7rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st?.name||p.docNumber}</div>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">${licBadges(p)}${accionLabel}</div>
+        </div>${accionBtn}
+      </div>`;
     });
-
-    html += cardAccordion({
-      id: 'card-verdes', mt: rojos.length > 0,
-      color: 'var(--success)', borderColor: 'rgba(16,185,129,.25)',
-      bgHeader: 'rgba(16,185,129,.08)', bgBody: 'var(--bg-card)',
-      icon: '✅', title: 'Listo para avanzar — acción de coordinación',
-      count: verdes.length, countBg: 'var(--success)', countColor: 'white',
-      bodyHtml: rowsHtml
-    });
+    return html;
   }
 
-  // ── CARD AMARILLA ────────────────────────────────────────────────────────
-  if (enSeguimiento.length > 0) {
-    let rowsHtml = '';
+  function buildAmarillosRows() {
+    let html = '';
     enSeguimiento.forEach((p, i) => {
       const st     = STATE.students.find(s => s.docNumber === p.docNumber);
       const inst   = STATE.instructors.find(ins => ins.id === p.instructorId);
@@ -3595,46 +3533,110 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
       const stateLabel = p.state === 'contacted'
         ? `<span style="color:#a78bfa;font-size:.72rem">Esperando confirmación alumno</span>`
         : `<span style="color:${dayColor};font-size:.72rem">${days}d — ${inst ? inst.name.split(' ')[0] : 'sin instructor'}</span>`;
-
-      rowsHtml += `
-        <div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
-          <div style="flex:1;min-width:0">
-            <div style="font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st?.name || p.docNumber}</div>
-            <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">
-              ${licBadges(p)}
-              ${stateLabel}
-            </div>
-          </div>
-          <button class="btn-sec" style="font-size:.73rem;padding:.25rem .65rem;flex-shrink:0"
-            onclick="openStudentProfile('${p.docNumber}')">📋 Ver</button>
-        </div>`;
+      html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st?.name||p.docNumber}</div>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">${licBadges(p)}${stateLabel}</div>
+        </div>
+        <button class="btn-sec" style="font-size:.73rem;padding:.25rem .65rem;flex-shrink:0" onclick="openStudentProfile('${p.docNumber}')">📋 Ver</button>
+      </div>`;
     });
-
-    html += cardAccordion({
-      id: 'card-amarillos', mt: rojos.length > 0 || verdes.length > 0,
-      color: 'var(--warning)', borderColor: 'rgba(245,158,11,.25)',
-      bgHeader: 'rgba(245,158,11,.08)', bgBody: 'var(--bg-card)',
-      icon: '🟡', title: 'En seguimiento — instructor responde',
-      count: enSeguimiento.length, countBg: 'rgba(245,158,11,.3)', countColor: 'var(--warning)',
-      bodyHtml: rowsHtml
-    });
+    return html;
   }
 
-  container.innerHTML = html;
+  // ── CARDS DASHBOARD + LISTAS ──────────────────────────────────────────────
+  // Cada card grande actúa como botón y despliega su lista debajo
+  const cards = [];
+  if (rojos.length > 0) cards.push({
+    id: 'rojos', icon: '🔴',
+    title: 'Urgente',
+    desc: 'Alumnos sin instructor asignado',
+    count: rojos.length,
+    accentColor: 'var(--danger)',
+    borderColor: 'rgba(244,63,94,.35)',
+    bgCard: 'rgba(244,63,94,.07)',
+    bgActive: 'rgba(244,63,94,.13)',
+    countBg: 'var(--danger)',
+    rowsFn: buildRojosRows
+  });
+  if (verdes.length > 0) cards.push({
+    id: 'verdes', icon: '✅',
+    title: 'Listo para avanzar',
+    desc: 'Alumnos esperando tu acción',
+    count: verdes.length,
+    accentColor: 'var(--success)',
+    borderColor: 'rgba(16,185,129,.3)',
+    bgCard: 'rgba(16,185,129,.06)',
+    bgActive: 'rgba(16,185,129,.12)',
+    countBg: 'var(--success)',
+    rowsFn: buildVerdesRows
+  });
+  if (enSeguimiento.length > 0) cards.push({
+    id: 'amarillos', icon: '🟡',
+    title: 'En seguimiento',
+    desc: 'Instructor en contacto con el alumno',
+    count: enSeguimiento.length,
+    accentColor: 'var(--warning)',
+    borderColor: 'rgba(245,158,11,.3)',
+    bgCard: 'rgba(245,158,11,.05)',
+    bgActive: 'rgba(245,158,11,.12)',
+    countBg: 'rgba(245,158,11,.25)',
+    rowsFn: buildAmarillosRows
+  });
 
-  // Abrir automáticamente la primera card con contenido
-  const firstId = rojos.length > 0 ? 'card-rojos' : verdes.length > 0 ? 'card-verdes' : 'card-amarillos';
-  toggleTaskCard(firstId);
+  // Grid de cards
+  let cardsHtml = `<div id="coord-cards-grid" style="display:grid;grid-template-columns:repeat(${cards.length},1fr);gap:.85rem;margin-bottom:.1rem">`;
+  cards.forEach(c => {
+    cardsHtml += `
+    <button id="card-btn-${c.id}" onclick="toggleDashCard('${c.id}')"
+      style="background:${c.bgCard};border:1.5px solid ${c.borderColor};border-radius:var(--r-lg);
+             padding:1.4rem 1.2rem;cursor:pointer;text-align:left;transition:all .18s;width:100%">
+      <div style="font-size:2rem;margin-bottom:.6rem;line-height:1">${c.icon}</div>
+      <div style="font-size:2rem;font-weight:700;color:${c.accentColor};line-height:1;margin-bottom:.3rem">${c.count}</div>
+      <div style="font-size:.88rem;font-weight:600;color:var(--text-primary);margin-bottom:.2rem">${c.title}</div>
+      <div style="font-size:.75rem;color:var(--text-muted);line-height:1.3">${c.desc}</div>
+      <div id="card-btn-${c.id}-chevron" style="margin-top:.8rem;font-size:.7rem;color:${c.accentColor};transition:transform .2s">▼ ver lista</div>
+    </button>`;
+  });
+  cardsHtml += `</div>`;
+
+  // Paneles de listas (uno por card, colapsados)
+  let listsHtml = '';
+  cards.forEach(c => {
+    listsHtml += `
+    <div id="card-list-${c.id}" style="display:none;border:1px solid ${c.borderColor};border-radius:var(--r-md);overflow:hidden;margin-top:.5rem">
+      <div style="padding:.55rem 1rem;background:${c.bgActive};display:flex;align-items:center;gap:.5rem;border-bottom:1px solid ${c.borderColor}">
+        <span>${c.icon}</span>
+        <strong style="font-size:.82rem;color:${c.accentColor};flex:1">${c.title}</strong>
+        <span style="background:${c.countBg};color:white;border-radius:9999px;padding:.1rem .5rem;font-size:.7rem;font-weight:700">${c.count}</span>
+        <button onclick="toggleDashCard('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.8rem;padding:.1rem .3rem">✕</button>
+      </div>
+      <div style="background:var(--bg-card)">${c.rowsFn()}</div>
+    </div>`;
+  });
+
+  container.innerHTML = cardsHtml + listsHtml;
+
+  // Responsive: en móvil colapsar a 1 columna
+  const grid = document.getElementById('coord-cards-grid');
+  if (grid && window.innerWidth < 600) {
+    grid.style.gridTemplateColumns = '1fr';
+  }
 }
 
-function toggleTaskCard(id) {
-  const body    = document.getElementById(id + '-body');
-  const chevron = document.getElementById(id + '-chevron');
-  if (!body) return;
-  const isOpen = body.style.display !== 'none';
-  body.style.display    = isOpen ? 'none' : 'block';
-  if (chevron) chevron.style.transform = isOpen ? '' : 'rotate(180deg)';
+function toggleDashCard(id) {
+  const list    = document.getElementById('card-list-' + id);
+  const chevron = document.getElementById('card-btn-' + id + '-chevron');
+  const btn     = document.getElementById('card-btn-' + id);
+  if (!list) return;
+  const isOpen  = list.style.display !== 'none';
+  list.style.display = isOpen ? 'none' : 'block';
+  if (chevron) chevron.innerHTML = isOpen ? '▼ ver lista' : '▲ ocultar lista';
+  if (btn) btn.style.borderWidth = isOpen ? '1.5px' : '2px';
 }
+
+// legacy alias por si algo lo llama
+function toggleTaskCard(id) { toggleDashCard(id); }
 
 function renderCoordInstructors() {
   const container = document.getElementById('coord-inst-list');
