@@ -797,7 +797,10 @@
 
       <div class="glass-panel">
         <div class="panel-header" style="margin-bottom:1rem">
-          <h3 id="coord-table-title">Todos los alumnos activos</h3>
+          <div style="display:flex;align-items:center;gap:.75rem">
+            <button id="coord-back-to-instructors" class="btn-sec" style="display:none;font-size:.75rem;padding:.35rem .7rem" onclick="switchCoordTab('instructors')">← Instructores</button>
+            <h3 id="coord-table-title">Todos los alumnos activos</h3>
+          </div>
           <span id="coord-table-count" style="font-size:.78rem;color:var(--text-muted)"></span>
         </div>
         <div class="assign-table-wrap scrollable">
@@ -3179,7 +3182,15 @@ function switchCoordTab(tab) {
     if (v) v.style.display = t === tab ? 'block' : 'none';
   });
   if (tab === 'students') renderCoordTable();
-  if (tab === 'instructors') renderCoordInstructors();
+  if (tab === 'instructors') {
+    renderCoordInstructors();
+    // Restaurar filtros de alumnos y ocultar botón regresar
+    const searchRow = document.querySelector('#coord-view-students > div:first-child');
+    if (searchRow) searchRow.style.display = '';
+    const backBtn2 = document.getElementById('coord-back-to-instructors');
+    if (backBtn2) backBtn2.style.display = 'none';
+    _coordCustomFilter = null;
+  }
   if (tab === 'main' || tab === 'instructors') {
     const titleEl = document.getElementById('coord-table-title');
     if (titleEl) titleEl.textContent = 'Todos los alumnos activos';
@@ -3714,6 +3725,11 @@ function renderCoordInstructors() {
       _coordCustomFilter = (p) => p.instructorId === inst.id;
       const titleEl = document.getElementById('coord-table-title');
       if (titleEl) titleEl.textContent = 'Alumnos de ' + inst.name;
+      // Ocultar filtros de alumno, mostrar botón regresar
+      const searchRow = document.querySelector('#coord-view-students > div:first-child');
+      if (searchRow) searchRow.style.display = 'none';
+      const backBtn2 = document.getElementById('coord-back-to-instructors');
+      if (backBtn2) backBtn2.style.display = 'inline-flex';
       switchCoordTab('students');
     });
     row.innerHTML =
