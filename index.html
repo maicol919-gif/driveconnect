@@ -825,6 +825,12 @@
           <h3>Instructores</h3>
           <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem" onclick="openInstructorModal(null)">+ Agregar</button>
         </div>
+        <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem">
+          <input id="coord-inst-search" type="text" placeholder="Buscar instructor por nombre…"
+            style="flex:1;padding:.45rem .8rem;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:.85rem"
+            oninput="renderCoordInstructors()">
+          <button id="coord-inst-back" class="btn-sec" style="display:none;font-size:.78rem;padding:.4rem .8rem" onclick="document.getElementById('coord-inst-search').value='';renderCoordInstructors()">✕ Limpiar</button>
+        </div>
         <div id="coord-inst-list"></div>
       </div>
     </div>
@@ -1529,6 +1535,8 @@ function normalizeInstructor(obj) {
     id: String(k('id') || k('codigo') || k('código') || '').trim(),
     name: String(k('name') || k('nombre') || '').trim(),
     specialty: String(k('specialty') || k('especialidad') || '').trim(),
+    specialtyB: String(k('specialtyB') || '').trim(),
+    specialtyC: String(k('specialtyC') || '').trim(),
     phone: String(k('phone') || k('telefono') || k('celular') || '').trim(),
     email: String(k('email') || k('correo') || '').trim(),
     photo: String(k('photo') || k('foto') || '').trim() || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(k('name') || 'I') + '&background=1e293b&color=60a5fa&size=200',
@@ -3658,11 +3666,26 @@ function renderCoordInstructors() {
     return;
   }
   container.innerHTML = '';
-  const maxLoad = Math.max(...STATE.instructors.map(i =>
+
+  const searchEl = document.getElementById('coord-inst-search');
+  const backBtn  = document.getElementById('coord-inst-back');
+  const query    = (searchEl ? searchEl.value : '').trim().toLowerCase();
+  if (backBtn) backBtn.style.display = query ? 'inline-flex' : 'none';
+
+  const filtered = query
+    ? STATE.instructors.filter(i => i.name.toLowerCase().includes(query))
+    : STATE.instructors;
+
+  if (!filtered.length) {
+    container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin resultados para "' + query + '".</p>';
+    return;
+  }
+
+  const maxLoad = Math.max(...filtered.map(i =>
     STATE.procesos.filter(p => p.instructorId === i.id && p.state !== 'completed').length
   ), 1);
 
-  STATE.instructors.forEach(inst => {
+  filtered.forEach(inst => {
     const myProcs    = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed');
     const load       = myProcs.length;
     const sinContact = myProcs.filter(p => p.state === 'instructor_assigned').length;
@@ -4610,9 +4633,13 @@ function openModal(docNumber, license) {
   // Build instructor options sorted: compatible + less load first
   // Filter by license specialty — only show instructors who handle this license
   const eligibleInstructors = STATE.instructors.filter(i => {
-    if (!i.specialty) return true; // sin especialidad definida: mostrar igual
-    const specs = i.specialty.split(',').map(s => s.trim().toUpperCase());
-    return specs.includes((_assignLicense || '').toUpperCase());
+    const lic = (_assignLicense || '').toUpperCase();
+    // C2 lo puede dar quien tenga C1
+    const licToCheck = lic === 'C2' ? ['C2','C1'] : [lic];
+    const allSpecs = [i.specialty, i.specialtyB, i.specialtyC]
+      .filter(Boolean).map(s => s.trim().toUpperCase());
+    if (!allSpecs.length) return true;
+    return licToCheck.some(l => allSpecs.includes(l));
   });
 
   const withMeta = eligibleInstructors.map(i => {
