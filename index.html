@@ -795,6 +795,22 @@
         </div>
       </div>
 
+      <div id="coord-inst-student-filters" style="display:none;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:center">
+        <input id="coord-inst-stu-search" type="text" placeholder="Buscar alumno..." 
+          style="flex:1;min-width:160px;padding:.42rem .75rem;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:.82rem"
+          oninput="coordInstStudentFilter()">
+        <select id="coord-inst-stu-state" 
+          style="padding:.42rem .6rem;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:.82rem"
+          onchange="coordInstStudentFilter()">
+          <option value="">Todos los estados</option>
+          <option value="theory_passed">Sin instructor</option>
+          <option value="instructor_assigned">Pendiente contacto</option>
+          <option value="contacted">Contactado</option>
+          <option value="contact_confirmed">Confirmado</option>
+          <option value="practice_started">En clases</option>
+          <option value="completed">Completados</option>
+        </select>
+      </div>
       <div class="glass-panel">
         <div class="panel-header" style="margin-bottom:1rem">
           <div style="display:flex;align-items:center;gap:.75rem">
@@ -3189,12 +3205,29 @@ function switchCoordTab(tab) {
     if (searchRow) searchRow.style.display = '';
     const backBtn2 = document.getElementById('coord-back-to-instructors');
     if (backBtn2) backBtn2.style.display = 'none';
+    const instSearch = document.getElementById('coord-inst-student-filters');
+    if (instSearch) { instSearch.style.display = 'none'; instSearch.querySelector('#coord-inst-stu-search').value = ''; instSearch.querySelector('#coord-inst-stu-state').value = ''; }
     _coordCustomFilter = null;
   }
   if (tab === 'main' || tab === 'instructors') {
     const titleEl = document.getElementById('coord-table-title');
     if (titleEl) titleEl.textContent = 'Todos los alumnos activos';
   }
+}
+
+function coordInstStudentFilter() {
+  const searchVal = (document.getElementById('coord-inst-stu-search')?.value || '').toLowerCase();
+  const stateVal  = document.getElementById('coord-inst-stu-state')?.value || '';
+  const instEl    = document.getElementById('coord-inst-student-filters');
+  const instId    = instEl?.dataset?.inst || '';
+
+  _coordCustomFilter = (p, st) => {
+    if (instId && p.instructorId !== instId) return false;
+    if (stateVal && p.state !== stateVal) return false;
+    if (searchVal && st && !st.name.toLowerCase().includes(searchVal)) return false;
+    return true;
+  };
+  renderCoordTable();
 }
 
 function coordMetricClick(type) {
@@ -3731,6 +3764,12 @@ function renderCoordInstructors() {
       const backBtn2 = document.getElementById('coord-back-to-instructors');
       if (backBtn2) backBtn2.style.display = 'inline-flex';
       switchCoordTab('students');
+      // Mantener pestaña Instructores activa visualmente
+      document.getElementById('ctab-instructors')?.classList.add('active');
+      document.getElementById('ctab-students')?.classList.remove('active');
+      // Mostrar buscador interno de instructor
+      const instSearch = document.getElementById('coord-inst-student-filters');
+      if (instSearch) { instSearch.style.display = 'flex'; instSearch.dataset.inst = inst.id; }
     });
     row.innerHTML =
       '<div class="instructor-row-info" style="flex:1;min-width:200px">' +
