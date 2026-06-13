@@ -3201,6 +3201,9 @@ function switchCoordTab(tab) {
     renderCoordInstructors();
     // Restaurar filtros generales y ocultar botón regresar
     document.getElementById('coord-students-filters-row')?.style.setProperty('display','flex');
+    // Restaurar QR y Registrar
+    const hdrBtnsR = document.querySelectorAll('#coord-view-students .panel-header button');
+    hdrBtnsR.forEach(b => b.style.display = '');
     document.getElementById('coord-back-to-instructors') && (document.getElementById('coord-back-to-instructors').style.display = 'none');
     const instSearch = document.getElementById('coord-inst-student-filters');
     if (instSearch) {
@@ -3774,6 +3777,9 @@ function renderCoordInstructors() {
       if (titleEl) titleEl.textContent = 'Alumnos de ' + inst.name;
       document.getElementById('coord-students-filters-row') && (document.getElementById('coord-students-filters-row').style.display = 'none');
       document.getElementById('coord-back-to-instructors') && (document.getElementById('coord-back-to-instructors').style.display = 'inline-flex');
+      // Ocultar QR y Registrar
+      const hdrBtns = document.querySelectorAll('#coord-view-students .panel-header button.btn-primary, #coord-view-students .panel-header button.btn-sec:not(#coord-back-to-instructors)');
+      hdrBtns.forEach(b => b.style.display = 'none');
       switchCoordTab('students');
       document.getElementById('ctab-instructors')?.classList.add('active');
       document.getElementById('ctab-students')?.classList.remove('active');
@@ -3805,13 +3811,6 @@ function renderCoordInstructors() {
     // Botones: se agregan fuera del template literal para evitar problemas de evaluación
     const actionsDiv = card.querySelector('#wa-actions-' + inst.id);
     if (actionsDiv) {
-      const pinBtn = document.createElement('button');
-      pinBtn.className = 'btn-sec';
-      pinBtn.style.cssText = 'font-size:.72rem;padding:.3rem .6rem;margin-right:.4rem';
-      pinBtn.textContent = '🔑 PIN';
-      pinBtn.onclick = (e) => { e.stopPropagation(); editPin(inst.id); };
-      actionsDiv.appendChild(pinBtn);
-
       const editBtn = document.createElement('button');
       editBtn.className = 'btn-sec';
       editBtn.style.cssText = 'font-size:.72rem;padding:.3rem .6rem;margin-right:.4rem';
@@ -4244,6 +4243,21 @@ function openInstructorModal(instId) {
           <label class="config-label">Teléfono (WhatsApp)</label>
           <input id="ie-phone" class="config-input" style="margin-bottom:0" value="${inst?.phone||''}" placeholder="+573001234567">
         </div>
+        <div class="form-group" style="margin-bottom:.75rem">
+          <label class="config-label">Licencias que puede dar</label>
+          <div style="display:flex;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
+              <input type="checkbox" id="ie-spec-a2" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('A2')?'checked':''}> A2 Moto
+            </label>
+            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
+              <input type="checkbox" id="ie-spec-b1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('B1')?'checked':''}> B1 Carro
+            </label>
+            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
+              <input type="checkbox" id="ie-spec-c1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('C1')?'checked':''}> C1 Público
+            </label>
+          </div>
+          <div style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem">C2 lo puede dar automáticamente quien tenga C1</div>
+        </div>
         <div class="form-group" style="margin-bottom:.5rem">
           <label class="config-label">Disponibilidad</label>
           <div style="display:flex;gap:.5rem;margin-top:.25rem">
@@ -4287,9 +4301,19 @@ async function saveInstructor(instId) {
   const availability = slots.join(', ');
   const id = instId || cedula;
 
+  // Especialidades
+  const specA2 = document.getElementById('ie-spec-a2')?.checked;
+  const specB1 = document.getElementById('ie-spec-b1')?.checked;
+  const specC1 = document.getElementById('ie-spec-c1')?.checked;
+  const specs = ['A2','B1','C1'].filter((_,i) => [specA2,specB1,specC1][i]);
+  if (!specs.length) { msg.textContent = '⚠ Selecciona al menos una licencia.'; msg.style.color='var(--danger)'; return; }
+  const specialty  = specs[0] || '';
+  const specialtyB = specs[1] || '';
+  const specialtyC = specs[2] || '';
+
   msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
   const action = instId ? 'updateInstructor' : 'addInstructor';
-  const rInst = await apiCall({ action, id, name, phone, availability, specialty: '', email: '', photo: '' });
+  const rInst = await apiCall({ action, id, name, phone, availability, specialty, specialtyB, specialtyC, email: '', photo: '' });
   if (!rInst?.success) { msg.textContent = '❌ Error: ' + (rInst?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
   await writeLog(`Instructor ${instId ? 'editado' : 'agregado'}: ${name} (CC ${id})`);
   document.getElementById('inst-edit-modal').remove();
