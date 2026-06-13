@@ -3459,15 +3459,9 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   }
 
   // ── DATOS ────────────────────────────────────────────────────────────────
+  // 🔴 ROJOS: sin instructor asignado
   const sinInstructor = STATE.procesos.filter(p => p.state === 'theory_passed');
-  const criticos      = STATE.procesos.filter(p => {
-    if (p.state !== 'instructor_assigned') return false;
-    const st = STATE.students.find(s => s.docNumber === p.docNumber);
-    return daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL &&
-           getDualLicenseContext(p.docNumber, p.license).mode !== 'waiting_while_active';
-  });
-
-  const rojosRaw = [...sinInstructor, ...criticos].sort((a, b) => businessDaysFromTheory(b) - businessDaysFromTheory(a));
+  const rojosRaw = sinInstructor.slice().sort((a, b) => businessDaysFromTheory(b) - businessDaysFromTheory(a));
   const seenOrder = [];
   const rojosByDoc = {};
   rojosRaw.forEach(p => {
@@ -3476,34 +3470,39 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   });
   const rojos = seenOrder.flatMap(doc => rojosByDoc[doc]);
 
-  const confirmados = STATE.procesos.filter(p => p.state === 'contact_confirmed');
-  const staleClases = STATE.procesos.filter(p => {
-    if (p.state !== 'practice_started') return false;
-    const cd = p.contactDate;
-    if (!cd) return false;
-    return businessDaysBetween(parseToISO(cd) || today(), today()) >= CONFIG.WAIT_DAYS_PRACTICE_STALE;
-  });
-  const dualPost = STATE.procesos.filter(p => {
-    if (!['theory_passed','instructor_assigned'].includes(p.state)) return false;
-    return getDualLicenseContext(p.docNumber, p.license).mode === 'post_completed';
-  });
-  const verdes = [...confirmados, ...staleClases, ...dualPost];
-
-  const enSeguimiento = STATE.procesos.filter(p => {
+  // 🟡 AMARILLOS: tiene instructor pero aún no hay contacto confirmado
+  // Estados: instructor_assigned + contacted (instructor contactó pero alumno no confirma)
+  const amarillosRaw = STATE.procesos.filter(p => {
     if (!['instructor_assigned','contacted'].includes(p.state)) return false;
-    const st = STATE.students.find(s => s.docNumber === p.docNumber);
-    const d  = daysWaiting(p, st);
-    if (p.state === 'instructor_assigned' && d >= CONFIG.WAIT_DAYS_CRITICAL) return false;
     if (getDualLicenseContext(p.docNumber, p.license).mode === 'waiting_while_active') return false;
     return true;
   });
+  const enSeguimiento = amarillosRaw.slice().sort((a, b) => {
+    const stA = STATE.students.find(s => s.docNumber === a.docNumber);
+    const stB = STATE.students.find(s => s.docNumber === b.docNumber);
+    return daysWaiting(b, stB) - daysWaiting(a, stA);
+  });
+
+  // 🟢 VERDES: contacto confirmado o posterior (hasta practice_started)
+  // completed queda fuera del panel
+  const verdes = STATE.procesos.filter(p => {
+    if (!['contact_confirmed','practice_started'].includes(p.state)) return false;
+    if (getDualLicenseContext(p.docNumber, p.license).mode === 'waiting_while_active') return false;
+    return true;
+  }).concat(
+    // dual post-completed esperando segunda licencia
+    STATE.procesos.filter(p => {
+      if (!['theory_passed','instructor_assigned'].includes(p.state)) return false;
+      return getDualLicenseContext(p.docNumber, p.license).mode === 'post_completed';
+    })
+  );
 
   // ── ESTADO VACÍO ─────────────────────────────────────────────────────────
   if (rojos.length === 0 && verdes.length === 0 && enSeguimiento.length === 0) {
     container.innerHTML = `<div style="text-align:center;padding:3rem 1rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:var(--r-md)">
       <div style="font-size:3rem;margin-bottom:.75rem">🎉</div>
       <h4 style="color:var(--success);margin-bottom:.4rem">Sin tareas pendientes</h4>
-      <p style="font-size:.85rem;color:var(--text-muted)">${enClases > 0 ? enClases + ' alumno(s) en clases actualmente.' : 'Todo al día.'}</p>
+      <p style="font-size:.85rem;color:var(--text-muted)">Todo al día.</p>
     </div>`;
     return;
   }
@@ -3513,12 +3512,11 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
     let html = '';
     const seen = new Set();
     rojos.forEach((p, i) => {
-      const st        = STATE.students.find(s => s.docNumber === p.docNumber);
-      const bdDays    = businessDaysFromTheory(p);
-      const isOverdue = bdDays >= CONFIG.WAIT_DAYS_CRITICAL;
-      const dayColor  = isOverdue ? 'var(--danger)' : 'var(--warning)';
-      const dayBg     = isOverdue ? 'rgba(244,63,94,.15)' : 'rgba(245,158,11,.15)';
-      const isRepeat  = seen.has(p.docNumber);
+      const st     = STATE.students.find(s => s.docNumber === p.docNumber);
+      const bdDays = businessDaysFromTheory(p);
+      const dayColor = bdDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : 'var(--warning)';
+      const dayBg    = bdDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'rgba(244,63,94,.15)' : 'rgba(245,158,11,.15)';
+      const isRepeat = seen.has(p.docNumber);
       seen.add(p.docNumber);
       const nextP    = rojos[i + 1];
       const sameNext = nextP && nextP.docNumber === p.docNumber;
@@ -3536,12 +3534,37 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
         <div style="flex:1;min-width:0">
           ${namePart}
           <div style="display:flex;align-items:center;gap:.4rem;margin-top:.2rem;flex-wrap:wrap">
-            <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_FULL[p.license]||p.license} ${LICENSE_LABELS[p.license]||''}</span>
+            ${licBadges(p)}
             ${theoryPart}
           </div>
         </div>
         <button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--danger);border-color:var(--danger);flex-shrink:0"
           onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>
+      </div>`;
+    });
+    return html;
+  }
+
+  function buildAmarillosRows() {
+    let html = '';
+    enSeguimiento.forEach((p, i) => {
+      const st   = STATE.students.find(s => s.docNumber === p.docNumber);
+      const inst = STATE.instructors.find(ins => ins.id === p.instructorId);
+      const days = daysWaiting(p, st);
+      const border = i < enSeguimiento.length - 1 ? 'border-bottom:1px solid rgba(245,158,11,.1)' : '';
+      const dayColor = days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
+      let stateLabel = '';
+      if (p.state === 'contacted') {
+        stateLabel = `<span style="color:#a78bfa;font-size:.72rem;font-weight:600">Instructor contactó — alumno aún no confirma</span>`;
+      } else {
+        stateLabel = `<span style="color:${dayColor};font-size:.72rem">${days}d esperando contacto · ${inst ? inst.name : '—'}</span>`;
+      }
+      html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st?.name || p.docNumber}</div>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">${licBadges(p)}${stateLabel}</div>
+        </div>
+        <button class="btn-sec" style="font-size:.73rem;padding:.25rem .65rem;flex-shrink:0" onclick="openStudentProfile('${p.docNumber}')">📋 Ver</button>
       </div>`;
     });
     return html;
@@ -3553,17 +3576,17 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
       const st     = STATE.students.find(s => s.docNumber === p.docNumber);
       const border = i < verdes.length - 1 ? 'border-bottom:1px solid rgba(16,185,129,.1)' : '';
       let accionLabel = '', accionBtn = '';
-      if (p.state === 'contact_confirmed') {
-        accionLabel = `<span style="color:var(--success);font-size:.72rem;font-weight:600">Contacto confirmado</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0" onclick="coordMarkPracticeStarted('${p.docNumber}','${p.license}')">🚗 Iniciar clases</button>`;
-      } else if (p.state === 'practice_started') {
-        const cd    = p.contactDate ? businessDaysBetween(parseToISO(p.contactDate)||today(), today()) : 0;
-        accionLabel = `<span style="color:var(--warning);font-size:.72rem">${cd}d en prácticas</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0" onclick="coordCloseProcess('${p.docNumber}','${p.license}')">🎓 Cerrar proceso</button>`;
-      } else {
-        const ctx  = getDualLicenseContext(p.docNumber, p.license);
+      const ctx = getDualLicenseContext(p.docNumber, p.license);
+      if (ctx.mode === 'post_completed') {
         accionLabel = `<span style="color:var(--warning);font-size:.72rem">2ª licencia — ${ctx.daysSinceCompleted||0}d desde fin</span>`;
         accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;flex-shrink:0" onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>`;
+      } else if (p.state === 'contact_confirmed') {
+        accionLabel = `<span style="color:var(--success);font-size:.72rem;font-weight:600">✓ Contacto confirmado</span>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0" onclick="coordMarkPracticeStarted('${p.docNumber}','${p.license}')">🚗 Iniciar clases</button>`;
+      } else if (p.state === 'practice_started') {
+        const cd  = p.contactDate ? businessDaysBetween(parseToISO(p.contactDate)||today(), today()) : 0;
+        accionLabel = `<span style="color:var(--success);font-size:.72rem;font-weight:600">🚗 En clases · ${cd}d</span>`;
+        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0" onclick="coordCloseProcess('${p.docNumber}','${p.license}')">🎓 Cerrar proceso</button>`;
       }
       html += `<div style="padding:.7rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
         <div style="flex:1;min-width:0">
@@ -3575,35 +3598,12 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
     return html;
   }
 
-  function buildAmarillosRows() {
-    let html = '';
-    enSeguimiento.forEach((p, i) => {
-      const st     = STATE.students.find(s => s.docNumber === p.docNumber);
-      const inst   = STATE.instructors.find(ins => ins.id === p.instructorId);
-      const days   = daysWaiting(p, st);
-      const border = i < enSeguimiento.length - 1 ? 'border-bottom:1px solid rgba(245,158,11,.1)' : '';
-      const dayColor = days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
-      const stateLabel = p.state === 'contacted'
-        ? `<span style="color:#a78bfa;font-size:.72rem">Alumno aún no confirma contacto</span>`
-        : `<span style="color:${dayColor};font-size:.72rem">${days}d — instructor aún no contacta · ${inst ? inst.name : '—'}</span>`;
-      html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st?.name||p.docNumber}</div>
-          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">${licBadges(p)}${stateLabel}</div>
-        </div>
-        <button class="btn-sec" style="font-size:.73rem;padding:.25rem .65rem;flex-shrink:0" onclick="openStudentProfile('${p.docNumber}')">📋 Ver</button>
-      </div>`;
-    });
-    return html;
-  }
-
-  // ── CARDS DASHBOARD + LISTAS ──────────────────────────────────────────────
-  // Cada card grande actúa como botón y despliega su lista debajo
+  // ── CARDS DASHBOARD ──────────────────────────────────────────────────────
   const cards = [];
   if (rojos.length > 0) cards.push({
     id: 'rojos', icon: '🔴',
-    title: 'Urgente',
-    desc: 'Alumnos sin instructor asignado',
+    title: 'Sin instructor',
+    desc: 'Requieren asignación de instructor',
     count: rojos.length,
     accentColor: 'var(--danger)',
     borderColor: 'rgba(244,63,94,.35)',
@@ -3614,20 +3614,20 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   });
   if (enSeguimiento.length > 0) cards.push({
     id: 'amarillos', icon: '🟡',
-    title: 'En seguimiento',
-    desc: 'Instructor en contacto con el alumno',
+    title: 'Pendiente de contacto',
+    desc: 'Instructor asignado — aún sin confirmar contacto',
     count: enSeguimiento.length,
     accentColor: 'var(--warning)',
     borderColor: 'rgba(245,158,11,.3)',
     bgCard: 'rgba(245,158,11,.05)',
     bgActive: 'rgba(245,158,11,.12)',
-    countBg: 'rgba(245,158,11,.25)',
+    countBg: 'rgba(245,158,11,.9)',
     rowsFn: buildAmarillosRows
   });
   if (verdes.length > 0) cards.push({
-    id: 'verdes', icon: '✅',
-    title: 'Listo para avanzar',
-    desc: 'Alumnos esperando tu acción',
+    id: 'verdes', icon: '🟢',
+    title: 'En proceso',
+    desc: 'Contacto confirmado o clases activas',
     count: verdes.length,
     accentColor: 'var(--success)',
     borderColor: 'rgba(16,185,129,.3)',
@@ -3653,7 +3653,7 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   });
   cardsHtml += `</div>`;
 
-  // Paneles de listas (uno por card, colapsados)
+  // Paneles de listas
   let listsHtml = '';
   cards.forEach(c => {
     listsHtml += `
@@ -3670,11 +3670,8 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 
   container.innerHTML = cardsHtml + listsHtml;
 
-  // Responsive: en móvil colapsar a 1 columna
   const grid = document.getElementById('coord-cards-grid');
-  if (grid && window.innerWidth < 600) {
-    grid.style.gridTemplateColumns = '1fr';
-  }
+  if (grid && window.innerWidth < 600) grid.style.gridTemplateColumns = '1fr';
 }
 
 function toggleDashCard(id) {
@@ -3876,14 +3873,18 @@ async function renderCoordinatorPortal() {
   }, 0) / pendingProcs.length) : 0;
 
   // Saludo dinámico
-  const totalTasks = unassigned + critical;
+  const sinInst = unassigned;
+  const conInst = STATE.procesos.filter(p => ['instructor_assigned','contacted'].includes(p.state)).length;
+  const enProceso = STATE.procesos.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
   let welcomeMsg = '';
-  if (totalTasks > 0) {
-    welcomeMsg = `Tienes <strong style="color:var(--danger)">${totalTasks} tarea(s) urgente(s)</strong> que requieren tu atención.`;
-  } else if (warn > 0 || confirmStale > 0 || practiceStale > 0) {
-    welcomeMsg = `Todo bajo control. <strong style="color:var(--warning)">Hay items en seguimiento.</strong>`;
+  if (sinInst > 0) {
+    welcomeMsg = `<strong style="color:var(--danger)">${sinInst} alumno(s) sin instructor</strong> requieren asignación.`;
+  } else if (conInst > 0) {
+    welcomeMsg = `Todo asignado. <strong style="color:var(--warning)">${conInst} alumno(s) esperando contacto del instructor.</strong>`;
+  } else if (enProceso > 0) {
+    welcomeMsg = `<strong style="color:var(--success)">Todo en proceso.</strong> ${enProceso} alumno(s) con contacto confirmado o en clases.`;
   } else {
-    welcomeMsg = `Todo en orden. <strong style="color:var(--success)">${enClases} alumno(s) en clases actualmente.</strong> ¡Buen trabajo!`;
+    welcomeMsg = `<strong style="color:var(--success)">Todo en orden.</strong> ¡Buen trabajo!`;
   }
 
   const greetEl = document.getElementById('coord-greeting');
