@@ -3201,7 +3201,7 @@ function switchCoordTab(tab) {
     const v = document.getElementById('coord-view-' + t);
     if (v) v.style.display = t === tab ? 'block' : 'none';
   });
-  if (tab === 'students') renderCoordTable();
+  if (tab === 'students') requestAnimationFrame(() => renderCoordTable());
   if (tab === 'instructors') {
     renderCoordInstructors();
     // Restaurar filtros generales y ocultar botón regresar
