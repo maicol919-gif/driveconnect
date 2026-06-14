@@ -1856,10 +1856,10 @@ function showView(id) {
 function goHome() {
   if (!STATE.currentUser) { showView('view-login'); return; }
   const role = STATE.currentUser.role;
-  if (role === 'student') showView('view-student');
-  else if (role === 'instructor') showView('view-instructor');
-  else if (role === 'coordinator') showView('view-coordinator');
-  else if (role === 'admin') showView('view-admin');
+  if (role === 'student') { showView('view-student'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  else if (role === 'instructor') { showView('view-instructor'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  else if (role === 'coordinator') { showView('view-coordinator'); switchCoordTab('main'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  else if (role === 'admin') { showView('view-admin'); switchAdminTab('system'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 }
 
 function togglePwd(inputId, btn) {
