@@ -868,12 +868,12 @@
     <!-- ===== VISTA ALUMNOS ===== -->
     <div id="coord-view-students" style="display:none">
       <div class="glass-panel">
-        <div class="panel-header" style="margin-bottom:1.25rem">
-          <h3>👥 Alumnos</h3>
-          <div style="display:flex;align-items:center;gap:.5rem">
-            <button id="coord-back-to-instructors" class="btn-sec" style="display:none;font-size:.75rem;padding:.35rem .7rem" onclick="switchCoordTab('instructors')">← Instructores</button>
-            <button class="btn-primary" style="width:auto;padding:.38rem .8rem;font-size:.75rem" onclick="coordShowRegisterQR()">📱 QR</button>
-            <button class="btn-sec" style="padding:.38rem .8rem;font-size:.75rem" onclick="coordRegisterManual()">✏️ Registrar</button>
+        <div class="panel-header" style="margin-bottom:1rem">
+          <h3 style="font-size:.95rem">Alumnos</h3>
+          <div style="display:flex;align-items:center;gap:.4rem">
+            <button id="coord-back-to-instructors" class="btn-sec" style="display:none;font-size:.75rem;padding:.35rem .7rem" onclick="switchCoordTab('instructors')">&#8592; Instructores</button>
+            <button class="btn-sec" style="padding:.35rem .65rem;font-size:.75rem;width:auto" title="Registro QR" onclick="coordShowRegisterQR()">QR</button>
+            <button class="btn-primary" style="padding:.35rem .75rem;font-size:.78rem;width:auto" onclick="coordRegisterManual()">+ Nuevo</button>
           </div>
         </div>
         <span id="coord-table-count" style="display:none"></span>
@@ -3625,36 +3625,38 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   const sinInstructor = STATE.procesos.filter(p => p.state === 'theory_passed').length;
   const enSeguimiento = STATE.procesos.filter(p => ['instructor_assigned','contacted'].includes(p.state)).length;
   const enProgreso    = STATE.procesos.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
+  const totalActivos  = sinInstructor + enSeguimiento + enProgreso;
 
-  if (sinInstructor === 0 && enSeguimiento === 0 && enProgreso === 0) {
-    container.innerHTML = `<div style="text-align:center;padding:3rem 1rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:var(--r-md)">
-      <div style="font-size:3rem;margin-bottom:.75rem">&#127881;</div>
-      <h4 style="color:var(--success);margin-bottom:.4rem">Sin tareas pendientes</h4>
-      <p style="font-size:.85rem;color:var(--text-muted)">Todo al día. ¡Buen trabajo!</p>
+  if (totalActivos === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:2rem 1rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:var(--r-md)">
+      <div style="font-size:2rem;margin-bottom:.5rem">&#127881;</div>
+      <h4 style="color:var(--success);margin-bottom:.25rem">Sin tareas pendientes</h4>
+      <p style="font-size:.82rem;color:var(--text-muted)">Todo al día. ¡Buen trabajo!</p>
     </div>`;
     return;
   }
 
-  const CARDS = [
-    { n: sinInstructor, icon: '&#128680;', label: 'Sin instructor',  desc: 'Requieren asignación urgente',             color: 'var(--danger)',  glow: 'rgba(244,63,94,.25)',  bg: 'rgba(244,63,94,.07)',  border: 'rgba(244,63,94,.3)',  action: 'Asignar ahora',  group: 'theory_passed' },
-    { n: enSeguimiento, icon: '&#128242;', label: 'En seguimiento',  desc: 'Instructor asignado — esperando contacto', color: 'var(--warning)', glow: 'rgba(245,158,11,.25)', bg: 'rgba(245,158,11,.07)', border: 'rgba(245,158,11,.3)', action: 'Revisar estado', group: 'instructor_assigned' },
-    { n: enProgreso,    icon: '&#128663;', label: 'En clases',       desc: 'Contacto confirmado o clases iniciadas',   color: 'var(--success)', glow: 'rgba(16,185,129,.25)', bg: 'rgba(16,185,129,.07)', border: 'rgba(16,185,129,.3)', action: 'Ver progreso',   group: 'practice_started' },
-  ].filter(c => c.n > 0);
+  const stats = [
+    sinInstructor > 0 ? { n: sinInstructor, label: 'Sin instructor', color: 'var(--danger)',  group: 'theory_passed' } : null,
+    enSeguimiento > 0 ? { n: enSeguimiento,  label: 'Esperando contacto', color: 'var(--warning)', group: 'instructor_assigned' } : null,
+    enProgreso    > 0 ? { n: enProgreso,      label: 'En clases',    color: 'var(--success)', group: 'practice_started' } : null,
+    critical      > 0 ? { n: critical,        label: 'Críticos >20d', color: 'var(--danger)', group: null } : null,
+  ].filter(Boolean);
 
-  container.innerHTML =
-    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:1rem;margin-bottom:.5rem">` +
-    CARDS.map(c => `
-      <div onclick="switchCoordTab('students');coordExpandGroup('${c.group}')"
-           style="cursor:pointer;padding:1.5rem 1.25rem;border-radius:var(--r-lg);border:1px solid ${c.border};background:${c.bg};transition:var(--t-norm)"
-           onmouseenter="this.style.boxShadow='0 0 28px ${c.glow}';this.style.transform='translateY(-3px)'"
-           onmouseleave="this.style.boxShadow='';this.style.transform=''">
-        <div style="font-size:2rem;margin-bottom:.5rem">${c.icon}</div>
-        <div style="font-size:2.8rem;font-weight:800;font-family:var(--font-title);color:${c.color};line-height:1">${c.n}</div>
-        <div style="font-weight:700;font-size:.9rem;margin-top:.4rem">${c.label}</div>
-        <div style="color:var(--text-secondary);font-size:.76rem;margin-top:.2rem;line-height:1.4">${c.desc}</div>
-        <div style="margin-top:1rem;font-size:.78rem;font-weight:600;color:${c.color}">${c.action} &#8594;</div>
-      </div>`).join('') +
-    `</div>`;
+  container.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+      ${stats.map(s => `
+        <div onclick="${s.group ? `switchCoordTab('students');coordExpandGroup('${s.group}')` : `switchCoordTab('students')`}"
+             style="cursor:pointer;display:flex;align-items:center;gap:.5rem;padding:.55rem .9rem;border-radius:var(--r-md);border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);transition:var(--t-fast)"
+             onmouseenter="this.style.background='rgba(255,255,255,.07)'" onmouseleave="this.style.background='rgba(255,255,255,.03)'">
+          <span style="font-size:1.4rem;font-weight:800;font-family:var(--font-title);color:${s.color};line-height:1">${s.n}</span>
+          <span style="font-size:.75rem;color:var(--text-secondary);line-height:1.2;max-width:90px">${s.label}</span>
+        </div>`).join('')}
+      <div onclick="switchCoordTab('students')"
+           style="cursor:pointer;display:flex;align-items:center;gap:.4rem;padding:.55rem .9rem;border-radius:var(--r-md);border:1px solid rgba(255,255,255,.06);background:transparent;font-size:.8rem;color:var(--brand-light)">
+        Ver todos &#8594;
+      </div>
+    </div>`;
 }
 
 function coordExpandGroup(groupKey) {
@@ -3688,13 +3690,14 @@ function _renderCoordCards() {
   const countEl = document.getElementById('coord-stu-count');
   if (!cardsEl) return;
 
-  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2' };
+  const LIC_ICONS = { A2: '&#127949;', B1: '&#128663;', C1: '&#128652;', C2: '&#128697;' };
+  const LIC_LABEL = { A2: 'A2', B1: 'B1', C1: 'C1', C2: 'C2' };
   const STATE_INFO = {
-    theory_passed:       { label: 'Sin instructor',     color: 'var(--danger)',  bg: 'rgba(244,63,94,.12)' },
-    instructor_assigned: { label: 'Pdte. contacto',     color: 'var(--warning)', bg: 'rgba(245,158,11,.12)' },
-    contacted:           { label: 'Contactado',         color: '#a78bfa',        bg: 'rgba(139,92,246,.12)' },
-    contact_confirmed:   { label: 'Confirmado',         color: 'var(--success)', bg: 'rgba(16,185,129,.12)' },
-    practice_started:    { label: 'En clases',          color: 'var(--success)', bg: 'rgba(16,185,129,.15)' },
+    theory_passed:       { label: 'Sin instructor',   color: 'var(--danger)',  bg: 'rgba(244,63,94,.12)' },
+    instructor_assigned: { label: 'Pdte. contacto',   color: 'var(--warning)', bg: 'rgba(245,158,11,.12)' },
+    contacted:           { label: 'Contactado',        color: '#a78bfa',        bg: 'rgba(139,92,246,.12)' },
+    contact_confirmed:   { label: 'Confirmado',        color: 'var(--success)', bg: 'rgba(16,185,129,.12)' },
+    practice_started:    { label: 'En clases',         color: 'var(--success)', bg: 'rgba(16,185,129,.15)' },
   };
   const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
 
@@ -3726,42 +3729,193 @@ function _renderCoordCards() {
 
   if (!entries.length) {
     cardsEl.innerHTML = searchVal
-      ? emptyStateHtml('🔍', 'Sin resultados', `No hay alumnos que coincidan con "${searchVal}".`)
-      : emptyStateHtml('🎓', 'Sin alumnos activos', 'Todos los procesos están completados o no hay alumnos registrados aún.');
+      ? emptyStateHtml('&#128269;', 'Sin resultados', `No hay alumnos que coincidan con "${searchVal}".`)
+      : emptyStateHtml('&#127891;', 'Sin alumnos activos', 'Todos los procesos están completados o no hay alumnos registrados aún.');
     return;
   }
 
-  cardsEl.innerHTML = entries.map(({ docNum, procs, st, maxDays }) => {
+  cardsEl.innerHTML = '<div style="border:1px solid rgba(255,255,255,.07);border-radius:var(--r-md);overflow:hidden">' +
+    entries.map(({ docNum, procs, st, maxDays, urgIdx }, idx) => {
     const name = st?.name || docNum;
+    const initials = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
     const urgentProc = procs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
     const si = STATE_INFO[urgentProc?.state] || { label: urgentProc?.state, color: 'var(--text-muted)', bg: 'rgba(255,255,255,.05)' };
-    const dayColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
 
-    const licRows = procs.map(p => {
-      const inst = STATE.instructors.find(i => i.id === p.instructorId);
-      const psi  = STATE_INFO[p.state] || { label: p.state, color: 'var(--text-muted)', bg: 'rgba(255,255,255,.05)' };
-      const pdays = daysWaiting(p, st);
-      const pdayColor = pdays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : pdays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
-      return `<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.35rem 0;border-top:1px solid rgba(255,255,255,.05)">
-        <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_LABELS[p.license] || p.license}</span>
-        <span style="background:${psi.bg};border-radius:9999px;padding:.1rem .5rem;font-size:.68rem;color:${psi.color};font-weight:600">${psi.label}</span>
-        ${inst ? `<span style="font-size:.72rem;color:var(--text-secondary)">&#128104;&#8205;&#127979; ${inst.name?.split(' ')[0] || '—'}</span>` : ''}
-        ${pdays > 0 ? `<span style="font-size:.72rem;color:${pdayColor};font-weight:600">${pdays}d</span>` : ''}
-        ${p.state === 'theory_passed' ? `<button class="btn-primary" style="margin-left:auto;width:auto;padding:.2rem .65rem;font-size:.7rem;background:var(--danger);border-color:var(--danger)" onclick="openModal('${p.docNumber}','${p.license}')">+ Asignar</button>` : ''}
-      </div>`;
-    }).join('');
+    // Urgency bar color
+    const barColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)'
+                   : maxDays >= CONFIG.WAIT_DAYS_WARNING  ? 'var(--warning)'
+                   : urgIdx <= 3 ? 'var(--success)' : 'transparent';
 
-    return `<div style="padding:.85rem 1rem;border-radius:var(--r-md);border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02);margin-bottom:.5rem">
-      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.3rem;flex-wrap:wrap">
-        <div style="flex:1;font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
-        <span style="font-size:.7rem;color:var(--text-muted)">${docNum}</span>
-        ${maxDays > 0 ? `<span style="font-size:.75rem;font-weight:700;color:${dayColor}">${maxDays}d</span>` : ''}
-        <span style="background:${si.bg};border-radius:9999px;padding:.1rem .5rem;font-size:.68rem;color:${si.color};font-weight:600;white-space:nowrap">${si.label}</span>
-        <button onclick="coordChangeState('${docNum}',null)" style="background:none;border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.2rem .5rem;cursor:pointer;font-size:.75rem;color:var(--text-secondary);flex-shrink:0" title="Editar estado">✏️</button>
+    // Days display
+    const daysColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)'
+                    : maxDays >= CONFIG.WAIT_DAYS_WARNING  ? 'var(--warning)'
+                    : 'var(--text-muted)';
+
+    // License pills
+    const licPills = procs.map(p =>
+      `<span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.05rem .4rem;font-size:.65rem;color:var(--brand-light);font-weight:600">${LIC_LABEL[p.license] || p.license}</span>`
+    ).join('');
+
+    // Primary action button (icon only) based on most urgent state
+    const hasUnassigned = procs.some(p => p.state === 'theory_passed');
+    const hasContactable = procs.some(p => ['instructor_assigned','contacted'].includes(p.state));
+    const hasPractice = procs.some(p => p.state === 'practice_started');
+    const hasConfirmed = procs.some(p => p.state === 'contact_confirmed');
+
+    let primaryBtn = '';
+    if (hasUnassigned) {
+      const p = procs.find(pr => pr.state === 'theory_passed');
+      primaryBtn = `<button onclick="event.stopPropagation();openModal('${docNum}','${p.license}')"
+        style="width:30px;height:30px;border-radius:var(--r-sm);border:1px solid rgba(244,63,94,.4);background:rgba(244,63,94,.12);color:var(--danger);cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0"
+        title="Asignar instructor">&#43;</button>`;
+    } else if (hasConfirmed) {
+      primaryBtn = `<button onclick="event.stopPropagation();coordChangeState('${docNum}',null)"
+        style="width:30px;height:30px;border-radius:var(--r-sm);border:1px solid rgba(16,185,129,.3);background:rgba(16,185,129,.1);color:var(--success);cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0"
+        title="Iniciar práctica">&#9654;</button>`;
+    } else if (hasPractice) {
+      primaryBtn = `<button onclick="event.stopPropagation();coordChangeState('${docNum}',null)"
+        style="width:30px;height:30px;border-radius:var(--r-sm);border:1px solid rgba(16,185,129,.3);background:rgba(16,185,129,.1);color:var(--success);cursor:pointer;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0"
+        title="Marcar completado">&#10003;</button>`;
+    }
+
+    const border = idx > 0 ? 'border-top:1px solid rgba(255,255,255,.06);' : '';
+    return `<div style="${border}display:flex;align-items:center;cursor:pointer;transition:background .15s;min-height:52px"
+         onclick="openCoordSheet('${docNum}')"
+         onmouseenter="this.style.background='rgba(255,255,255,.04)'" onmouseleave="this.style.background=''">
+      <!-- urgency bar -->
+      <div style="width:3px;min-height:52px;background:${barColor};flex-shrink:0"></div>
+      <!-- avatar -->
+      <div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;color:var(--brand-light);margin:0 10px;flex-shrink:0">${initials}</div>
+      <!-- main info -->
+      <div style="flex:1;min-width:0;padding:10px 0">
+        <div style="font-size:.82rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+        <div style="display:flex;align-items:center;gap:.3rem;margin-top:3px;flex-wrap:wrap">
+          ${licPills}
+          <span style="font-size:.68rem;color:${si.color}">${si.label}</span>
+        </div>
       </div>
-      ${licRows}
+      <!-- days -->
+      ${maxDays > 0 ? `<div style="font-size:.78rem;font-weight:700;color:${daysColor};margin:0 6px;flex-shrink:0">${maxDays}d</div>` : '<div style="width:28px"></div>'}
+      <!-- actions -->
+      <div style="display:flex;gap:3px;padding-right:8px;flex-shrink:0" onclick="event.stopPropagation()">
+        ${primaryBtn}
+        <button onclick="openCoordSheet('${docNum}')"
+          style="width:30px;height:30px;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text-secondary);cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0"
+          title="Ver detalle">&#128065;</button>
+      </div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function openCoordSheet(docNum) {
+  const existing = document.getElementById('coord-sheet-overlay');
+  if (existing) existing.remove();
+
+  const st = STATE.students.find(s => s.docNumber === docNum);
+  const procs = STATE.procesos.filter(p => p.docNumber === docNum && !['completed','pending'].includes(p.state));
+  if (!st && !procs.length) return;
+
+  const name = st?.name || docNum;
+  const initials = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
+  const STATE_INFO = {
+    theory_passed:       { label: 'Sin instructor',   color: 'var(--danger)'  },
+    instructor_assigned: { label: 'Pdte. contacto',   color: 'var(--warning)' },
+    contacted:           { label: 'Contactado',        color: '#a78bfa'        },
+    contact_confirmed:   { label: 'Confirmado',        color: 'var(--success)' },
+    practice_started:    { label: 'En clases',         color: 'var(--success)' },
+  };
+  const LIC_LABEL = { A2: '&#127949; A2', B1: '&#128663; B1', C1: '&#128652; C1', C2: '&#128697; C2' };
+
+  const maxDays = procs.length ? Math.max(...procs.map(p => daysWaiting(p, st))) : 0;
+  const urgentProc = procs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
+  const si = STATE_INFO[urgentProc?.state] || { label: '—', color: 'var(--text-muted)' };
+
+  const licPills = procs.map(p => {
+    const inst = STATE.instructors.find(i => i.id === p.instructorId);
+    const psi = STATE_INFO[p.state] || { label: p.state, color: 'var(--text-muted)' };
+    const pdays = daysWaiting(p, st);
+    const dcolor = pdays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : pdays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
+    return `<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-top:1px solid rgba(255,255,255,.07);flex-wrap:wrap">
+      <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .5rem;font-size:.7rem;color:var(--brand-light);font-weight:600">${LIC_LABEL[p.license] || p.license}</span>
+      <span style="font-size:.72rem;color:${psi.color}">${psi.label}</span>
+      ${inst ? `<span style="font-size:.72rem;color:var(--text-secondary)">${inst.name?.split(' ')[0] || '—'}</span>` : ''}
+      ${pdays > 0 ? `<span style="font-size:.72rem;font-weight:600;color:${dcolor}">${pdays}d</span>` : ''}
     </div>`;
   }).join('');
+
+  // Build contextual actions
+  const hasUnassigned = procs.some(p => p.state === 'theory_passed');
+  const hasConfirmed  = procs.some(p => p.state === 'contact_confirmed');
+  const hasPractice   = procs.some(p => p.state === 'practice_started');
+  const unassProc     = procs.find(p => p.state === 'theory_passed');
+
+  const actions = [];
+  if (hasUnassigned) {
+    actions.push({ icon: '&#128100;', bg: 'rgba(139,92,246,.15)', color: '#a78bfa', label: 'Asignar instructor', sub: `Licencia ${unassProc?.license}`, onclick: `document.getElementById('coord-sheet-overlay').remove();openModal('${docNum}','${unassProc?.license}')` });
+  }
+  if (hasConfirmed) {
+    actions.push({ icon: '&#9654;', bg: 'rgba(16,185,129,.12)', color: 'var(--success)', label: 'Iniciar práctica', sub: 'Confirmar inicio de clases', onclick: `document.getElementById('coord-sheet-overlay').remove();coordChangeState('${docNum}',null)` });
+  }
+  if (hasPractice) {
+    actions.push({ icon: '&#10003;', bg: 'rgba(16,185,129,.12)', color: 'var(--success)', label: 'Marcar completado', sub: 'Finalizar proceso', onclick: `document.getElementById('coord-sheet-overlay').remove();coordChangeState('${docNum}',null)` });
+  }
+  actions.push({ icon: '&#9998;', bg: 'rgba(59,130,246,.1)', color: 'var(--brand-light)', label: 'Editar estado', sub: 'Cambiar estado manualmente', onclick: `document.getElementById('coord-sheet-overlay').remove();coordChangeState('${docNum}',null)` });
+  actions.push({ icon: '&#128247;', bg: 'rgba(59,130,246,.08)', color: 'var(--brand-light)', label: 'Registrar QR', sub: 'Activar registro por QR', onclick: `document.getElementById('coord-sheet-overlay').remove();coordShowRegisterQR()` });
+
+  const daysColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--success)';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'coord-sheet-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center';
+  overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div style="background:var(--bg-secondary);border-radius:1rem 1rem 0 0;width:100%;max-width:520px;padding:0 0 2rem;max-height:85vh;overflow-y:auto">
+      <div style="width:36px;height:3px;background:rgba(255,255,255,.2);border-radius:2px;margin:10px auto 0"></div>
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.9rem 1rem .75rem;border-bottom:1px solid rgba(255,255,255,.07)">
+        <div style="width:38px;height:38px;border-radius:50%;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:700;color:var(--brand-light);flex-shrink:0">${initials}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.92rem;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+          <div style="font-size:.72rem;color:var(--text-muted)">${docNum}</div>
+        </div>
+        <button onclick="document.getElementById('coord-sheet-overlay').remove()"
+          style="width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);color:var(--text-secondary);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">&times;</button>
+      </div>
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;padding:.75rem 1rem;border-bottom:1px solid rgba(255,255,255,.07)">
+        <div style="background:rgba(255,255,255,.04);border-radius:var(--r-sm);padding:.6rem .5rem;text-align:center">
+          <div style="font-size:1.4rem;font-weight:800;font-family:var(--font-title);color:${daysColor}">${maxDays || '—'}</div>
+          <div style="font-size:.65rem;color:var(--text-muted);margin-top:2px">días espera</div>
+        </div>
+        <div style="background:rgba(255,255,255,.04);border-radius:var(--r-sm);padding:.6rem .5rem;text-align:center">
+          <div style="font-size:.8rem;font-weight:600;color:${si.color};line-height:1.2;margin-top:.15rem">${si.label}</div>
+          <div style="font-size:.65rem;color:var(--text-muted);margin-top:4px">estado</div>
+        </div>
+        <div style="background:rgba(255,255,255,.04);border-radius:var(--r-sm);padding:.6rem .5rem;text-align:center">
+          <div style="font-size:1.4rem;font-weight:800;font-family:var(--font-title);color:var(--text-primary)">${procs.length}</div>
+          <div style="font-size:.65rem;color:var(--text-muted);margin-top:2px">licencia(s)</div>
+        </div>
+      </div>
+      <!-- License rows -->
+      <div style="padding:.5rem 1rem .25rem">${licPills}</div>
+      <!-- Actions -->
+      <div style="padding:.5rem 1rem 0;display:flex;flex-direction:column;gap:.4rem">
+        ${actions.map(a => `
+          <div onclick="${a.onclick}" style="display:flex;align-items:center;gap:.75rem;padding:.65rem .85rem;border-radius:var(--r-md);border:1px solid rgba(255,255,255,.07);cursor:pointer;transition:background .15s"
+               onmouseenter="this.style.background='rgba(255,255,255,.05)'" onmouseleave="this.style.background=''">
+            <div style="width:32px;height:32px;border-radius:var(--r-sm);background:${a.bg};display:flex;align-items:center;justify-content:center;font-size:.9rem;color:${a.color};flex-shrink:0">${a.icon}</div>
+            <div style="flex:1">
+              <div style="font-size:.82rem;font-weight:600;color:var(--text-primary)">${a.label}</div>
+              <div style="font-size:.7rem;color:var(--text-muted)">${a.sub}</div>
+            </div>
+            <span style="color:var(--text-muted);font-size:.8rem">&#8250;</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
 }
 
 
