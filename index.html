@@ -86,6 +86,36 @@
 
     /* LOGIN */
     .auth-container{max-width:500px;margin:3rem auto;text-align:center}
+    .role-card-login{
+      border-radius:var(--r-md);padding:1.1rem .75rem;border:1.5px solid var(--border-color);
+      background:rgba(255,255,255,.02);cursor:pointer;transition:var(--t-norm);text-align:center;
+      display:flex;flex-direction:column;align-items:center;gap:.35rem;user-select:none;
+    }
+    .role-card-login:hover{border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.05)}
+    .role-card-login.active{
+      border-color:var(--brand);background:rgba(59,130,246,.1);
+      box-shadow:0 0 18px rgba(59,130,246,.2);
+    }
+    .role-card-login .rc-icon{font-size:1.8rem;line-height:1}
+    .role-card-login .rc-label{font-size:.85rem;font-weight:700;color:var(--text-secondary);transition:var(--t-fast)}
+    .role-card-login.active .rc-label{color:var(--brand-light)}
+    .login-register-cta{
+      display:flex;align-items:center;justify-content:space-between;
+      margin-top:1.25rem;padding:.65rem .9rem;
+      border-radius:var(--r-sm);background:rgba(255,255,255,.03);border:1px solid var(--border-color);
+    }
+    .login-register-cta span{font-size:.82rem;color:var(--text-secondary)}
+    .login-register-cta button{
+      background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);
+      color:var(--brand-light);border-radius:9999px;padding:.3rem .9rem;
+      font-size:.8rem;font-weight:700;cursor:pointer;transition:var(--t-fast);
+    }
+    .login-register-cta button:hover{background:var(--brand);color:white;border-color:var(--brand)}
+    .coord-access-toggle{
+      font-size:.75rem;color:var(--text-muted);cursor:pointer;
+      margin-top:.9rem;display:inline-block;transition:color .2s;
+    }
+    .coord-access-toggle:hover{color:var(--text-secondary)}
     .auth-header{margin-bottom:2rem}
     .auth-header h1{font-family:var(--font-title);font-size:2rem;font-weight:800;margin-bottom:.5rem;letter-spacing:-.5px}
     .auth-header p{color:var(--text-secondary);font-size:.9rem}
@@ -530,16 +560,32 @@
 
   <section id="view-login" class="view-section active">
     <div class="auth-container glass-panel">
-      <div class="auth-header">
-        <h1>Academia de Conducción</h1>
-        <p>Consulta tu instructor asignado y coordina tus clases prácticas directamente</p>
+
+      <!-- BRANDING -->
+      <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:1.75rem;gap:.4rem">
+        <div style="display:flex;align-items:center;gap:.65rem">
+          <div class="logo-icon" style="width:36px;height:36px;font-size:1.1rem">D</div>
+          <div class="logo-text" style="font-size:1.5rem">Drive<span>Connect</span></div>
+        </div>
+        <p style="font-size:.82rem;color:var(--text-secondary)">Portal de práctica vehicular</p>
       </div>
 
-      <div class="tab-switcher">
-        <button class="tab-btn active" id="btn-student" onclick="switchTab('student')">Soy Alumno</button>
-        <button class="tab-btn" id="btn-instructor" onclick="switchTab('instructor')">Soy Instructor</button>
-        <button class="tab-btn" id="btn-coordinator" onclick="switchTab('coordinator')">Coordinador</button>
+      <!-- ROLE CARDS -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.5rem">
+        <div id="rc-student" class="role-card-login active" onclick="switchTab('student')">
+          <div class="rc-icon">🎓</div>
+          <div class="rc-label">Soy Alumno</div>
+        </div>
+        <div id="rc-instructor" class="role-card-login" onclick="switchTab('instructor')">
+          <div class="rc-icon">👨‍🏫</div>
+          <div class="rc-label">Soy Instructor</div>
+        </div>
       </div>
+
+      <!-- Hidden compat tab buttons -->
+      <button id="btn-student"     style="display:none" onclick="switchTab('student')"></button>
+      <button id="btn-instructor"  style="display:none" onclick="switchTab('instructor')"></button>
+      <button id="btn-coordinator" style="display:none" onclick="switchTab('coordinator')"></button>
 
       <!-- ALUMNO -->
       <div id="group-student">
@@ -568,9 +614,11 @@
           <span>Ingresar al Portal</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
-        <p style="text-align:center;margin-top:1rem;font-size:.78rem;color:var(--text-muted)">
-          ¿Primera vez? <a href="#" onclick="showRegisterView()" style="color:var(--brand-light);text-decoration:none;font-weight:600">Regístrate aquí →</a>
-        </p>
+        <!-- REGISTER CTA -->
+        <div class="login-register-cta">
+          <span>¿Primera vez aquí?</span>
+          <button onclick="showRegisterView()">Registrarme →</button>
+        </div>
       </div>
 
       <!-- INSTRUCTOR -->
@@ -602,7 +650,7 @@
         </button>
       </div>
 
-      <!-- COORDINADOR -->
+      <!-- COORDINADOR (oculto por defecto) -->
       <div id="group-coordinator" style="display:none">
         <div class="form-group">
           <label>Usuario</label>
@@ -634,6 +682,11 @@
       <div id="login-loading" class="loading-msg">⏳ Consultando base de datos...</div>
       <div id="login-error" class="error-msg"></div>
       <div id="login-hint" style="display:none;margin-top:.5rem;font-size:.78rem;color:var(--text-muted);text-align:center">Si aún no tienes cuenta, acércate a la academia para que te registren.</div>
+
+      <!-- ACCESO COORDINADOR/ADMIN COLAPSADO -->
+      <div style="text-align:center;margin-top:.75rem">
+        <span class="coord-access-toggle" onclick="toggleCoordAccess()" id="coord-access-lbl">🔒 Acceso coordinador / admin</span>
+      </div>
 
       <div class="config-hint" id="config-hint" style="display:none">
         ⚙️ La base de datos en la nube no está configurada aún. <a href="#" onclick="adminDirect()">Configurar ahora →</a>
@@ -1862,14 +1915,33 @@ function logout() {
 // =============================================================================
 function switchTab(tab) {
   STATE.activeTab = tab;
-  document.getElementById('btn-student').classList.toggle('active', tab === 'student');
-  document.getElementById('btn-instructor').classList.toggle('active', tab === 'instructor');
-  document.getElementById('btn-coordinator').classList.toggle('active', tab === 'coordinator');
+  // Role cards
+  document.getElementById('rc-student')?.classList.toggle('active', tab === 'student');
+  document.getElementById('rc-instructor')?.classList.toggle('active', tab === 'instructor');
+  // Hidden compat
+  document.getElementById('btn-student')?.classList.toggle('active', tab === 'student');
+  document.getElementById('btn-instructor')?.classList.toggle('active', tab === 'instructor');
+  document.getElementById('btn-coordinator')?.classList.toggle('active', tab === 'coordinator');
   document.getElementById('group-student').style.display = tab === 'student' ? 'block' : 'none';
   document.getElementById('group-instructor').style.display = tab === 'instructor' ? 'block' : 'none';
   document.getElementById('group-coordinator').style.display = tab === 'coordinator' ? 'block' : 'none';
   document.getElementById('login-error').style.display = 'none';
   const _lh2 = document.getElementById('login-hint'); if (_lh2) _lh2.style.display = 'none';
+}
+
+function toggleCoordAccess() {
+  const isCoord = STATE.activeTab === 'coordinator';
+  if (isCoord) {
+    switchTab('student');
+    const lbl = document.getElementById('coord-access-lbl');
+    if (lbl) lbl.textContent = '🔒 Acceso coordinador / admin';
+  } else {
+    switchTab('coordinator');
+    document.getElementById('rc-student')?.classList.remove('active');
+    document.getElementById('rc-instructor')?.classList.remove('active');
+    const lbl = document.getElementById('coord-access-lbl');
+    if (lbl) lbl.textContent = '✕ Cerrar acceso coordinador';
+  }
 }
 
 function setDocType(btn, type) {
