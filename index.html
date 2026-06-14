@@ -1217,8 +1217,6 @@
           <button type="button" class="reg-pill" data-val="C1" onclick="toggleLicense(this,'mr-license-pills')">🚌 C1</button>
           <button type="button" class="reg-pill" data-val="C2" onclick="toggleLicense(this,'mr-license-pills')">🚛 C2</button>
           <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this,'mr-license-pills')">🏍 A2</button>
-          <button type="button" class="reg-pill" data-val="A1" onclick="toggleLicense(this,'mr-license-pills')">🛵 A1</button>
-          <button type="button" class="reg-pill" data-val="B2" onclick="toggleLicense(this,'mr-license-pills')">🚐 B2</button>
         </div>
       </div>
       <div id="mr-error" class="error-msg" style="display:none"></div>
@@ -2005,36 +2003,33 @@ function setDocType(btn, type) {
   document.getElementById('doc-label').textContent = 'Número de ' + DOC_LABELS[type];
 }
 
-function toggleLicense(btn) {
+function toggleLicense(btn, containerId) {
   const CARRO = ['B1','C1','C2'];
   const MOTO  = ['A2'];
-  const hint  = document.getElementById('reg-license-hint');
+  const cid   = containerId || 'reg-license-pills';
+  const hint  = document.getElementById(cid === 'mr-license-pills' ? 'mr-license-hint' : 'reg-license-hint');
   if (btn.classList.contains('selected')) {
     btn.classList.remove('selected');
-    hint.textContent = '';
+    if (hint) hint.textContent = '';
     return;
   }
-  const selected = [...document.querySelectorAll('#reg-license-pills .reg-pill.selected')];
+  const selected = [...document.querySelectorAll(`#${cid} .reg-pill.selected`)];
   const selVals  = selected.map(b => b.dataset.val);
   const newVal   = btn.dataset.val;
   const newCarro = CARRO.includes(newVal);
   const hasCarro = selVals.some(v => CARRO.includes(v));
   const hasMoto  = selVals.some(v => MOTO.includes(v));
   if (newCarro && hasCarro) {
-    hint.textContent = '⚠ Solo puedes elegir una licencia de carro (B1, C1 o C2).';
-    hint.style.color = 'var(--warning)'; return;
+    if (hint) { hint.textContent = '⚠ Solo puedes elegir una licencia de carro (B1, C1 o C2).'; hint.style.color = 'var(--warning)'; } return;
   }
   if (!newCarro && hasMoto) {
-    hint.textContent = '⚠ Solo puedes elegir una licencia de moto (A2).';
-    hint.style.color = 'var(--warning)'; return;
+    if (hint) { hint.textContent = '⚠ Solo puedes elegir una licencia de moto (A2).'; hint.style.color = 'var(--warning)'; } return;
   }
   if (selected.length >= 2) {
-    hint.textContent = '⚠ Máximo 2 licencias por registro (una carro + una moto).';
-    hint.style.color = 'var(--warning)'; return;
+    if (hint) { hint.textContent = '⚠ Máximo 2 licencias por registro (una carro + una moto).'; hint.style.color = 'var(--warning)'; } return;
   }
   btn.classList.add('selected');
-  hint.textContent = selected.length === 1 ? '✓ Carro + Moto seleccionados' : '';
-  hint.style.color = 'var(--success)';
+  if (hint) { hint.textContent = selected.length === 1 ? '✓ Carro + Moto seleccionados' : ''; hint.style.color = 'var(--success)'; }
 }
 
 function togglePill(btn, groupId) {
