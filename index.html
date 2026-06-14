@@ -2903,7 +2903,7 @@ function renderInstructorPortal() {
   const list = document.getElementById('instructor-students-list');
   list.innerHTML = '';
   if (sorted.length === 0) {
-    list.innerHTML = '<div class="glass-panel text-center" style="padding:3rem"><p class="text-secondary">No tienes alumnos asignados actualmente.</p></div>';
+    list.innerHTML = `<div class="glass-panel">${emptyStateHtml('👥', 'Sin alumnos asignados', 'El coordinador aún no te ha asignado alumnos. Cuando lo haga aparecerán aquí.')}</div>`;
     return;
   }
 
