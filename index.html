@@ -50,6 +50,21 @@
     ::-webkit-scrollbar-track{background:var(--bg-primary)}
     ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
 
+    /* RESPONSIVE GLOBAL */
+    @media(max-width:640px){
+      .auth-container{margin:1rem auto;padding:0 .5rem}
+      .glass-panel{padding:1rem}
+      .instructor-header-panel{flex-direction:column;gap:1rem}
+      .instructor-stats-row{flex-wrap:wrap;gap:.5rem}
+      .student-grid{gap:1rem}
+      .instructor-card{margin-top:0}
+    }
+    /* STUDENT DAYS COUNTER */
+    .stu-days-box{border-radius:var(--r-sm);padding:.85rem 1rem;margin-top:.75rem;text-align:center}
+    .stu-days-num{font-size:2.5rem;font-weight:800;line-height:1}
+    .stu-days-sub{font-size:.75rem;color:var(--text-muted);margin-top:.15rem}
+    .stu-days-msg{font-size:.8rem;margin-top:.6rem;line-height:1.5}
+    .stu-wa-btn{display:flex;align-items:center;justify-content:center;gap:.5rem;margin-top:.75rem;padding:.65rem 1rem;border-radius:var(--r-sm);background:#25d366;color:white;font-weight:700;font-size:.82rem;text-decoration:none;cursor:pointer}
     /* STUDENT PROGRESS BAR */
     .stu-progress{padding:1.1rem 0 .75rem;border-top:1px solid var(--border-color)}
     .stu-progress-track{position:relative;display:flex;justify-content:space-between;align-items:flex-start}
@@ -590,7 +605,7 @@
       </div>
 
       <!-- ROLE CARDS -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.5rem">
+      <div id="login-role-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1.5rem">
         <div id="rc-student" class="role-card-login active" onclick="switchTab('student')">
           <div class="rc-icon">🎓</div>
           <div class="rc-label">Soy Alumno</div>
@@ -766,6 +781,14 @@
           <button class="btn-sec" style="font-size:.78rem" onclick="instChangePIN()">🔑 Mi PIN</button>
           <button class="btn-sec" onclick="logout()">Salir</button>
         </div>
+      </div>
+    </div>
+    <!-- Banner urgente: alumnos sin contactar -->
+    <div id="inst-urgent-contact-banner" style="display:none;margin-bottom:.75rem;padding:.9rem 1.25rem;background:rgba(244,63,94,.07);border:1px solid rgba(244,63,94,.3);border-radius:var(--r-md);align-items:center;gap:.75rem">
+      <span style="font-size:1.3rem">⚠️</span>
+      <div>
+        <strong style="font-size:.88rem;color:var(--danger)"><span class="inst-urgent-count">0</span> alumno(s) esperan que los contactes</strong>
+        <p style="font-size:.75rem;color:var(--text-secondary);margin-top:.2rem">Contáctalos lo antes posible para no generar demoras.</p>
       </div>
     </div>
     <!-- Banner: alumnos pendientes de confirmar contacto -->
@@ -1377,6 +1400,7 @@
 const CONFIG = {
   SCRIPT_URL: localStorage.getItem('dc_script_url') || 'https://script.google.com/macros/s/AKfycbz2MwhNpoMEraFJwnpimc1gI4K_6QMquTF1Dwwvg7udM5nIzY_v5WSSMiPuTyIlt3QxQw/exec',
   get ADMIN_PASS() { return localStorage.getItem('dc_admin_pass') || null; },
+  ADMIN_WHATSAPP:              '573100000000', // Número WhatsApp administración (sin + ni espacios)
   WAIT_DAYS_WARNING:           10,
   WAIT_DAYS_CRITICAL:          20,
   WAIT_DAYS_INST_CONTACT:      15,   // días sin contacto → instructor ve WhatsApp alumno + coord alerta
@@ -1941,12 +1965,15 @@ function switchTab(tab) {
 
 function toggleCoordAccess() {
   const isCoord = STATE.activeTab === 'coordinator';
+  const grid = document.getElementById('login-role-cards');
   if (isCoord) {
     switchTab('student');
+    if (grid) grid.style.display = 'grid';
     const lbl = document.getElementById('coord-access-lbl');
     if (lbl) lbl.textContent = '🔒 Acceso coordinador / admin';
   } else {
     switchTab('coordinator');
+    if (grid) grid.style.display = 'none';
     document.getElementById('rc-student')?.classList.remove('active');
     document.getElementById('rc-instructor')?.classList.remove('active');
     const lbl = document.getElementById('coord-access-lbl');
@@ -2362,43 +2389,7 @@ function renderStudentPortal() {
   document.getElementById('student-name-title').textContent = 'Hola, ' + s.name.split(' ')[0];
   document.getElementById('student-doc-subtitle').textContent = getDocLabel(s.docType) + ' ' + s.docNumber;
 
-  // Progress bar
-  const _activeP = procs[0] || { state: 'theory_passed' };
-  const _SO = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
-  const _si = _SO.indexOf(_activeP.state);
-  const STEPS = [
-    { icon:'✓', label:'Teórico' },
-    { icon:'👤', label:'Instructor asignado' },
-    { icon:'📲', label:'Esperando contacto' },
-    { icon:'✅', label:'Confirmado' },
-    { icon:'🚗', label:'En clases' },
-  ];
-  const CTA_MAP = {
-    theory_passed:       { cls:'info',    icon:'⏳', msg:'Pronto te asignaremos un instructor.' },
-    instructor_assigned: { cls:'info',    icon:'📲', msg:'Tu instructor te contactará muy pronto.' },
-    contacted:           { cls:'action',  icon:'👋', msg:'Tu instructor ya te contactó. ¡Confirma aquí!' },
-    contact_confirmed:   { cls:'success', icon:'🚗', msg:'Todo listo. Tu instructor coordinará el inicio de clases.' },
-    practice_started:    { cls:'success', icon:'✅', msg:'Clases en curso. ¡Mucho éxito!' },
-    completed:           { cls:'success', icon:'🏆', msg:'¡Proceso completado!' },
-  };
-  const stepsDone = Math.min(_si, STEPS.length);
-  const fillPct   = stepsDone === 0 ? 0 : Math.round((stepsDone / (STEPS.length - 1)) * 100);
-  const cta = CTA_MAP[_activeP.state] || CTA_MAP['theory_passed'];
-  const ctaClick = _activeP.state === 'contacted' ? `onclick="document.getElementById('student-active-panel').scrollIntoView({behavior:'smooth'})"` : '';
-  const pbEl = document.getElementById('student-progress-bar');
-  if (pbEl) pbEl.innerHTML = `
-    <div class="stu-progress-track">
-      <div class="stu-progress-line"></div>
-      <div class="stu-progress-fill" style="width:${fillPct}%"></div>
-      ${STEPS.map((st, i) => {
-        const cls = i < _si ? 'done' : i === _si ? 'active' : 'pending';
-        return `<div class="stu-step">
-          <div class="stu-dot ${cls}">${i < _si ? '✓' : st.icon}</div>
-          <div class="stu-step-label ${cls}">${st.label}</div>
-        </div>`;
-      }).join('')}
-    </div>
-    <div class="stu-cta ${cta.cls}" ${ctaClick}>${cta.icon} ${cta.msg}</div>`;
+  // (progress bar rendered per-license in renderStudentProcessPanel)
 
   // ── PANTALLA DE CIERRE: todos los procesos completados ──────────────────────
   if (allProcs.length > 0 && procs.length === 0) {
@@ -2470,6 +2461,75 @@ function renderStudentProcessPanel(s, proc) {
   const licenseLabel  = LICENSE_FULL[proc.license] || proc.license || 'Tu proceso';
   const inst          = proc.instructorId ? STATE.instructors.find(i => i.id === proc.instructorId) : null;
   const procDays      = daysWaiting(proc, s);
+
+  // ── Progress bar per license ──────────────────────────────────────────────
+  const _SO_PB = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
+  const _si_pb = _SO_PB.indexOf(proc.state);
+  const PB_STEPS = [
+    { icon:'✓',  label:'Teórico' },
+    { icon:'👤', label:'Instructor' },
+    { icon:'📲', label:'Contacto' },
+    { icon:'✅', label:'Confirmado' },
+    { icon:'🚗', label:'Clases' },
+  ];
+  const PB_CTA = {
+    theory_passed:       { cls:'info',    icon:'⏳', msg:'Pronto te asignaremos un instructor.' },
+    instructor_assigned: { cls:'info',    icon:'📲', msg:'Tu instructor te contactará muy pronto.' },
+    contacted:           { cls:'action',  icon:'👋', msg:'Tu instructor ya te contactó. ¡Confirma aquí!', click:true },
+    contact_confirmed:   { cls:'success', icon:'🚗', msg:'Todo listo. Tu instructor coordinará el inicio de clases.' },
+    practice_started:    { cls:'success', icon:'✅', msg:'¡Clases en curso! Mucho éxito.' },
+    completed:           { cls:'success', icon:'🏆', msg:'¡Proceso completado!' },
+  };
+  const pb_fill  = _si_pb <= 0 ? 0 : Math.round((_si_pb / (PB_STEPS.length - 1)) * 100);
+  const pb_cta   = PB_CTA[proc.state] || PB_CTA['theory_passed'];
+  const pb_click = pb_cta.click ? `onclick="rightPanel?.scrollIntoView({behavior:'smooth'})"` : '';
+
+  // Days counter + WhatsApp logic
+  const isWaiting = ['theory_passed','instructor_assigned'].includes(proc.state);
+  const showContact = isWaiting && procDays >= CONFIG.WAIT_DAYS_CRITICAL;
+  const waPhone = showContact
+    ? (proc.state === 'instructor_assigned' && inst?.phone
+        ? inst.phone.replace(/\D/g,'')
+        : CONFIG.ADMIN_WHATSAPP)
+    : null;
+  const waName = (proc.state === 'instructor_assigned' && inst?.phone)
+    ? `${inst.name.split(' ')[0]} (instructor)`
+    : 'la administración';
+  const waMsg = encodeURIComponent(`Hola, soy ${s.name}. CC ${s.docNumber}. Llevo ${procDays} días esperando mi proceso de licencia ${proc.license}.`);
+
+  const daysHtml = isWaiting ? (() => {
+    const colorNum  = procDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : procDays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--brand)';
+    const boxBorder = procDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'rgba(244,63,94,.25)' : procDays >= CONFIG.WAIT_DAYS_WARNING ? 'rgba(245,158,11,.2)' : 'rgba(59,130,246,.18)';
+    const boxBg     = procDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'rgba(244,63,94,.05)' : procDays >= CONFIG.WAIT_DAYS_WARNING ? 'rgba(245,158,11,.05)' : 'rgba(59,130,246,.05)';
+    const msgTxt    = procDays >= CONFIG.WAIT_DAYS_CRITICAL
+      ? `Sabemos que llevas más tiempo del habitual. Nos comunicaremos contigo a la brevedad.`
+      : `<strong style="color:var(--brand-light)">No necesitas venir a la academia todavía.</strong> Te contactaremos cuando tu instructor esté asignado.`;
+    return `<div class="stu-days-box" style="background:${boxBg};border:1px solid ${boxBorder}">
+      <div class="stu-days-num" style="color:${colorNum}">${procDays}</div>
+      <div class="stu-days-sub">días desde tu examen teórico</div>
+      <div class="stu-days-msg" style="color:var(--text-secondary)">${msgTxt}</div>
+      ${showContact ? `<a class="stu-wa-btn" href="https://wa.me/${waPhone}?text=${waMsg}" target="_blank">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Contactar a ${waName} por WhatsApp
+      </a>` : ''}
+    </div>`;
+  })() : '';
+
+  const pbEl = document.getElementById('student-progress-bar');
+  if (pbEl) pbEl.innerHTML = `
+    <div class="stu-progress-track">
+      <div class="stu-progress-line"></div>
+      <div class="stu-progress-fill" style="width:${pb_fill}%"></div>
+      ${PB_STEPS.map((st, i) => {
+        const cls = i < _si_pb ? 'done' : i === _si_pb ? 'active' : 'pending';
+        return `<div class="stu-step">
+          <div class="stu-dot ${cls}">${i < _si_pb ? '✓' : st.icon}</div>
+          <div class="stu-step-label ${cls}">${st.label}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="stu-cta ${pb_cta.cls}" ${pb_click}>${pb_cta.icon} ${pb_cta.msg}</div>
+    ${daysHtml}`;
   const dualCtx       = getDualLicenseContext(s.docNumber, proc.license);
   const gradients     = ['linear-gradient(135deg,var(--brand),#6366f1)', 'linear-gradient(135deg,#059669,#0891b2)'];
   const gradIdx       = (proc.license === 'A2' || proc.license === 'A1') ? 1 : 0;
@@ -2793,6 +2853,16 @@ function renderInstructorPortal() {
   document.getElementById('inst-stat-active').textContent  = enClases;
   document.getElementById('inst-stat-pending').textContent = sinContactar;
 
+  // Banner urgente: alumnos sin contactar
+  const urgentBannerEl = document.getElementById('inst-urgent-contact-banner');
+  if (urgentBannerEl) {
+    if (sinContactar > 0) {
+      urgentBannerEl.style.display = 'flex';
+      urgentBannerEl.querySelector('.inst-urgent-count').textContent = sinContactar;
+    } else {
+      urgentBannerEl.style.display = 'none';
+    }
+  }
   // Banner: alumnos que faltan por confirmar contacto
   const bannerEl = document.getElementById('inst-pending-confirm-banner');
   if (bannerEl) {
