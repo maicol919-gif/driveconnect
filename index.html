@@ -3449,63 +3449,101 @@ function coordExpandGroup(groupKey) {
 }
 
 // =============================================================================
-// ALUMNOS: GRUPOS EXPANDIBLES
+// ALUMNOS: LISTA OPERACIONAL POR URGENCIA
 // =============================================================================
 function renderCoordGroups(expandKey) {
   const container = document.getElementById('coord-students-groups');
   if (!container) return;
 
-  const GROUPS = [
-    { key: 'theory_passed',       label: 'Sin instructor',        icon: '&#128680;', color: 'var(--danger)',  border: 'rgba(244,63,94,.25)',  bg: 'rgba(244,63,94,.06)',  filter: p => p.state === 'theory_passed' },
-    { key: 'instructor_assigned', label: 'Pendiente contacto',    icon: '&#128203;', color: 'var(--warning)', border: 'rgba(245,158,11,.25)', bg: 'rgba(245,158,11,.06)', filter: p => p.state === 'instructor_assigned' },
-    { key: 'contacted',           label: 'Contactado',            icon: '&#128242;', color: '#a78bfa',        border: 'rgba(139,92,246,.25)', bg: 'rgba(139,92,246,.06)', filter: p => p.state === 'contacted' },
-    { key: 'contact_confirmed',   label: 'Confirmado por alumno', icon: '&#9989;',   color: 'var(--success)', border: 'rgba(16,185,129,.25)', bg: 'rgba(16,185,129,.06)', filter: p => p.state === 'contact_confirmed' },
-    { key: 'practice_started',    label: 'En clases',             icon: '&#128663;', color: 'var(--success)', border: 'rgba(16,185,129,.3)',  bg: 'rgba(16,185,129,.09)', filter: p => p.state === 'practice_started' },
-  ];
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
+  const STATE_INFO = {
+    theory_passed:       { label: 'Sin instructor',        color: 'var(--danger)',  bg: 'rgba(244,63,94,.12)' },
+    instructor_assigned: { label: 'Pendiente contacto',    color: 'var(--warning)', bg: 'rgba(245,158,11,.12)' },
+    contacted:           { label: 'Contactado',            color: '#a78bfa',        bg: 'rgba(139,92,246,.12)' },
+    contact_confirmed:   { label: 'Confirmado',            color: 'var(--success)', bg: 'rgba(16,185,129,.12)' },
+    practice_started:    { label: 'En clases',             color: 'var(--success)', bg: 'rgba(16,185,129,.15)' },
+  };
 
-  const LICENSE_LABELS = { B1:'&#128663; B1', C1:'&#128652; C1', C2:'&#128667; C2', A2:'&#128653; A2', A1:'&#128757; A1', B2:'&#128656; B2' };
-  const total = STATE.procesos.filter(p => !['completed','pending'].includes(p.state)).length;
-  let html = `<p style="font-size:.78rem;color:var(--text-muted);margin-bottom:1rem">${total} alumno(s) activos</p>`;
+  const searchVal = (document.getElementById('coord-stu-search')?.value || '').toLowerCase();
 
-  GROUPS.forEach(g => {
-    const procs = STATE.procesos.filter(g.filter);
-    if (!procs.length) return;
-    const isOpen = expandKey === g.key;
-    const bodyId = 'cgrp-' + g.key;
+  // Build student map: one entry per student with all their active processes
+  const activeProcesos = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
+  const studentMap = new Map();
+  activeProcesos.forEach(p => {
+    if (!studentMap.has(p.docNumber)) studentMap.set(p.docNumber, []);
+    studentMap.get(p.docNumber).push(p);
+  });
 
-    const rows = procs.map(p => {
-      const st   = STATE.students.find(s => s.docNumber === p.docNumber);
+  // Build entries with urgency score
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
+  let entries = Array.from(studentMap.entries()).map(([docNum, procs]) => {
+    const st = STATE.students.find(s => s.docNumber === docNum);
+    const maxDays = Math.max(...procs.map(p => daysWaiting(p, st)));
+    const urgIdx  = Math.min(...procs.map(p => STATE_ORDER.indexOf(p.state)).filter(i => i >= 0));
+    return { docNum, procs, st, maxDays, urgIdx };
+  });
+
+  // Filter by search
+  if (searchVal) {
+    entries = entries.filter(e =>
+      (e.st?.name || '').toLowerCase().includes(searchVal) || e.docNum.includes(searchVal)
+    );
+  }
+
+  // Sort: most urgent state first, then most days waiting
+  entries.sort((a, b) => a.urgIdx !== b.urgIdx ? a.urgIdx - b.urgIdx : b.maxDays - a.maxDays);
+
+  const total = entries.length;
+
+  // Search bar HTML
+  const searchBar = `<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem">
+    <input id="coord-stu-search" type="text" placeholder="Buscar por nombre o documento…"
+      value="${searchVal}"
+      style="flex:1;padding:.45rem .8rem;border-radius:var(--r-sm);border:1px solid var(--border-color);background:rgba(255,255,255,.04);color:var(--text-primary);font-size:.84rem;outline:none"
+      oninput="renderCoordGroups(null)">
+    <span style="font-size:.75rem;color:var(--text-muted);white-space:nowrap">${total} alumno(s)</span>
+  </div>`;
+
+  if (!entries.length) {
+    container.innerHTML = searchBar + `<div style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);font-size:.88rem">
+      ${searchVal ? 'Sin resultados para "' + searchVal + '"' : 'Sin alumnos activos'}
+    </div>`;
+    return;
+  }
+
+  const cards = entries.map(({ docNum, procs, st, maxDays }) => {
+    const name = st?.name || docNum;
+    // Most urgent process drives the card color
+    const urgentProc = procs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
+    const si = STATE_INFO[urgentProc?.state] || { label: urgentProc?.state, color: 'var(--text-muted)', bg: 'rgba(255,255,255,.05)' };
+    const dayColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
+
+    // License rows
+    const licRows = procs.map(p => {
       const inst = STATE.instructors.find(i => i.id === p.instructorId);
-      const days = daysWaiting(p, st);
-      const dayColor = days >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
-      return `<div style="padding:.7rem .9rem;border-radius:var(--r-sm);background:rgba(255,255,255,.025);border:1px solid var(--border-color);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st ? st.name : p.docNumber}</div>
-          <div style="display:flex;gap:.4rem;margin-top:.25rem;flex-wrap:wrap;align-items:center">
-            <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_LABELS[p.license] || p.license}</span>
-            ${days > 0 ? `<span style="font-size:.72rem;color:${dayColor};font-weight:600">${days}d espera</span>` : ''}
-            ${inst ? `<span style="font-size:.72rem;color:var(--text-secondary)">&#128104;&#8205;&#127979; ${(inst.name || '').split(' ')[0]}</span>` : ''}
-          </div>
-        </div>
-        ${g.key === 'theory_passed' ? `<button class="btn-primary" style="width:auto;padding:.28rem .75rem;font-size:.73rem;background:var(--danger);border-color:var(--danger);flex-shrink:0" onclick="openModal('${p.docNumber}','${p.license}')">+ Asignar</button>` : ''}
+      const psi  = STATE_INFO[p.state] || { label: p.state, color: 'var(--text-muted)', bg: 'rgba(255,255,255,.05)' };
+      const pdays = daysWaiting(p, st);
+      return `<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.35rem 0;border-top:1px solid rgba(255,255,255,.05)">
+        <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_LABELS[p.license] || p.license}</span>
+        <span style="background:${psi.bg};border-radius:9999px;padding:.1rem .5rem;font-size:.68rem;color:${psi.color};font-weight:600">${psi.label}</span>
+        ${inst ? `<span style="font-size:.72rem;color:var(--text-secondary)">👨‍🏫 ${inst.name?.split(' ')[0] || '—'}</span>` : ''}
+        ${pdays > 0 ? `<span style="font-size:.72rem;color:${pdays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : pdays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)'};font-weight:600">${pdays}d</span>` : ''}
+        ${p.state === 'theory_passed' ? `<button class="btn-primary" style="margin-left:auto;width:auto;padding:.2rem .65rem;font-size:.7rem;background:var(--danger);border-color:var(--danger)" onclick="openModal('${p.docNumber}','${p.license}')">+ Asignar</button>` : ''}
       </div>`;
     }).join('');
 
-    html += `<div style="border-radius:var(--r-md);border:1px solid ${g.border};margin-bottom:.65rem;overflow:hidden">
-      <div onclick="(function(el){var b=document.getElementById('${bodyId}');var open=b.style.display!=='none';b.style.display=open?'none':'block';el.querySelector('.cg-chev').style.transform=open?'':'rotate(180deg)'})(this)"
-           style="display:flex;align-items:center;gap:.75rem;padding:.9rem 1.1rem;cursor:pointer;user-select:none;background:${g.bg}">
-        <span style="font-size:1.1rem">${g.icon}</span>
-        <span style="font-weight:700;font-size:.9rem;flex:1">${g.label}</span>
-        <span style="background:${g.color};color:white;border-radius:9999px;padding:.1rem .55rem;font-size:.75rem;font-weight:700">${procs.length}</span>
-        <svg class="cg-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transition:transform .22s;transform:${isOpen ? 'rotate(180deg)' : ''}"><path d="M6 9l6 6 6-6"/></svg>
+    return `<div style="padding:.85rem 1rem;border-radius:var(--r-md);border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02);margin-bottom:.5rem">
+      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.3rem">
+        <div style="flex:1;font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+        <span style="font-size:.7rem;color:var(--text-muted)">${docNum}</span>
+        ${maxDays > 0 ? `<span style="font-size:.75rem;font-weight:700;color:${dayColor}">${maxDays}d</span>` : ''}
+        <span style="background:${si.bg};border-radius:9999px;padding:.1rem .5rem;font-size:.68rem;color:${si.color};font-weight:600;white-space:nowrap">${si.label}</span>
       </div>
-      <div id="${bodyId}" style="display:${isOpen ? 'block' : 'none'};padding:.75rem 1rem 1rem">
-        <div style="display:flex;flex-direction:column;gap:.45rem">${rows}</div>
-      </div>
+      ${licRows}
     </div>`;
-  });
+  }).join('');
 
-  container.innerHTML = html;
+  container.innerHTML = searchBar + cards;
 }
 
 
