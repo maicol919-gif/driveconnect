@@ -3544,6 +3544,7 @@ function _renderCoordCards() {
         <span style="font-size:.7rem;color:var(--text-muted)">${docNum}</span>
         ${maxDays > 0 ? `<span style="font-size:.75rem;font-weight:700;color:${dayColor}">${maxDays}d</span>` : ''}
         <span style="background:${si.bg};border-radius:9999px;padding:.1rem .5rem;font-size:.68rem;color:${si.color};font-weight:600;white-space:nowrap">${si.label}</span>
+        <button onclick="coordChangeState('${docNum}',null)" style="background:none;border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.2rem .5rem;cursor:pointer;font-size:.75rem;color:var(--text-secondary);flex-shrink:0" title="Editar estado">✏️</button>
       </div>
       ${licRows}
     </div>`;
