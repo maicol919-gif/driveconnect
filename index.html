@@ -1953,6 +1953,14 @@ function logout() {
   document.getElementById('login-error').style.display = 'none';
   document.getElementById('login-loading').style.display = 'none';
   const _lh = document.getElementById('login-hint'); if (_lh) _lh.style.display = 'none';
+  // Limpiar todos los campos del login por seguridad
+  document.querySelectorAll('#view-login input').forEach(el => el.value = '');
+  // Restaurar role cards y cerrar coord si estaba abierto
+  const grid = document.getElementById('login-role-cards');
+  if (grid) grid.style.display = 'grid';
+  if (STATE.activeTab === 'coordinator') switchTab('student');
+  const lbl = document.getElementById('coord-access-lbl');
+  if (lbl) lbl.textContent = '🔒 Acceso coordinador / admin';
 }
 
 // =============================================================================
