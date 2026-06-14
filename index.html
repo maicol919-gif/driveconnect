@@ -3424,6 +3424,10 @@ function switchCoordTab(tab) {
     if (v) v.style.display = t === tab ? 'block' : 'none';
   });
   if (tab === 'students') requestAnimationFrame(() => renderCoordGroups(null));
+  if (tab !== 'students') {
+    const det = document.getElementById('coord-stu-detail');
+    if (det) { det.style.display='none'; det.dataset.doc=''; }
+  }
   if (tab === 'instructors') {
     renderCoordInstructors();
     // Restaurar filtros generales y ocultar botón regresar
@@ -3786,6 +3790,151 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 }
 
 
+function openCoordDetail(docNum) {
+  const detail = document.getElementById('coord-stu-detail');
+  if (!detail) { openCoordSheet(docNum); return; }
+
+  // Toggle off if same student
+  if (detail.dataset.doc === docNum && detail.style.display !== 'none') {
+    detail.style.display = 'none';
+    detail.dataset.doc = '';
+    _renderCoordCards();
+    return;
+  }
+
+  detail.dataset.doc = docNum;
+  detail.style.display = 'block';
+
+  const st = STATE.students.find(s => s.docNumber === docNum);
+  const procs = STATE.procesos.filter(p => p.docNumber === docNum && !['completed','pending'].includes(p.state));
+  if (!st && !procs.length) { detail.style.display = 'none'; return; }
+
+  const name = st?.name || docNum;
+  const initials = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+
+  const maxDays = procs.length ? Math.max(...procs.map(p => daysWaiting(p, st))) : 0;
+  const urgProc = procs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
+  const daysColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : '#10b981';
+
+  const STATE_LABEL = {
+    theory_passed:'Sin instructor', instructor_assigned:'Pdte. contacto', contacted:'Contactado',
+    contact_confirmed:'Confirmado', practice_started:'En clases',
+  };
+  const stateLabel = STATE_LABEL[urgProc?.state] || '—';
+
+  const licPills = [...new Set(procs.map(p => p.license))].map(lic =>
+    `<span style="background:${LIC_COLORS[lic]};border-radius:9999px;padding:2px 8px;font-size:9px;color:${LIC_TEXT[lic]};font-weight:600">${lic}</span>`
+  ).join('');
+
+  // Flow steps per license (show first/most urgent)
+  const displayProc = urgProc || procs[0];
+  const flowSteps = [
+    { label: 'Teórico aprobado',    sub: 'Examen teórico superado' },
+    { label: 'Instructor asignado', sub: 'Instructor confirmado' },
+    { label: 'Primer contacto',     sub: 'Instructor contacta alumno' },
+    { label: 'Contacto confirmado', sub: 'Alumno listo para clases' },
+    { label: 'Práctica iniciada',   sub: 'Clases en curso' },
+  ];
+  const stIdx = STATE_ORDER.indexOf(displayProc?.state || 'theory_passed');
+  // stIdx = 0 means theory_passed = step 0 done, active = step 1 (instructor)
+  // step done if its index < stIdx+1 (for theory) or stIdx (for rest)
+  const doneUpTo = stIdx; // steps 0..doneUpTo-1 done, stIdx = active
+
+  const flowHtml = flowSteps.map((step, i) => {
+    const isDone   = i < doneUpTo;
+    const isActive = i === doneUpTo;
+    const dotBg    = isDone ? '#10b981' : isActive ? '#6366f1' : 'rgba(255,255,255,.05)';
+    const dotBdr   = isDone || isActive ? 'none' : '1px solid rgba(255,255,255,.1)';
+    const dotIcon  = isDone ? '✓' : isActive ? '→' : '';
+    const lineBg   = isDone ? '#10b981' : 'rgba(255,255,255,.05)';
+    const nmColor  = isDone ? '#475569' : isActive ? '#a5b4fc' : '#334155';
+    const nmWeight = isActive ? '600' : '400';
+    const subColor = isActive ? '#818cf8' : '#1e293b';
+    const isLast   = i === flowSteps.length - 1;
+    return `<div style="display:flex;gap:10px">
+      <div style="display:flex;flex-direction:column;align-items:center;width:18px;flex-shrink:0">
+        <div style="width:18px;height:18px;border-radius:50%;background:${dotBg};border:${dotBdr};display:flex;align-items:center;justify-content:center;font-size:8px;color:white;flex-shrink:0">${dotIcon}</div>
+        ${!isLast ? `<div style="width:2px;flex:1;min-height:18px;margin:1px auto;background:${lineBg}"></div>` : ''}
+      </div>
+      <div style="padding-bottom:${isLast?'0':'13px'};flex:1">
+        <div style="font-size:11px;font-weight:${nmWeight};color:${nmColor};margin-top:1px">${step.label}</div>
+        ${isActive ? `<div style="font-size:9px;color:${subColor};margin-top:2px">${maxDays > 0 ? maxDays+'d en este paso' : step.sub}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Instructor card
+  const instProc = procs.find(p => p.instructorId);
+  const inst = instProc ? STATE.instructors.find(i => i.id === instProc.instructorId) : null;
+  const instInitials = inst ? (inst.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '';
+  const instSpecs = inst ? [inst.specialty, inst.specialtyB, inst.specialtyC].filter(Boolean) : [];
+  const instHtml = inst ? `
+    <div style="font-size:9px;font-weight:600;color:#1e293b;text-transform:uppercase;letter-spacing:.07em;margin:10px 0 5px">Instructor</div>
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:7px">
+      <div style="width:26px;height:26px;border-radius:50%;background:rgba(59,130,246,.12);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#93c5fd;flex-shrink:0">${instInitials}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${inst.name||'—'}</div>
+        <div style="font-size:9px;color:#334155">${instSpecs.join(' · ')}</div>
+      </div>
+    </div>` : '';
+
+  // Actions
+  const hasUnassigned = procs.some(p => p.state === 'theory_passed');
+  const hasConfirmed  = procs.some(p => p.state === 'contact_confirmed');
+  const hasPractice   = procs.some(p => p.state === 'practice_started');
+  const unassProc     = procs.find(p => p.state === 'theory_passed');
+
+  const actItem = (icon, iconBg, iconColor, label, sub, onclick) =>
+    `<div onclick="${onclick}" style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;border:1px solid rgba(255,255,255,.06);cursor:pointer;margin-bottom:4px;transition:background .12s"
+      onmouseenter="this.style.background='rgba(255,255,255,.04)'" onmouseleave="this.style.background=''">
+      <div style="width:26px;height:26px;border-radius:5px;background:${iconBg};display:flex;align-items:center;justify-content:center;font-size:12px;color:${iconColor};flex-shrink:0">${icon}</div>
+      <div style="flex:1"><div style="font-size:11px;font-weight:500;color:var(--text-primary)">${label}</div><div style="font-size:9px;color:#334155;margin-top:1px">${sub}</div></div>
+      <span style="color:#1e293b;font-size:10px">›</span>
+    </div>`;
+
+  let actHtml = '';
+  if (hasUnassigned) actHtml += actItem('👤','rgba(139,92,246,.12)','#a78bfa','Asignar instructor',`Licencia ${unassProc?.license}`,`openModal('${docNum}','${unassProc?.license}')`);
+  if (hasConfirmed)  actHtml += actItem('▶','rgba(16,185,129,.1)','#10b981','Iniciar práctica','Confirmar inicio de clases',`coordChangeState('${docNum}',null)`);
+  if (hasPractice)   actHtml += actItem('✓','rgba(16,185,129,.1)','#10b981','Marcar completado','Finalizar proceso',`coordChangeState('${docNum}',null)`);
+  actHtml += actItem('✎','rgba(59,130,246,.1)','#93c5fd','Editar estado','Cambiar paso manualmente',`coordChangeState('${docNum}',null)`);
+
+  detail.innerHTML = `
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:.75rem;padding-bottom:.65rem;border-bottom:1px solid rgba(255,255,255,.07)">
+      <div style="width:34px;height:34px;border-radius:50%;background:rgba(239,68,68,.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fca5a5;flex-shrink:0">${initials}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
+        <div style="font-size:9px;color:#334155;margin-top:2px">${docNum}</div>
+      </div>
+      <button onclick="openCoordDetail('${docNum}')" style="width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#475569;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">&times;</button>
+    </div>
+    <div style="display:flex;gap:5px;margin-bottom:.75rem">
+      <div style="flex:1;background:rgba(255,255,255,.03);border-radius:7px;padding:6px 8px">
+        <div style="font-size:15px;font-weight:700;color:${daysColor};line-height:1">${maxDays||'—'}</div>
+        <div style="font-size:9px;color:#334155;margin-top:3px">días espera</div>
+      </div>
+      <div style="flex:1;background:rgba(255,255,255,.03);border-radius:7px;padding:6px 8px">
+        <div style="font-size:10px;font-weight:600;color:${daysColor};line-height:1.3;margin-top:2px">${stateLabel}</div>
+        <div style="font-size:9px;color:#334155;margin-top:3px">estado</div>
+      </div>
+      <div style="flex:1;background:rgba(255,255,255,.03);border-radius:7px;padding:6px 8px">
+        <div style="font-size:15px;font-weight:700;color:var(--text-primary);line-height:1">${procs.length}</div>
+        <div style="font-size:9px;color:#334155;margin-top:3px">licencia(s)</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:.75rem">${licPills}</div>
+    <div style="font-size:9px;font-weight:600;color:#1e293b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Flujo — ${displayProc?.license||''}</div>
+    <div style="margin-bottom:.5rem">${flowHtml}</div>
+    ${instHtml}
+    <div style="font-size:9px;font-weight:600;color:#1e293b;text-transform:uppercase;letter-spacing:.07em;margin:10px 0 5px">Acciones</div>
+    ${actHtml}`;
+
+  _renderCoordCards(); // re-render to highlight selected row
+}
+
+
 function coordExpandGroup(groupKey) {
   requestAnimationFrame(() => renderCoordGroups(groupKey));
 }
@@ -3793,24 +3942,83 @@ function coordExpandGroup(groupKey) {
 // =============================================================================
 // ALUMNOS: LISTA OPERACIONAL POR URGENCIA
 // =============================================================================
-function renderCoordGroups(expandKey) {
+function renderCoordGroups(_expandKey) {
   const container = document.getElementById('coord-students-groups');
   if (!container) return;
 
-  // First call: build static shell (search bar + count + cards container)
-  if (!container.querySelector('#coord-stu-search')) {
-    container.innerHTML = `
-      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem">
-        <input id="coord-stu-search" type="text" placeholder="Buscar por nombre o documento…"
-          style="flex:1;padding:.45rem .8rem;border-radius:var(--r-sm);border:1px solid var(--border-color);background:rgba(255,255,255,.04);color:var(--text-primary);font-size:.84rem;outline:none"
-          oninput="_renderCoordCards()">
-        <span id="coord-stu-count" style="font-size:.75rem;color:var(--text-muted);white-space:nowrap"></span>
+  const activeProcesos = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
+
+  const studentMap = new Map();
+  activeProcesos.forEach(p => {
+    if (!studentMap.has(p.docNumber)) studentMap.set(p.docNumber, []);
+    studentMap.get(p.docNumber).push(p);
+  });
+
+  let nCritical = 0, nUnassigned = 0, nPractice = 0;
+  studentMap.forEach((procs, docNum) => {
+    const st = STATE.students.find(s => s.docNumber === docNum);
+    const maxDays = Math.max(...procs.map(p => daysWaiting(p, st)));
+    if (maxDays >= CONFIG.WAIT_DAYS_CRITICAL) nCritical++;
+    if (procs.some(p => p.state === 'theory_passed')) nUnassigned++;
+    if (procs.some(p => ['contact_confirmed','practice_started'].includes(p.state))) nPractice++;
+  });
+  const nTotal = studentMap.size;
+
+  const af = window._coordStuFilter || 'all';
+  const chip = (f, lbl) => `<button onclick="_coordSetFilter('${f}')"
+    style="padding:4px 11px;border-radius:20px;font-size:11px;cursor:pointer;font-family:inherit;border:1px solid ${af===f?'rgba(99,102,241,.4)':'rgba(255,255,255,.08)'};background:${af===f?'rgba(79,70,229,.22)':'transparent'};color:${af===f?'#a5b4fc':'#475569'};font-weight:${af===f?'500':'400'};transition:background .12s">${lbl}</button>`;
+
+  const prevSearch = document.getElementById('coord-stu-search')?.value || '';
+
+  container.innerHTML = `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.85rem">
+      <div>
+        <div style="font-size:.95rem;font-weight:600;color:var(--text-primary)">Alumnos</div>
+        <div style="display:flex;gap:14px;margin-top:5px;flex-wrap:wrap">
+          <div style="display:flex;align-items:baseline;gap:3px"><span style="font-size:13px;font-weight:600;color:#ef4444">${nCritical}</span><span style="font-size:10px;color:#334155;margin-left:2px">críticos</span></div>
+          <div style="display:flex;align-items:baseline;gap:3px"><span style="font-size:13px;font-weight:600;color:#f59e0b">${nUnassigned}</span><span style="font-size:10px;color:#334155;margin-left:2px">sin instructor</span></div>
+          <div style="display:flex;align-items:baseline;gap:3px"><span style="font-size:13px;font-weight:600;color:#10b981">${nPractice}</span><span style="font-size:10px;color:#334155;margin-left:2px">en práctica</span></div>
+          <div style="display:flex;align-items:baseline;gap:3px"><span style="font-size:13px;font-weight:600;color:#60a5fa">${nTotal}</span><span style="font-size:10px;color:#334155;margin-left:2px">activos</span></div>
+        </div>
       </div>
-      <div id="coord-stu-cards"></div>`;
-  }
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn-sec" style="padding:.32rem .65rem;font-size:.75rem;width:auto" title="Registro QR" onclick="coordShowRegisterQR()">QR</button>
+        <button class="btn-primary" style="padding:.32rem .75rem;font-size:.78rem;width:auto" onclick="coordRegisterManual()">+ Nuevo</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:.85rem;flex-wrap:wrap">
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${chip('all','Todos')}
+        ${chip('critical','Críticos')}
+        ${chip('unassigned','Sin instructor')}
+        ${chip('practice','En práctica')}
+      </div>
+      <div style="position:relative;margin-left:auto">
+        <input id="coord-stu-search" type="text" placeholder="Buscar…" value="${prevSearch}"
+          style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:5px 8px 5px 26px;font-size:11px;color:var(--text-secondary);width:155px;font-family:inherit;outline:none"
+          oninput="_renderCoordCards()">
+        <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:13px;color:#334155;pointer-events:none">&#128269;</span>
+      </div>
+    </div>
+    <div id="coord-stu-split" style="display:flex;gap:0;align-items:flex-start">
+      <div id="coord-stu-list-wrap" style="flex:1;min-width:0">
+        <div id="coord-stu-cards"></div>
+      </div>
+      <div id="coord-stu-detail" style="display:none;width:320px;flex-shrink:0;border-left:1px solid rgba(255,255,255,.07);padding-left:1rem;margin-left:1rem;min-height:200px"></div>
+    </div>`;
 
   _renderCoordCards();
+  // Re-focus search if it was active
+  if (prevSearch) document.getElementById('coord-stu-search')?.focus();
 }
+
+window._coordStuFilter = window._coordStuFilter || 'all';
+function _coordSetFilter(f) {
+  window._coordStuFilter = f;
+  renderCoordGroups(null);
+}
+
 
 function _renderCoordCards() {
   const cardsEl = document.getElementById('coord-stu-cards');
