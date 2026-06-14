@@ -3455,27 +3455,45 @@ function renderCoordGroups(expandKey) {
   const container = document.getElementById('coord-students-groups');
   if (!container) return;
 
+  // First call: build static shell (search bar + count + cards container)
+  if (!container.querySelector('#coord-stu-search')) {
+    container.innerHTML = `
+      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem">
+        <input id="coord-stu-search" type="text" placeholder="Buscar por nombre o documento…"
+          style="flex:1;padding:.45rem .8rem;border-radius:var(--r-sm);border:1px solid var(--border-color);background:rgba(255,255,255,.04);color:var(--text-primary);font-size:.84rem;outline:none"
+          oninput="_renderCoordCards()">
+        <span id="coord-stu-count" style="font-size:.75rem;color:var(--text-muted);white-space:nowrap"></span>
+      </div>
+      <div id="coord-stu-cards"></div>`;
+  }
+
+  _renderCoordCards();
+}
+
+function _renderCoordCards() {
+  const cardsEl = document.getElementById('coord-stu-cards');
+  const countEl = document.getElementById('coord-stu-count');
+  if (!cardsEl) return;
+
   const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
   const STATE_INFO = {
-    theory_passed:       { label: 'Sin instructor',        color: 'var(--danger)',  bg: 'rgba(244,63,94,.12)' },
-    instructor_assigned: { label: 'Pendiente contacto',    color: 'var(--warning)', bg: 'rgba(245,158,11,.12)' },
-    contacted:           { label: 'Contactado',            color: '#a78bfa',        bg: 'rgba(139,92,246,.12)' },
-    contact_confirmed:   { label: 'Confirmado',            color: 'var(--success)', bg: 'rgba(16,185,129,.12)' },
-    practice_started:    { label: 'En clases',             color: 'var(--success)', bg: 'rgba(16,185,129,.15)' },
+    theory_passed:       { label: 'Sin instructor',     color: 'var(--danger)',  bg: 'rgba(244,63,94,.12)' },
+    instructor_assigned: { label: 'Pdte. contacto',     color: 'var(--warning)', bg: 'rgba(245,158,11,.12)' },
+    contacted:           { label: 'Contactado',         color: '#a78bfa',        bg: 'rgba(139,92,246,.12)' },
+    contact_confirmed:   { label: 'Confirmado',         color: 'var(--success)', bg: 'rgba(16,185,129,.12)' },
+    practice_started:    { label: 'En clases',          color: 'var(--success)', bg: 'rgba(16,185,129,.15)' },
   };
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
 
   const searchVal = (document.getElementById('coord-stu-search')?.value || '').toLowerCase();
-
-  // Build student map: one entry per student with all their active processes
   const activeProcesos = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
+
   const studentMap = new Map();
   activeProcesos.forEach(p => {
     if (!studentMap.has(p.docNumber)) studentMap.set(p.docNumber, []);
     studentMap.get(p.docNumber).push(p);
   });
 
-  // Build entries with urgency score
-  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
   let entries = Array.from(studentMap.entries()).map(([docNum, procs]) => {
     const st = STATE.students.find(s => s.docNumber === docNum);
     const maxDays = Math.max(...procs.map(p => daysWaiting(p, st)));
@@ -3483,57 +3501,45 @@ function renderCoordGroups(expandKey) {
     return { docNum, procs, st, maxDays, urgIdx };
   });
 
-  // Filter by search
   if (searchVal) {
     entries = entries.filter(e =>
       (e.st?.name || '').toLowerCase().includes(searchVal) || e.docNum.includes(searchVal)
     );
   }
 
-  // Sort: most urgent state first, then most days waiting
   entries.sort((a, b) => a.urgIdx !== b.urgIdx ? a.urgIdx - b.urgIdx : b.maxDays - a.maxDays);
 
-  const total = entries.length;
-
-  // Search bar HTML
-  const searchBar = `<div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem">
-    <input id="coord-stu-search" type="text" placeholder="Buscar por nombre o documento…"
-      value="${searchVal}"
-      style="flex:1;padding:.45rem .8rem;border-radius:var(--r-sm);border:1px solid var(--border-color);background:rgba(255,255,255,.04);color:var(--text-primary);font-size:.84rem;outline:none"
-      oninput="renderCoordGroups(null)">
-    <span style="font-size:.75rem;color:var(--text-muted);white-space:nowrap">${total} alumno(s)</span>
-  </div>`;
+  if (countEl) countEl.textContent = entries.length + ' alumno(s)';
 
   if (!entries.length) {
-    container.innerHTML = searchBar + `<div style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);font-size:.88rem">
+    cardsEl.innerHTML = `<div style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);font-size:.88rem">
       ${searchVal ? 'Sin resultados para "' + searchVal + '"' : 'Sin alumnos activos'}
     </div>`;
     return;
   }
 
-  const cards = entries.map(({ docNum, procs, st, maxDays }) => {
+  cardsEl.innerHTML = entries.map(({ docNum, procs, st, maxDays }) => {
     const name = st?.name || docNum;
-    // Most urgent process drives the card color
     const urgentProc = procs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
     const si = STATE_INFO[urgentProc?.state] || { label: urgentProc?.state, color: 'var(--text-muted)', bg: 'rgba(255,255,255,.05)' };
     const dayColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
 
-    // License rows
     const licRows = procs.map(p => {
       const inst = STATE.instructors.find(i => i.id === p.instructorId);
       const psi  = STATE_INFO[p.state] || { label: p.state, color: 'var(--text-muted)', bg: 'rgba(255,255,255,.05)' };
       const pdays = daysWaiting(p, st);
+      const pdayColor = pdays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : pdays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
       return `<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;padding:.35rem 0;border-top:1px solid rgba(255,255,255,.05)">
         <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_LABELS[p.license] || p.license}</span>
         <span style="background:${psi.bg};border-radius:9999px;padding:.1rem .5rem;font-size:.68rem;color:${psi.color};font-weight:600">${psi.label}</span>
-        ${inst ? `<span style="font-size:.72rem;color:var(--text-secondary)">👨‍🏫 ${inst.name?.split(' ')[0] || '—'}</span>` : ''}
-        ${pdays > 0 ? `<span style="font-size:.72rem;color:${pdays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : pdays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)'};font-weight:600">${pdays}d</span>` : ''}
+        ${inst ? `<span style="font-size:.72rem;color:var(--text-secondary)">&#128104;&#8205;&#127979; ${inst.name?.split(' ')[0] || '—'}</span>` : ''}
+        ${pdays > 0 ? `<span style="font-size:.72rem;color:${pdayColor};font-weight:600">${pdays}d</span>` : ''}
         ${p.state === 'theory_passed' ? `<button class="btn-primary" style="margin-left:auto;width:auto;padding:.2rem .65rem;font-size:.7rem;background:var(--danger);border-color:var(--danger)" onclick="openModal('${p.docNumber}','${p.license}')">+ Asignar</button>` : ''}
       </div>`;
     }).join('');
 
     return `<div style="padding:.85rem 1rem;border-radius:var(--r-md);border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.02);margin-bottom:.5rem">
-      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.3rem">
+      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.3rem;flex-wrap:wrap">
         <div style="flex:1;font-weight:700;font-size:.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>
         <span style="font-size:.7rem;color:var(--text-muted)">${docNum}</span>
         ${maxDays > 0 ? `<span style="font-size:.75rem;font-weight:700;color:${dayColor}">${maxDays}d</span>` : ''}
@@ -3542,8 +3548,6 @@ function renderCoordGroups(expandKey) {
       ${licRows}
     </div>`;
   }).join('');
-
-  container.innerHTML = searchBar + cards;
 }
 
 
