@@ -1213,10 +1213,10 @@
       <div>
         <label class="config-label">Licencia(s) <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">(máximo 2)</span></label>
         <div id="mr-license-pills" style="display:flex;flex-wrap:wrap;gap:.4rem">
+          <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this,'mr-license-pills')">🏍 A2</button>
           <button type="button" class="reg-pill" data-val="B1" onclick="toggleLicense(this,'mr-license-pills')">🚗 B1</button>
           <button type="button" class="reg-pill" data-val="C1" onclick="toggleLicense(this,'mr-license-pills')">🚌 C1</button>
           <button type="button" class="reg-pill" data-val="C2" onclick="toggleLicense(this,'mr-license-pills')">🚛 C2</button>
-          <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this,'mr-license-pills')">🏍 A2</button>
         </div>
       </div>
       <div id="mr-error" class="error-msg" style="display:none"></div>
@@ -4375,7 +4375,6 @@ function openInstructorModal(instId) {
               <input type="checkbox" id="ie-spec-c1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('C1')?'checked':''}> C1 Público
             </label>
           </div>
-          <div style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem">C2 lo puede dar automáticamente quien tenga C1</div>
         </div>
         <div class="form-group" style="margin-bottom:.5rem">
           <label class="config-label">Disponibilidad</label>
