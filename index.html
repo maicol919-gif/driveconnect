@@ -4363,26 +4363,11 @@ function renderCoordInstructors() {
 
     const card = document.createElement('div');
     card.style.cssText = `background:var(--bg-card);border:\${borderStyle};border-radius:var(--r-lg);padding:1.1rem 1.1rem .9rem;display:flex;flex-direction:column;gap:.7rem;opacity:\${isActive?'1':'.45'};cursor:pointer;transition:border .15s,transform .12s;position:relative`;
-    card.title = 'Ver alumnos de ' + inst.name;
+    
 
     card.addEventListener('mouseenter', () => { card.style.transform = 'translateY(-2px)'; card.style.borderColor = 'rgba(99,102,241,.5)'; });
     card.addEventListener('mouseleave', () => { card.style.transform = ''; card.style.borderColor = criticos>0?'rgba(244,63,94,.45)':load===0?'rgba(255,255,255,.06)':'rgba(255,255,255,.1)'; });
-    card.addEventListener('click', (e) => {
-      if (e.target.closest('button') || e.target.closest('a')) return;
-      _coordCustomFilter = (p) => p.instructorId === inst.id;
-      const titleEl = document.getElementById('coord-table-title');
-      if (titleEl) titleEl.textContent = 'Alumnos de ' + inst.name;
-      document.getElementById('coord-students-filters-row') && (document.getElementById('coord-students-filters-row').style.display = 'none');
-      document.getElementById('coord-back-to-instructors') && (document.getElementById('coord-back-to-instructors').style.display = 'inline-flex');
-      // Ocultar QR y Registrar
-      const hdrBtns = document.querySelectorAll('#coord-view-students .panel-header button.btn-primary, #coord-view-students .panel-header button.btn-sec:not(#coord-back-to-instructors)');
-      hdrBtns.forEach(b => b.style.display = 'none');
-      switchCoordTab('students');
-      document.getElementById('ctab-instructors')?.classList.add('active');
-      document.getElementById('ctab-students')?.classList.remove('active');
-      const instSearch = document.getElementById('coord-inst-student-filters');
-      if (instSearch) { instSearch.style.display = 'flex'; instSearch.dataset.inst = inst.id; }
-    });
+
 
     card.innerHTML = `
       <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.85rem">
