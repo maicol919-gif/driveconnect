@@ -1854,7 +1854,12 @@ function showView(id) {
 }
 
 function goHome() {
-  if (STATE.currentUser) logout(); else showView('view-login');
+  if (!STATE.currentUser) { showView('view-login'); return; }
+  const role = STATE.currentUser.role;
+  if (role === 'student') showView('view-student');
+  else if (role === 'instructor') showView('view-instructor');
+  else if (role === 'coordinator') showView('view-coordinator');
+  else if (role === 'admin') showView('view-admin');
 }
 
 function togglePwd(inputId, btn) {
