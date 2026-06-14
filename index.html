@@ -776,67 +776,27 @@
     <!-- ===== VISTA ALUMNOS ===== -->
     <div id="coord-view-students" style="display:none">
       <div class="glass-panel">
-        <div class="panel-header" style="margin-bottom:.75rem">
-          <div style="display:flex;align-items:center;gap:.75rem">
-            <button id="coord-back-to-instructors" class="btn-sec" style="display:none;font-size:.75rem;padding:.35rem .7rem" onclick="switchCoordTab('instructors')">← Instructores</button>
-            <h3 id="coord-table-title">Todos los alumnos activos</h3>
-          </div>
+        <div class="panel-header" style="margin-bottom:1.25rem">
+          <h3>👥 Alumnos</h3>
           <div style="display:flex;align-items:center;gap:.5rem">
-            <span id="coord-table-count" style="font-size:.78rem;color:var(--text-muted)"></span>
+            <button id="coord-back-to-instructors" class="btn-sec" style="display:none;font-size:.75rem;padding:.35rem .7rem" onclick="switchCoordTab('instructors')">← Instructores</button>
             <button class="btn-primary" style="width:auto;padding:.38rem .8rem;font-size:.75rem" onclick="coordShowRegisterQR()">📱 QR</button>
             <button class="btn-sec" style="padding:.38rem .8rem;font-size:.75rem" onclick="coordRegisterManual()">✏️ Registrar</button>
           </div>
         </div>
-        <!-- Filtros vista general alumnos -->
-        <div id="coord-students-filters-row" style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:center">
-          <input type="text" id="coord-search" class="config-input" style="flex:1;min-width:160px;margin-bottom:0;padding:.42rem .75rem;font-size:.8rem" placeholder="Buscar alumno...">
-          <select id="coord-filter-state" class="config-input" style="min-width:180px;margin-bottom:0;padding:.42rem .6rem;font-size:.8rem">
-            <option value="">Todos los estados</option>
-            <option value="theory_passed">Sin instructor</option>
-            <option value="instructor_assigned">Instructor asignado</option>
-            <option value="contacted">Contactado por instructor</option>
-            <option value="contact_confirmed">Confirmado por alumno</option>
-            <option value="practice_started">Clases en curso</option>
-            <option value="completed">Completados</option>
-          </select>
-          <button id="coord-clear-filter" class="btn-sec" style="font-size:.75rem;padding:.4rem .75rem;display:none" onclick="coordClearFilter()">✕ Limpiar</button>
-        </div>
-        <!-- Filtros vista alumnos por instructor -->
-        <div id="coord-inst-student-filters" style="display:none;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;align-items:center">
-          <input id="coord-inst-stu-search" type="text" placeholder="Buscar alumno..."
-            style="flex:1;min-width:160px;padding:.42rem .75rem;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:.82rem"
-            oninput="coordInstStudentFilter()">
-          <select id="coord-inst-stu-state"
-            style="min-width:180px;padding:.42rem .6rem;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:.82rem"
-            onchange="coordInstStudentFilter()">
-            <option value="">Todos los estados</option>
-            <option value="theory_passed">Sin instructor</option>
-            <option value="instructor_assigned">Pendiente contacto</option>
-            <option value="contacted">Contactado</option>
-            <option value="contact_confirmed">Confirmado</option>
-            <option value="practice_started">En clases</option>
-            <option value="completed">Completados</option>
-          </select>
-        </div>
-        <div class="assign-table-wrap scrollable">
-          <table class="assign-table">
-            <thead>
-              <tr>
-                <th>Alumno</th>
-                <th>Documento</th>
-                <th>Licencias</th>
-                <th>Estado general</th>
-                <th>Días espera</th>
-                <th>Acción</th>
-              </tr>
-            </thead>
-            <tbody id="coord-table-body"></tbody>
-          </table>
-        </div>
+        <span id="coord-table-count" style="display:none"></span>
+        <span id="coord-table-title" style="display:none"></span>
+        <input id="coord-search" type="hidden">
+        <select id="coord-filter-state" style="display:none"></select>
+        <span id="coord-clear-filter" style="display:none"></span>
+        <div id="coord-students-filters-row" style="display:none"></div>
+        <div id="coord-inst-student-filters" style="display:none"></div>
+        <tbody id="coord-table-body" style="display:none"></tbody>
+        <div id="coord-students-groups"></div>
       </div>
     </div>
 
-    <!-- ===== VISTA INSTRUCTORES ===== -->
+        <!-- ===== VISTA INSTRUCTORES ===== -->
     <div id="coord-view-instructors" style="display:none">
       <div class="glass-panel">
         <div class="panel-header">
@@ -3201,7 +3161,7 @@ function switchCoordTab(tab) {
     const v = document.getElementById('coord-view-' + t);
     if (v) v.style.display = t === tab ? 'block' : 'none';
   });
-  if (tab === 'students') requestAnimationFrame(() => renderCoordTable());
+  if (tab === 'students') requestAnimationFrame(() => renderCoordGroups(null));
   if (tab === 'instructors') {
     renderCoordInstructors();
     // Restaurar filtros generales y ocultar botón regresar
@@ -3299,7 +3259,8 @@ function coordClearFilter() {
   renderCoordTable();
 }
 
-function renderCoordTable() {
+function renderCoordTable() { renderCoordGroups(null); return;
+  
   const search      = (document.getElementById('coord-search')?.value || '').toLowerCase();
   const filterState = document.getElementById('coord-filter-state')?.value || '';
   const tbody = document.getElementById('coord-table-body');
@@ -3442,245 +3403,111 @@ function renderCoordTable() {
 
 
 // =============================================================================
-// LISTA DE TAREAS DEL HOME DE COORDINADORA
+// HOME: ACTION CARDS DEL COORDINADOR
 // =============================================================================
 function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practiceStale, dualPostCompleted, dualWaiting, enClases, avg, pendingProcs }) {
   const container = document.getElementById('coord-task-list');
   if (!container) return;
 
-  const LICENSE_FULL   = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍 A2', A1:'🛵 A1', B2:'🚐 B2' };
-  const LICENSE_LABELS = { B1:'Carro particular', C1:'Carro público', C2:'Carro público pesado', A2:'Moto +125cc', A1:'Moto -125cc', B2:'Camioneta' };
+  const sinInstructor = STATE.procesos.filter(p => p.state === 'theory_passed').length;
+  const enSeguimiento = STATE.procesos.filter(p => ['instructor_assigned','contacted'].includes(p.state)).length;
+  const enProgreso    = STATE.procesos.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
 
-  function licBadges(p) {
-    return `<span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_FULL[p.license] || p.license} ${LICENSE_LABELS[p.license] || ''}</span>`;
-  }
-
-  function businessDaysFromTheory(p) {
-    const st = STATE.students.find(s => s.docNumber === p.docNumber);
-    if (!st?.theoryPassedDate) return 0;
-    return businessDaysBetween(parseToISO(st.theoryPassedDate) || today(), today());
-  }
-
-  function fmtTheory(p) {
-    const st = STATE.students.find(s => s.docNumber === p.docNumber);
-    return formatDate(st?.theoryPassedDate) || '—';
-  }
-
-  // ── DATOS ────────────────────────────────────────────────────────────────
-  // 🔴 ROJOS: sin instructor asignado
-  const sinInstructor = STATE.procesos.filter(p => p.state === 'theory_passed');
-  const rojosRaw = sinInstructor.slice().sort((a, b) => businessDaysFromTheory(b) - businessDaysFromTheory(a));
-  const seenOrder = [];
-  const rojosByDoc = {};
-  rojosRaw.forEach(p => {
-    if (!rojosByDoc[p.docNumber]) { rojosByDoc[p.docNumber] = []; seenOrder.push(p.docNumber); }
-    rojosByDoc[p.docNumber].push(p);
-  });
-  const rojos = seenOrder.flatMap(doc => rojosByDoc[doc]);
-
-  // 🟡 AMARILLOS: tiene instructor pero aún no hay contacto confirmado
-  // Estados: instructor_assigned + contacted (instructor contactó pero alumno no confirma)
-  const amarillosRaw = STATE.procesos.filter(p => {
-    if (!['instructor_assigned','contacted'].includes(p.state)) return false;
-    if (getDualLicenseContext(p.docNumber, p.license).mode === 'waiting_while_active') return false;
-    return true;
-  });
-  const enSeguimiento = amarillosRaw.slice().sort((a, b) => {
-    const stA = STATE.students.find(s => s.docNumber === a.docNumber);
-    const stB = STATE.students.find(s => s.docNumber === b.docNumber);
-    return daysWaiting(b, stB) - daysWaiting(a, stA);
-  });
-
-  // 🟢 VERDES: contacto confirmado o posterior (hasta practice_started)
-  // completed queda fuera del panel
-  const verdes = STATE.procesos.filter(p => {
-    if (!['contact_confirmed','practice_started'].includes(p.state)) return false;
-    if (getDualLicenseContext(p.docNumber, p.license).mode === 'waiting_while_active') return false;
-    return true;
-  }).concat(
-    // dual post-completed esperando segunda licencia
-    STATE.procesos.filter(p => {
-      if (!['theory_passed','instructor_assigned'].includes(p.state)) return false;
-      return getDualLicenseContext(p.docNumber, p.license).mode === 'post_completed';
-    })
-  );
-
-  // ── ESTADO VACÍO ─────────────────────────────────────────────────────────
-  if (rojos.length === 0 && verdes.length === 0 && enSeguimiento.length === 0) {
+  if (sinInstructor === 0 && enSeguimiento === 0 && enProgreso === 0) {
     container.innerHTML = `<div style="text-align:center;padding:3rem 1rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:var(--r-md)">
-      <div style="font-size:3rem;margin-bottom:.75rem">🎉</div>
+      <div style="font-size:3rem;margin-bottom:.75rem">&#127881;</div>
       <h4 style="color:var(--success);margin-bottom:.4rem">Sin tareas pendientes</h4>
-      <p style="font-size:.85rem;color:var(--text-muted)">Todo al día.</p>
+      <p style="font-size:.85rem;color:var(--text-muted)">Todo al día. ¡Buen trabajo!</p>
     </div>`;
     return;
   }
 
-  // ── BUILDERS DE FILAS ────────────────────────────────────────────────────
-  function buildRojosRows() {
-    let html = '';
-    const seen = new Set();
-    rojos.forEach((p, i) => {
-      const st     = STATE.students.find(s => s.docNumber === p.docNumber);
-      const bdDays = businessDaysFromTheory(p);
-      const dayColor = bdDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : 'var(--warning)';
-      const dayBg    = bdDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'rgba(244,63,94,.15)' : 'rgba(245,158,11,.15)';
-      const isRepeat = seen.has(p.docNumber);
-      seen.add(p.docNumber);
-      const nextP    = rojos[i + 1];
-      const sameNext = nextP && nextP.docNumber === p.docNumber;
-      const border   = i < rojos.length - 1
-        ? (sameNext ? 'border-bottom:1px dashed rgba(244,63,94,.15)' : 'border-bottom:1px solid rgba(244,63,94,.1)')
-        : '';
-      const namePart = isRepeat
-        ? `<div style="font-size:.73rem;color:var(--text-muted);margin-bottom:.1rem">↳ también</div>`
-        : `<div style="font-weight:600;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st?.name || p.docNumber}</div>`;
-      const theoryPart = !isRepeat
-        ? `<span style="font-size:.72rem;color:var(--text-muted)">Teórico: ${fmtTheory(p)}</span>
-           <span style="background:${dayBg};border-radius:9999px;padding:.1rem .5rem;font-size:.72rem;font-weight:700;color:${dayColor}">${bdDays}d hábiles</span>`
-        : `<span style="font-size:.72rem;color:var(--text-muted)">misma fecha · ${bdDays}d hábiles</span>`;
-      html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}${isRepeat?';background:rgba(244,63,94,.02)':''}">
+  const CARDS = [
+    { n: sinInstructor, icon: '&#128680;', label: 'Sin instructor',  desc: 'Requieren asignación urgente',             color: 'var(--danger)',  glow: 'rgba(244,63,94,.25)',  bg: 'rgba(244,63,94,.07)',  border: 'rgba(244,63,94,.3)',  action: 'Asignar ahora',  group: 'theory_passed' },
+    { n: enSeguimiento, icon: '&#128242;', label: 'En seguimiento',  desc: 'Instructor asignado — esperando contacto', color: 'var(--warning)', glow: 'rgba(245,158,11,.25)', bg: 'rgba(245,158,11,.07)', border: 'rgba(245,158,11,.3)', action: 'Revisar estado', group: 'instructor_assigned' },
+    { n: enProgreso,    icon: '&#128663;', label: 'En clases',       desc: 'Contacto confirmado o clases iniciadas',   color: 'var(--success)', glow: 'rgba(16,185,129,.25)', bg: 'rgba(16,185,129,.07)', border: 'rgba(16,185,129,.3)', action: 'Ver progreso',   group: 'practice_started' },
+  ].filter(c => c.n > 0);
+
+  container.innerHTML =
+    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:1rem;margin-bottom:.5rem">` +
+    CARDS.map(c => `
+      <div onclick="switchCoordTab('students');coordExpandGroup('${c.group}')"
+           style="cursor:pointer;padding:1.5rem 1.25rem;border-radius:var(--r-lg);border:1px solid ${c.border};background:${c.bg};transition:var(--t-norm)"
+           onmouseenter="this.style.boxShadow='0 0 28px ${c.glow}';this.style.transform='translateY(-3px)'"
+           onmouseleave="this.style.boxShadow='';this.style.transform=''">
+        <div style="font-size:2rem;margin-bottom:.5rem">${c.icon}</div>
+        <div style="font-size:2.8rem;font-weight:800;font-family:var(--font-title);color:${c.color};line-height:1">${c.n}</div>
+        <div style="font-weight:700;font-size:.9rem;margin-top:.4rem">${c.label}</div>
+        <div style="color:var(--text-secondary);font-size:.76rem;margin-top:.2rem;line-height:1.4">${c.desc}</div>
+        <div style="margin-top:1rem;font-size:.78rem;font-weight:600;color:${c.color}">${c.action} &#8594;</div>
+      </div>`).join('') +
+    `</div>`;
+}
+
+function coordExpandGroup(groupKey) {
+  requestAnimationFrame(() => renderCoordGroups(groupKey));
+}
+
+// =============================================================================
+// ALUMNOS: GRUPOS EXPANDIBLES
+// =============================================================================
+function renderCoordGroups(expandKey) {
+  const container = document.getElementById('coord-students-groups');
+  if (!container) return;
+
+  const GROUPS = [
+    { key: 'theory_passed',       label: 'Sin instructor',        icon: '&#128680;', color: 'var(--danger)',  border: 'rgba(244,63,94,.25)',  bg: 'rgba(244,63,94,.06)',  filter: p => p.state === 'theory_passed' },
+    { key: 'instructor_assigned', label: 'Pendiente contacto',    icon: '&#128203;', color: 'var(--warning)', border: 'rgba(245,158,11,.25)', bg: 'rgba(245,158,11,.06)', filter: p => p.state === 'instructor_assigned' },
+    { key: 'contacted',           label: 'Contactado',            icon: '&#128242;', color: '#a78bfa',        border: 'rgba(139,92,246,.25)', bg: 'rgba(139,92,246,.06)', filter: p => p.state === 'contacted' },
+    { key: 'contact_confirmed',   label: 'Confirmado por alumno', icon: '&#9989;',   color: 'var(--success)', border: 'rgba(16,185,129,.25)', bg: 'rgba(16,185,129,.06)', filter: p => p.state === 'contact_confirmed' },
+    { key: 'practice_started',    label: 'En clases',             icon: '&#128663;', color: 'var(--success)', border: 'rgba(16,185,129,.3)',  bg: 'rgba(16,185,129,.09)', filter: p => p.state === 'practice_started' },
+  ];
+
+  const LICENSE_LABELS = { B1:'&#128663; B1', C1:'&#128652; C1', C2:'&#128667; C2', A2:'&#128653; A2', A1:'&#128757; A1', B2:'&#128656; B2' };
+  const total = STATE.procesos.filter(p => !['completed','pending'].includes(p.state)).length;
+  let html = `<p style="font-size:.78rem;color:var(--text-muted);margin-bottom:1rem">${total} alumno(s) activos</p>`;
+
+  GROUPS.forEach(g => {
+    const procs = STATE.procesos.filter(g.filter);
+    if (!procs.length) return;
+    const isOpen = expandKey === g.key;
+    const bodyId = 'cgrp-' + g.key;
+
+    const rows = procs.map(p => {
+      const st   = STATE.students.find(s => s.docNumber === p.docNumber);
+      const inst = STATE.instructors.find(i => i.id === p.instructorId);
+      const days = daysWaiting(p, st);
+      const dayColor = days >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
+      return `<div style="padding:.7rem .9rem;border-radius:var(--r-sm);background:rgba(255,255,255,.025);border:1px solid var(--border-color);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
         <div style="flex:1;min-width:0">
-          ${namePart}
-          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.2rem;flex-wrap:wrap">
-            ${licBadges(p)}
-            ${theoryPart}
+          <div style="font-weight:600;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${st ? st.name : p.docNumber}</div>
+          <div style="display:flex;gap:.4rem;margin-top:.25rem;flex-wrap:wrap;align-items:center">
+            <span style="background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.2);border-radius:9999px;padding:.1rem .45rem;font-size:.68rem;color:var(--brand-light);font-weight:600">${LICENSE_LABELS[p.license] || p.license}</span>
+            ${days > 0 ? `<span style="font-size:.72rem;color:${dayColor};font-weight:600">${days}d espera</span>` : ''}
+            ${inst ? `<span style="font-size:.72rem;color:var(--text-secondary)">&#128104;&#8205;&#127979; ${(inst.name || '').split(' ')[0]}</span>` : ''}
           </div>
         </div>
-        <button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--danger);border-color:var(--danger);flex-shrink:0"
-          onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>
+        ${g.key === 'theory_passed' ? `<button class="btn-primary" style="width:auto;padding:.28rem .75rem;font-size:.73rem;background:var(--danger);border-color:var(--danger);flex-shrink:0" onclick="openModal('${p.docNumber}','${p.license}')">+ Asignar</button>` : ''}
       </div>`;
-    });
-    return html;
-  }
+    }).join('');
 
-  function buildAmarillosRows() {
-    let html = '';
-    enSeguimiento.forEach((p, i) => {
-      const st   = STATE.students.find(s => s.docNumber === p.docNumber);
-      const inst = STATE.instructors.find(ins => ins.id === p.instructorId);
-      const days = daysWaiting(p, st);
-      const border = i < enSeguimiento.length - 1 ? 'border-bottom:1px solid rgba(245,158,11,.1)' : '';
-      const dayColor = days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
-      let stateLabel = '';
-      if (p.state === 'contacted') {
-        stateLabel = `<span style="color:#a78bfa;font-size:.72rem;font-weight:600">Instructor contactó — alumno aún no confirma</span>`;
-      } else {
-        stateLabel = `<span style="color:${dayColor};font-size:.72rem">${days}d esperando contacto · ${inst ? inst.name : '—'}</span>`;
-      }
-      html += `<div style="padding:.65rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st?.name || p.docNumber}</div>
-          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">${licBadges(p)}${stateLabel}</div>
-        </div>
-        <button class="btn-sec" style="font-size:.73rem;padding:.25rem .65rem;flex-shrink:0" onclick="openStudentProfile('${p.docNumber}')">📋 Ver</button>
-      </div>`;
-    });
-    return html;
-  }
-
-  function buildVerdesRows() {
-    let html = '';
-    verdes.forEach((p, i) => {
-      const st     = STATE.students.find(s => s.docNumber === p.docNumber);
-      const border = i < verdes.length - 1 ? 'border-bottom:1px solid rgba(16,185,129,.1)' : '';
-      let accionLabel = '', accionBtn = '';
-      const ctx = getDualLicenseContext(p.docNumber, p.license);
-      if (ctx.mode === 'post_completed') {
-        accionLabel = `<span style="color:var(--warning);font-size:.72rem">2ª licencia — ${ctx.daysSinceCompleted||0}d desde fin</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;flex-shrink:0" onclick="closeStudentProfile();openModal('${p.docNumber}','${p.license}')">+ Asignar instructor</button>`;
-      } else if (p.state === 'contact_confirmed') {
-        accionLabel = `<span style="color:var(--success);font-size:.72rem;font-weight:600">✓ Contacto confirmado</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0" onclick="coordMarkPracticeStarted('${p.docNumber}','${p.license}')">🚗 Iniciar clases</button>`;
-      } else if (p.state === 'practice_started') {
-        const cd  = p.contactDate ? businessDaysBetween(parseToISO(p.contactDate)||today(), today()) : 0;
-        accionLabel = `<span style="color:var(--success);font-size:.72rem;font-weight:600">🚗 En clases · ${cd}d</span>`;
-        accionBtn   = `<button class="btn-primary" style="width:auto;padding:.3rem .85rem;font-size:.75rem;background:var(--success);border-color:var(--success);flex-shrink:0" onclick="coordCloseProcess('${p.docNumber}','${p.license}')">🎓 Cerrar proceso</button>`;
-      }
-      html += `<div style="padding:.7rem 1rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;${border}">
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:600;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${st?.name||p.docNumber}</div>
-          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">${licBadges(p)}${accionLabel}</div>
-        </div>${accionBtn}
-      </div>`;
-    });
-    return html;
-  }
-
-  // ── CARDS DASHBOARD ──────────────────────────────────────────────────────
-  const cards = [];
-  if (rojos.length > 0) cards.push({
-    id: 'rojos', icon: '🔴',
-    title: 'Sin instructor',
-    desc: 'Requieren asignación de instructor',
-    count: rojos.length,
-    accentColor: 'var(--danger)',
-    borderColor: 'rgba(244,63,94,.35)',
-    bgCard: 'rgba(244,63,94,.07)',
-    bgActive: 'rgba(244,63,94,.13)',
-    countBg: 'var(--danger)',
-    rowsFn: buildRojosRows
-  });
-  if (enSeguimiento.length > 0) cards.push({
-    id: 'amarillos', icon: '🟡',
-    title: 'Pendiente de contacto',
-    desc: 'Instructor asignado — aún sin confirmar contacto',
-    count: enSeguimiento.length,
-    accentColor: 'var(--warning)',
-    borderColor: 'rgba(245,158,11,.3)',
-    bgCard: 'rgba(245,158,11,.05)',
-    bgActive: 'rgba(245,158,11,.12)',
-    countBg: 'rgba(245,158,11,.9)',
-    rowsFn: buildAmarillosRows
-  });
-  if (verdes.length > 0) cards.push({
-    id: 'verdes', icon: '🟢',
-    title: 'En proceso',
-    desc: 'Contacto confirmado o clases activas',
-    count: verdes.length,
-    accentColor: 'var(--success)',
-    borderColor: 'rgba(16,185,129,.3)',
-    bgCard: 'rgba(16,185,129,.06)',
-    bgActive: 'rgba(16,185,129,.12)',
-    countBg: 'var(--success)',
-    rowsFn: buildVerdesRows
-  });
-
-  // Grid de cards
-  let cardsHtml = `<div id="coord-cards-grid" style="display:grid;grid-template-columns:repeat(${cards.length},1fr);gap:.85rem;margin-bottom:.1rem">`;
-  cards.forEach(c => {
-    cardsHtml += `
-    <button id="card-btn-${c.id}" onclick="toggleDashCard('${c.id}')"
-      style="background:${c.bgCard};border:1.5px solid ${c.borderColor};border-radius:var(--r-lg);
-             padding:1.4rem 1.2rem;cursor:pointer;text-align:left;transition:all .18s;width:100%">
-      <div style="font-size:2rem;margin-bottom:.6rem;line-height:1">${c.icon}</div>
-      <div style="font-size:2rem;font-weight:700;color:${c.accentColor};line-height:1;margin-bottom:.3rem">${c.count}</div>
-      <div style="font-size:.88rem;font-weight:600;color:var(--text-primary);margin-bottom:.2rem">${c.title}</div>
-      <div style="font-size:.75rem;color:var(--text-muted);line-height:1.3">${c.desc}</div>
-      <div id="card-btn-${c.id}-chevron" style="margin-top:.8rem;font-size:.7rem;color:${c.accentColor};transition:transform .2s">▼ ver lista</div>
-    </button>`;
-  });
-  cardsHtml += `</div>`;
-
-  // Paneles de listas
-  let listsHtml = '';
-  cards.forEach(c => {
-    listsHtml += `
-    <div id="card-list-${c.id}" style="display:none;border:1px solid ${c.borderColor};border-radius:var(--r-md);overflow:hidden;margin-top:.5rem">
-      <div style="padding:.55rem 1rem;background:${c.bgActive};display:flex;align-items:center;gap:.5rem;border-bottom:1px solid ${c.borderColor}">
-        <span>${c.icon}</span>
-        <strong style="font-size:.82rem;color:${c.accentColor};flex:1">${c.title}</strong>
-        <span style="background:${c.countBg};color:white;border-radius:9999px;padding:.1rem .5rem;font-size:.7rem;font-weight:700">${c.count}</span>
-        <button onclick="toggleDashCard('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:.8rem;padding:.1rem .3rem">✕</button>
+    html += `<div style="border-radius:var(--r-md);border:1px solid ${g.border};margin-bottom:.65rem;overflow:hidden">
+      <div onclick="(function(el){var b=document.getElementById('${bodyId}');var open=b.style.display!=='none';b.style.display=open?'none':'block';el.querySelector('.cg-chev').style.transform=open?'':'rotate(180deg)'})(this)"
+           style="display:flex;align-items:center;gap:.75rem;padding:.9rem 1.1rem;cursor:pointer;user-select:none;background:${g.bg}">
+        <span style="font-size:1.1rem">${g.icon}</span>
+        <span style="font-weight:700;font-size:.9rem;flex:1">${g.label}</span>
+        <span style="background:${g.color};color:white;border-radius:9999px;padding:.1rem .55rem;font-size:.75rem;font-weight:700">${procs.length}</span>
+        <svg class="cg-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transition:transform .22s;transform:${isOpen ? 'rotate(180deg)' : ''}"><path d="M6 9l6 6 6-6"/></svg>
       </div>
-      <div style="background:var(--bg-card)">${c.rowsFn()}</div>
+      <div id="${bodyId}" style="display:${isOpen ? 'block' : 'none'};padding:.75rem 1rem 1rem">
+        <div style="display:flex;flex-direction:column;gap:.45rem">${rows}</div>
+      </div>
     </div>`;
   });
 
-  container.innerHTML = cardsHtml + listsHtml;
-
-  const grid = document.getElementById('coord-cards-grid');
-  if (grid && window.innerWidth < 600) grid.style.gridTemplateColumns = '1fr';
+  container.innerHTML = html;
 }
+
 
 function toggleDashCard(id) {
   const ALL_IDS = ['rojos', 'verdes', 'amarillos'];
