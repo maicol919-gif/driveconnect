@@ -50,6 +50,25 @@
     ::-webkit-scrollbar-track{background:var(--bg-primary)}
     ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
 
+    /* STUDENT PROGRESS BAR */
+    .stu-progress{padding:1.1rem 0 .75rem;border-top:1px solid var(--border-color)}
+    .stu-progress-track{position:relative;display:flex;justify-content:space-between;align-items:flex-start}
+    .stu-progress-line{position:absolute;top:13px;left:14px;right:14px;height:2px;background:rgba(255,255,255,.07)}
+    .stu-progress-fill{position:absolute;top:13px;left:14px;height:2px;background:linear-gradient(90deg,var(--success),var(--brand));transition:width .6s cubic-bezier(.4,0,.2,1)}
+    .stu-step{display:flex;flex-direction:column;align-items:center;gap:5px;z-index:1;flex:1}
+    .stu-dot{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;transition:all .3s;flex-shrink:0}
+    .stu-dot.done{background:var(--success);color:white;box-shadow:0 0 8px rgba(16,185,129,.4)}
+    .stu-dot.active{background:var(--brand);color:white;box-shadow:0 0 12px var(--brand-glow);animation:pulseBorder 2s infinite}
+    .stu-dot.pending{background:rgba(255,255,255,.04);border:2px solid rgba(255,255,255,.1);color:var(--text-muted)}
+    .stu-step-label{font-size:.62rem;color:var(--text-muted);text-align:center;max-width:54px;line-height:1.3}
+    .stu-step-label.active{color:var(--brand-light);font-weight:600}
+    .stu-step-label.done{color:var(--success)}
+    .stu-cta{margin-top:.85rem;padding:.7rem .9rem;border-radius:var(--r-sm);font-size:.82rem;font-weight:600;display:flex;align-items:center;gap:.6rem}
+    .stu-cta.info{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:var(--brand-light)}
+    .stu-cta.warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:var(--warning)}
+    .stu-cta.success{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:var(--success)}
+    .stu-cta.action{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);color:white;cursor:pointer}
+
     /* HEADER */
     header{
       backdrop-filter:var(--blur);background:rgba(10,15,29,.7);border-bottom:1px solid var(--border-color);
@@ -708,17 +727,8 @@
             <button class="btn-sec" onclick="logout()" style="padding:.45rem .75rem;font-size:.78rem">Salir</button>
           </div>
 
-          <!-- Teórico -->
-          <div style="padding-top:1rem;border-top:1px solid var(--border-color)">
-            <div class="timeline-section-title" style="margin-bottom:.85rem">Tu proceso</div>
-            <div style="display:flex;align-items:flex-start;gap:.75rem">
-              <div style="width:28px;height:28px;border-radius:50%;background:rgba(16,185,129,.15);border:2px solid var(--success);display:flex;align-items:center;justify-content:center;color:var(--success);font-size:.8rem;flex-shrink:0">✓</div>
-              <div>
-                <div style="font-weight:700;font-size:.9rem">Examen Teórico Aprobado 🎉</div>
-                <div class="timeline-date" id="student-theory-date"></div>
-              </div>
-            </div>
-          </div>
+          <!-- Barra de progreso dinámica -->
+          <div id="student-progress-bar" class="stu-progress"></div>
         </div>
 
         <!-- TABS DE LICENCIA -->
@@ -2352,9 +2362,43 @@ function renderStudentPortal() {
   document.getElementById('student-name-title').textContent = 'Hola, ' + s.name.split(' ')[0];
   document.getElementById('student-doc-subtitle').textContent = getDocLabel(s.docType) + ' ' + s.docNumber;
 
-  const dateEl = document.getElementById('student-theory-date');
-  if (dateEl) dateEl.innerHTML = `¡Felicitaciones! Aprobado el <strong>${formatDate(s.theoryPassedDate, true)}</strong>
-    <span style="display:block;margin-top:.25rem;font-size:.72rem;color:var(--text-muted)">¿Esta no es tu fecha? Acércate a la administración para corregirla.</span>`;
+  // Progress bar
+  const _activeP = procs[0] || { state: 'theory_passed' };
+  const _SO = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
+  const _si = _SO.indexOf(_activeP.state);
+  const STEPS = [
+    { icon:'✓', label:'Teórico' },
+    { icon:'👤', label:'Instructor asignado' },
+    { icon:'📲', label:'Esperando contacto' },
+    { icon:'✅', label:'Confirmado' },
+    { icon:'🚗', label:'En clases' },
+  ];
+  const CTA_MAP = {
+    theory_passed:       { cls:'info',    icon:'⏳', msg:'Pronto te asignaremos un instructor.' },
+    instructor_assigned: { cls:'info',    icon:'📲', msg:'Tu instructor te contactará muy pronto.' },
+    contacted:           { cls:'action',  icon:'👋', msg:'Tu instructor ya te contactó. ¡Confirma aquí!' },
+    contact_confirmed:   { cls:'success', icon:'🚗', msg:'Todo listo. Tu instructor coordinará el inicio de clases.' },
+    practice_started:    { cls:'success', icon:'✅', msg:'Clases en curso. ¡Mucho éxito!' },
+    completed:           { cls:'success', icon:'🏆', msg:'¡Proceso completado!' },
+  };
+  const stepsDone = Math.min(_si, STEPS.length);
+  const fillPct   = stepsDone === 0 ? 0 : Math.round((stepsDone / (STEPS.length - 1)) * 100);
+  const cta = CTA_MAP[_activeP.state] || CTA_MAP['theory_passed'];
+  const ctaClick = _activeP.state === 'contacted' ? `onclick="document.getElementById('student-active-panel').scrollIntoView({behavior:'smooth'})"` : '';
+  const pbEl = document.getElementById('student-progress-bar');
+  if (pbEl) pbEl.innerHTML = `
+    <div class="stu-progress-track">
+      <div class="stu-progress-line"></div>
+      <div class="stu-progress-fill" style="width:${fillPct}%"></div>
+      ${STEPS.map((st, i) => {
+        const cls = i < _si ? 'done' : i === _si ? 'active' : 'pending';
+        return `<div class="stu-step">
+          <div class="stu-dot ${cls}">${i < _si ? '✓' : st.icon}</div>
+          <div class="stu-step-label ${cls}">${st.label}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="stu-cta ${cta.cls}" ${ctaClick}>${cta.icon} ${cta.msg}</div>`;
 
   // ── PANTALLA DE CIERRE: todos los procesos completados ──────────────────────
   if (allProcs.length > 0 && procs.length === 0) {
