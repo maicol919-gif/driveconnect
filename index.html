@@ -50,6 +50,12 @@
     ::-webkit-scrollbar-track{background:var(--bg-primary)}
     ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px}
 
+    /* EMPTY STATE */
+    .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2.5rem 1rem;text-align:center;gap:.5rem}
+    .empty-state-icon{font-size:2.5rem;line-height:1;margin-bottom:.25rem;opacity:.7}
+    .empty-state-title{font-size:.95rem;font-weight:700;color:var(--text-secondary)}
+    .empty-state-sub{font-size:.8rem;color:var(--text-muted);max-width:260px;line-height:1.5}
+    .empty-state-cta{margin-top:.5rem;padding:.45rem .9rem;border-radius:var(--r-sm);background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);color:var(--brand-light);font-size:.8rem;font-weight:600;cursor:pointer}
     /* RESPONSIVE GLOBAL */
     @media(max-width:640px){
       .auth-container{margin:1rem auto;padding:0 .5rem}
@@ -907,7 +913,7 @@
         <h1 style="font-family:var(--font-title);font-size:1.75rem;font-weight:800">⚙️ Superadmin</h1>
         <p class="text-secondary" id="admin-last-sync" style="font-size:.8rem">Cargando...</p>
       </div>
-      <button class="btn-sec" onclick="logout()">Cerrar sesión</button>
+      <button class="btn-sec" onclick="logout()">Salir</button>
     </div>
 
     <!-- TABS -->
@@ -1768,6 +1774,11 @@ function daysBetween(d1, d2) {
   const a = new Date(d1), b = new Date(d2);
   a.setHours(0,0,0,0); b.setHours(0,0,0,0);
   return Math.round(Math.abs(b - a) / 86400000);
+}
+
+function emptyStateHtml(icon, title, sub, cta) {
+  const ctaHtml = cta ? `<div class="empty-state-cta" onclick="${cta.action}">${cta.label}</div>` : '';
+  return `<div class="empty-state"><div class="empty-state-icon">${icon}</div><div class="empty-state-title">${title}</div><div class="empty-state-sub">${sub}</div>${ctaHtml}</div>`;
 }
 
 function daysWaiting(studentOrProceso, student) {
@@ -3699,9 +3710,9 @@ function _renderCoordCards() {
   if (countEl) countEl.textContent = entries.length + ' alumno(s)';
 
   if (!entries.length) {
-    cardsEl.innerHTML = `<div style="text-align:center;padding:2.5rem 1rem;color:var(--text-muted);font-size:.88rem">
-      ${searchVal ? 'Sin resultados para "' + searchVal + '"' : 'Sin alumnos activos'}
-    </div>`;
+    cardsEl.innerHTML = searchVal
+      ? emptyStateHtml('🔍', 'Sin resultados', `No hay alumnos que coincidan con "${searchVal}".`)
+      : emptyStateHtml('🎓', 'Sin alumnos activos', 'Todos los procesos están completados o no hay alumnos registrados aún.');
     return;
   }
 
@@ -3769,7 +3780,7 @@ function renderCoordInstructors() {
   const container = document.getElementById('coord-inst-list');
   if (!container) return;
   if (!STATE.instructors.length) {
-    container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin instructores. Agrega el primero.</p>';
+    container.innerHTML = emptyStateHtml('👨‍🏫', 'Sin instructores registrados', 'Agrega el primero usando el botón de abajo.', { label:'+ Agregar instructor', action:"openModal('instructor')" });
     return;
   }
   container.innerHTML = '';
