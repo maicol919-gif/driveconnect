@@ -3402,7 +3402,7 @@ function switchCoordTab(tab) {
   }
   if (tab !== 'instructors') {
     window._coordSelectedInst    = null;
-    window._coordInstCardFilter  = null;
+    window._coordInstActiveFilter  = null;
     window._coordInstStuSelected = null;
   }
   if (tab === 'instructors') {
@@ -4290,7 +4290,7 @@ function renderCoordInstructors() {
 
   // Reset profile state when re-entering list
   window._coordSelectedInst    = null;
-  window._coordInstCardFilter  = null;
+  window._coordInstActiveFilter  = null;
   window._coordInstStuSelected = null;
 
   const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
@@ -4370,7 +4370,7 @@ function renderCoordInstructors() {
 }
 
 window._coordInstTypeFilter  = window._coordInstTypeFilter  || null;
-window._coordInstCardFilter  = window._coordInstCardFilter  || null;
+window._coordInstActiveFilter  = window._coordInstActiveFilter  || null;
 window._coordInstStuSelected = window._coordInstStuSelected || null;
 
 function _coordInstFilter(key) {
@@ -4382,7 +4382,7 @@ function showInstProfile(instId) {
   const container = document.getElementById('coord-inst-list');
   if (!container) return;
   window._coordSelectedInst    = instId;
-  window._coordInstCardFilter  = null;
+  window._coordInstActiveFilter  = null;
   window._coordInstStuSelected = null;
 
   const inst = STATE.instructors.find(i => i.id === instId);
@@ -4423,7 +4423,7 @@ function showInstProfile(instId) {
     + (waUrl ? '<a href="' + waUrl + '" target="_blank" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:6px;font-size:10px;color:#4ade80;text-decoration:none;flex-shrink:0">&#128241; WA</a>' : '')
     + '<button onclick="openInstructorModal(\'' + instId + '\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:10px;cursor:pointer;font-family:inherit">&#9998; Editar</button>'
     + '</div>'
-    + '<div style="display:flex;gap:.55rem;margin-bottom:.9rem">'
+    + '<div id="coord-inst-metric-cards" style="display:flex;gap:.55rem;margin-bottom:.9rem">'
     + metricCard('all',    nActivos, 'Activos',   'ver todos',     '#a5b4fc', 'rgba(99,102,241,.35)',  'rgba(79,70,229,.08)')
     + metricCard('critical', nCrit,  'Críticos',  'sin contacto',  '#fca5a5', 'rgba(239,68,68,.35)',   'rgba(239,68,68,.07)')
     + metricCard('practice', nClases,'En clases', 'en práctica',   '#6ee7b7', 'rgba(16,185,129,.25)',  'rgba(16,185,129,.05)')
@@ -4437,7 +4437,7 @@ function showInstProfile(instId) {
 }
 
 function _coordInstCardFilter(filter) {
-  window._coordInstCardFilter  = filter;
+  window._coordInstActiveFilter  = filter;
   window._coordInstStuSelected = null;
   const detEl = document.getElementById('coord-inst-stu-detail');
   if (detEl) { detEl.style.display = 'none'; detEl.dataset.doc = ''; }
@@ -4463,7 +4463,7 @@ function _coordInstCardFilter(filter) {
       + '</div>';
   };
 
-  const cardsEl = document.querySelector('#coord-inst-list > div:nth-child(3)');
+  const cardsEl = document.getElementById('coord-inst-metric-cards');
   if (cardsEl) cardsEl.innerHTML =
     metricCard('all',      nActivos,'Activos',  'ver todos',   '#a5b4fc','rgba(99,102,241,.5)','rgba(79,70,229,.14)','rgba(255,255,255,.08)','transparent')
     + metricCard('critical', nCrit,  'Críticos', 'sin contacto','#fca5a5','rgba(239,68,68,.5)', 'rgba(239,68,68,.14)','rgba(255,255,255,.08)','transparent')
@@ -4477,7 +4477,7 @@ function _renderInstStudentList() {
   if (!listEl) return;
 
   const instId = window._coordSelectedInst;
-  const filter = window._coordInstCardFilter;
+  const filter = window._coordInstActiveFilter;
   const selDoc = window._coordInstStuSelected;
 
   if (!instId || !filter) return;
