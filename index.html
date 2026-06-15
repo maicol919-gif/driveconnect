@@ -4306,24 +4306,31 @@ function renderCoordInstructors() {
     return '<button onclick="_coordInstFilter(\'' + (key||'null') + '\')" style="padding:4px 12px;border-radius:20px;font-size:11px;cursor:pointer;font-family:inherit;border:1px solid ' + (on?'rgba(99,102,241,.4)':'rgba(255,255,255,.08)') + ';background:' + (on?'rgba(79,70,229,.22)':'transparent') + ';color:' + (on?'#a5b4fc':'#475569') + ';font-weight:' + (on?'500':'400') + '">' + lbl + '</button>';
   };
 
-  const rows = list.map((inst, idx) => {
+  const maxLoad = Math.max(...list.map(inst => STATE.procesos.filter(p => p.instructorId === inst.id && !['completed','pending'].includes(p.state)).length), 1);
+
+  const cards = list.map(inst => {
     const criticos = getCriticos(inst);
     const load     = STATE.procesos.filter(p => p.instructorId === inst.id && !['completed','pending'].includes(p.state)).length;
+    const enClases = STATE.procesos.filter(p => p.instructorId === inst.id && p.state === 'practice_started').length;
     const initials = (inst.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
     const specs    = [inst.specialty,inst.specialtyB,inst.specialtyC].filter(Boolean);
     const specPills = specs.map(s => '<span style="background:' + (LIC_COLORS[s]||'rgba(255,255,255,.08)') + ';border-radius:9999px;padding:1px 5px;font-size:8px;color:' + (LIC_TEXT[s]||'#fff') + ';font-weight:600">' + s + '</span>').join('');
-    const border = idx > 0 ? 'border-top:1px solid rgba(255,255,255,.05);' : '';
-    const critBadge = criticos > 0
-      ? '<span style="background:rgba(239,68,68,.12);color:#fca5a5;border-radius:9999px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap">' + criticos + ' crítico' + (criticos!==1?'s':'') + '</span>'
-      : '<span style="background:rgba(16,185,129,.08);color:#6ee7b7;border-radius:9999px;padding:2px 8px;font-size:10px;font-weight:600">0 críticos</span>';
-    return '<div style="' + border + 'display:flex;align-items:center;min-height:50px;cursor:pointer;transition:background .12s" onclick="showInstProfile(\'' + inst.id + '\')" onmouseenter="this.style.background=\'rgba(255,255,255,.03)\'" onmouseleave="this.style.background=\'\'">'
-      + '<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:white;flex-shrink:0;margin:0 10px">' + initials + '</div>'
-      + '<div style="flex:1;min-width:0;padding:9px 0">'
-      + '<div style="font-size:.82rem;font-weight:500;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (inst.name||'—') + '</div>'
-      + '<div style="display:flex;gap:3px;margin-top:3px;align-items:center">' + specPills + '<span style="font-size:9px;color:#334155">· ' + load + ' activos</span></div>'
+    const fillPct  = Math.round((load/maxLoad)*100);
+    const barColor = criticos > 0 ? '#ef4444' : fillPct > 75 ? '#f59e0b' : '#10b981';
+    const bdrColor = criticos > 0 ? 'rgba(239,68,68,.35)' : 'rgba(255,255,255,.08)';
+    return '<div onclick="showInstProfile(\'' + inst.id + '\')" style="border:1px solid ' + bdrColor + ';border-radius:10px;padding:.8rem .85rem;cursor:pointer;transition:border .12s,transform .12s"'
+      + ' onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.borderColor=\'rgba(99,102,241,.5)\'"'
+      + ' onmouseleave="this.style.transform=\'\';this.style.borderColor=\'' + bdrColor + '\'">' 
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:.6rem">'
+      + '<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;flex-shrink:0">' + initials + '</div>'
+      + '<div style="flex:1;min-width:0"><div style="font-size:.82rem;font-weight:500;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (inst.name||'—') + '</div>'
+      + '<div style="display:flex;gap:3px;margin-top:2px">' + specPills + '</div></div></div>'
+      + '<div style="display:flex;gap:4px;margin-bottom:.55rem">'
+      + '<div style="flex:1;background:rgba(255,255,255,.04);border-radius:6px;padding:5px 6px;text-align:center"><div style="font-size:15px;font-weight:600;color:#e2e8f0;line-height:1">' + load + '</div><div style="font-size:9px;color:#334155;margin-top:2px">activos</div></div>'
+      + '<div style="flex:1;background:' + (criticos>0?'rgba(239,68,68,.1)':'rgba(255,255,255,.04)') + ';border-radius:6px;padding:5px 6px;text-align:center"><div style="font-size:15px;font-weight:600;color:' + (criticos>0?'#ef4444':'#1e293b') + ';line-height:1">' + criticos + '</div><div style="font-size:9px;color:' + (criticos>0?'#ef4444':'#334155') + ';margin-top:2px">críticos</div></div>'
+      + '<div style="flex:1;background:rgba(255,255,255,.04);border-radius:6px;padding:5px 6px;text-align:center"><div style="font-size:15px;font-weight:600;color:#10b981;line-height:1">' + enClases + '</div><div style="font-size:9px;color:#334155;margin-top:2px">en clase</div></div>'
       + '</div>'
-      + critBadge
-      + '<span style="font-size:14px;color:#1e293b;padding:0 10px">›</span>'
+      + '<div style="height:4px;background:rgba(255,255,255,.06);border-radius:9999px;overflow:hidden"><div style="height:100%;width:' + fillPct + '%;background:' + barColor + ';border-radius:9999px"></div></div>'
       + '</div>';
   }).join('');
 
@@ -4336,7 +4343,7 @@ function renderCoordInstructors() {
     + chip(null,'Todos') + chip('carro','Carro') + chip('moto','Moto')
     + '</div>'
     + (list.length
-        ? '<div style="border:1px solid rgba(255,255,255,.07);border-radius:9px;overflow:hidden">' + rows + '</div>'
+        ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:.6rem">' + cards + '</div>'
         : '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:.85rem">Sin instructores registrados.</div>');
 }
 
