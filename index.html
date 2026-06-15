@@ -4011,8 +4011,8 @@ function _renderCoordCards() {
     contact_confirmed:'#10b981', practice_started:'#10b981',
   };
 
-  const af        = window._coordStuFilter || 'all';
-  const searchVal = (document.getElementById('coord-stu-search')?.value || '').toLowerCase().trim();
+  const af         = window._coordStuFilter || 'all';
+  const searchVal  = (document.getElementById('coord-stu-search')?.value || '').toLowerCase().trim();
   const selectedDoc = document.getElementById('coord-stu-detail')?.dataset?.doc || '';
 
   const activeProcesos = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
@@ -4023,21 +4023,16 @@ function _renderCoordCards() {
   });
 
   let entries = Array.from(studentMap.entries()).map(([docNum, procs]) => {
-    const st = STATE.students.find(s => s.docNumber === docNum);
+    const st      = STATE.students.find(s => s.docNumber === docNum);
     const maxDays = Math.max(...procs.map(p => daysWaiting(p, st)));
     const urgIdx  = Math.min(...procs.map(p => STATE_ORDER.indexOf(p.state)).filter(i => i >= 0));
     return { docNum, procs, st, maxDays, urgIdx };
   });
 
   if (searchVal) entries = entries.filter(e => (e.st?.name || '').toLowerCase().includes(searchVal) || e.docNum.includes(searchVal));
-  if (af === 'critical')   entries = entries.filter(e => e.maxDays >= CONFIG.WAIT_DAYS_CRITICAL);
+  if      (af === 'critical')   entries = entries.filter(e => e.maxDays >= CONFIG.WAIT_DAYS_CRITICAL);
   else if (af === 'unassigned') entries = entries.filter(e => e.procs.some(p => p.state === 'theory_passed'));
   else if (af === 'practice')   entries = entries.filter(e => e.procs.some(p => ['contact_confirmed','practice_started'].includes(p.state)));
-
-  entries.sort((a, b) => {
-    const tier = e => e.maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 0 : e.maxDays >= CONFIG.WAIT_DAYS_WARNING ? 1 : e.urgIdx <= 3 ? 2 : 3;
-    return tier(a) !== tier(b) ? tier(a) - tier(b) : b.maxDays - a.maxDays;
-  });
 
   if (!entries.length) {
     cardsEl.innerHTML = searchVal
@@ -4046,16 +4041,91 @@ function _renderCoordCards() {
     return;
   }
 
+  // ── helper: build a single row ──────────────────────────────────────────────
+  function buildRow({ docNum, procs, st, maxDays, urgIdx }, idx, showState, showDays, showBar) {
+    const name     = st?.name || docNum;
+    const initials = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    const urgProc  = procs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
+    const stLabel  = STATE_LABEL[urgProc?.state] || '—';
+    const stColor  = STATE_COLOR[urgProc?.state] || 'var(--text-muted)';
+    const barColor  = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : urgIdx <= 3 ? '#10b981' : 'transparent';
+    const daysColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : '#1e293b';
+
+    const licPills = [...new Set(procs.map(p => p.license))].map(lic =>
+      '<span style="background:' + (LIC_COLORS[lic]||'rgba(255,255,255,.1)') + ';border-radius:9999px;padding:1px 6px;font-size:9px;color:' + (LIC_TEXT[lic]||'#fff') + ';font-weight:600">' + lic + '</span>'
+    ).join('');
+
+    const instProc = procs.find(p => p.instructorId);
+    const instName = instProc ? (STATE.instructors.find(i => i.id === instProc.instructorId)?.name?.split(' ')[0] || '') : 'sin asignar';
+
+    const hasUnassigned = procs.some(p => p.state === 'theory_passed');
+    const hasConfirmed  = procs.some(p => p.state === 'contact_confirmed');
+    const hasPractice   = procs.some(p => p.state === 'practice_started');
+    const unassProc     = procs.find(p => p.state === 'theory_passed');
+    const btnBase = 'width:28px;height:28px;border-radius:6px;border:1px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;flex-shrink:0;';
+    let primaryBtn = '';
+    if (hasUnassigned) {
+      primaryBtn = '<button onclick="event.stopPropagation();openModal(\'' + docNum + '\',\'' + (unassProc?.license||'') + '\')" style="' + btnBase + 'background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.4);color:#ef4444" title="Asignar instructor">+</button>';
+    } else if (hasConfirmed) {
+      primaryBtn = '<button onclick="event.stopPropagation();coordChangeState(\'' + docNum + '\',null)" style="' + btnBase + 'background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:#10b981" title="Iniciar práctica">&#9654;</button>';
+    } else if (hasPractice) {
+      primaryBtn = '<button onclick="event.stopPropagation();coordChangeState(\'' + docNum + '\',null)" style="' + btnBase + 'background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:#10b981" title="Completar">&#10003;</button>';
+    }
+
+    const isSelected = docNum === selectedDoc;
+    const rowSelBg  = isSelected ? 'background:rgba(79,70,229,.1);' : '';
+    const border    = idx > 0 ? 'border-top:1px solid rgba(255,255,255,.06);' : '';
+    const leaveClr  = isSelected ? 'rgba(79,70,229,.1)' : '';
+
+    const metaRight = showState
+      ? '<span style="font-size:.68rem;color:' + stColor + '">' + stLabel + '</span>'
+        + (instName ? '<span style="font-size:.67rem;color:#334155">· ' + instName + '</span>' : '')
+      : '<span style="font-size:.67rem;color:#334155">· ' + instName + '</span>';
+
+    const daysCol = showDays && maxDays > 0
+      ? '<div style="font-size:.78rem;font-weight:700;color:' + daysColor + ';margin:0 5px;flex-shrink:0">' + maxDays + 'd</div>'
+      : '<div style="width:24px"></div>';
+
+    return '<div style="' + border + rowSelBg + 'display:flex;align-items:center;min-height:50px;cursor:pointer;transition:background .12s"'
+          + ' onclick="openCoordDetail(\'' + docNum + '\')"'
+          + ' onmouseenter="this.style.background=\'rgba(255,255,255,.04)\'" onmouseleave="this.style.background=\'' + leaveClr + '\'">'
+          + '<div style="width:3px;min-height:50px;background:' + (showBar ? barColor : 'transparent') + ';flex-shrink:0"></div>'
+          + '<div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:var(--brand-light);margin:0 9px;flex-shrink:0">' + initials + '</div>'
+          + '<div style="flex:1;min-width:0;padding:9px 0">'
+          + '<div style="font-size:.82rem;font-weight:' + (isSelected?'600':'500') + ';color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>'
+          + '<div style="display:flex;align-items:center;gap:.3rem;margin-top:3px;flex-wrap:wrap">' + licPills + metaRight + '</div>'
+          + '</div>'
+          + daysCol
+          + '<div style="display:flex;gap:3px;padding-right:8px;flex-shrink:0" onclick="event.stopPropagation()">' + primaryBtn + '</div>'
+          + '</div>';
+  }
+
+  // ── TODOS: alphabetical, no group headers, no state labels ─────────────────
+  if (af === 'all') {
+    entries.sort((a, b) => (a.st?.name || a.docNum).localeCompare(b.st?.name || b.docNum, 'es'));
+    let html = '<div style="border:1px solid rgba(255,255,255,.07);border-radius:var(--r-md);overflow:hidden">';
+    entries.forEach((e, idx) => { html += buildRow(e, idx, false, false, false); });
+    html += '</div>';
+    cardsEl.innerHTML = html;
+    return;
+  }
+
+  // ── FILTROS: group headers + state labels + urgency bar + days ─────────────
   const groups = [
     { dot:'#ef4444', label:'Críticos',    sub:'· >20d sin avance',  test: e => e.maxDays >= CONFIG.WAIT_DAYS_CRITICAL },
     { dot:'#f59e0b', label:'En espera',   sub:'· 10–19 d',          test: e => e.maxDays >= CONFIG.WAIT_DAYS_WARNING && e.maxDays < CONFIG.WAIT_DAYS_CRITICAL && e.urgIdx <= 2 },
     { dot:'#10b981', label:'En práctica', sub:'· clase activa',      test: e => e.procs.some(p => ['contact_confirmed','practice_started'].includes(p.state)) && e.maxDays < CONFIG.WAIT_DAYS_WARNING },
-    { dot:'#475569', label:'Normal',      sub:'',                              test: () => true },
+    { dot:'#475569', label:'Normal',      sub:'',                    test: () => true },
   ];
+
+  // for filtered views sort by urgency desc
+  entries.sort((a, b) => {
+    const tier = e => e.maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 0 : e.maxDays >= CONFIG.WAIT_DAYS_WARNING ? 1 : e.urgIdx <= 3 ? 2 : 3;
+    return tier(a) !== tier(b) ? tier(a) - tier(b) : b.maxDays - a.maxDays;
+  });
 
   let html = '';
   const used = new Set();
-
   groups.forEach(g => {
     const gEntries = entries.filter(e => !used.has(e.docNum) && g.test(e));
     if (!gEntries.length) return;
@@ -4066,57 +4136,7 @@ function _renderCoordCards() {
           + '<span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#334155">' + g.label + '</span>'
           + '<span style="font-size:10px;color:#1e293b">' + g.sub + '</span></div>';
     html += '<div style="border:1px solid rgba(255,255,255,.07);border-radius:var(--r-md);overflow:hidden;margin-bottom:.65rem">';
-
-    gEntries.forEach(({ docNum, procs, st, maxDays, urgIdx }, idx) => {
-      const name     = st?.name || docNum;
-      const initials = name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-      const urgProc  = procs.slice().sort((a,b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state))[0];
-      const stLabel  = STATE_LABEL[urgProc?.state] || '—';
-      const stColor  = STATE_COLOR[urgProc?.state] || 'var(--text-muted)';
-      const barColor  = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : urgIdx <= 3 ? '#10b981' : 'transparent';
-      const daysColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : '#1e293b';
-
-      const licPills = [...new Set(procs.map(p => p.license))].map(lic =>
-        '<span style="background:' + (LIC_COLORS[lic]||'rgba(255,255,255,.1)') + ';border-radius:9999px;padding:1px 6px;font-size:9px;color:' + (LIC_TEXT[lic]||'#fff') + ';font-weight:600">' + lic + '</span>'
-      ).join('');
-
-      const instProc = procs.find(p => p.instructorId);
-      const instName = instProc ? (STATE.instructors.find(i => i.id === instProc.instructorId)?.name?.split(' ')[0] || '') : '';
-
-      const hasUnassigned = procs.some(p => p.state === 'theory_passed');
-      const hasConfirmed  = procs.some(p => p.state === 'contact_confirmed');
-      const hasPractice   = procs.some(p => p.state === 'practice_started');
-      const unassProc     = procs.find(p => p.state === 'theory_passed');
-      const btnBase = 'width:28px;height:28px;border-radius:6px;border:1px solid;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;flex-shrink:0;';
-      let primaryBtn = '';
-      if (hasUnassigned) {
-        primaryBtn = '<button onclick="event.stopPropagation();openModal(\'' + docNum + '\',\'' + (unassProc?.license||'') + '\')" style="' + btnBase + 'background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.4);color:#ef4444" title="Asignar instructor">+</button>';
-      } else if (hasConfirmed) {
-        primaryBtn = '<button onclick="event.stopPropagation();coordChangeState(\'' + docNum + '\',null)" style="' + btnBase + 'background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:#10b981" title="Iniciar práctica">&#9654;</button>';
-      } else if (hasPractice) {
-        primaryBtn = '<button onclick="event.stopPropagation();coordChangeState(\'' + docNum + '\',null)" style="' + btnBase + 'background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.3);color:#10b981" title="Completar">&#10003;</button>';
-      }
-
-      const isSelected = docNum === selectedDoc;
-      const rowSelBg  = isSelected ? 'background:rgba(79,70,229,.1);' : '';
-      const border    = idx > 0 ? 'border-top:1px solid rgba(255,255,255,.06);' : '';
-      const leaveClr  = isSelected ? 'rgba(79,70,229,.1)' : '';
-
-      html += '<div style="' + border + rowSelBg + 'display:flex;align-items:center;min-height:50px;cursor:pointer;transition:background .12s"'
-            + ' onclick="openCoordDetail(\'' + docNum + '\')"'
-            + ' onmouseenter="this.style.background=\'rgba(255,255,255,.04)\'" onmouseleave="this.style.background=\'' + leaveClr + '\'">'
-            + '<div style="width:3px;min-height:50px;background:' + barColor + ';flex-shrink:0"></div>'
-            + '<div style="width:30px;height:30px;border-radius:50%;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:var(--brand-light);margin:0 9px;flex-shrink:0">' + initials + '</div>'
-            + '<div style="flex:1;min-width:0;padding:9px 0">'
-            + '<div style="font-size:.82rem;font-weight:' + (isSelected?'600':'500') + ';color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>'
-            + '<div style="display:flex;align-items:center;gap:.3rem;margin-top:3px;flex-wrap:wrap">' + licPills
-            + '<span style="font-size:.68rem;color:' + stColor + '">' + stLabel + '</span>'
-            + (instName ? '<span style="font-size:.67rem;color:#334155">· ' + instName + '</span>' : '')
-            + '</div></div>'
-            + (maxDays > 0 ? '<div style="font-size:.78rem;font-weight:700;color:' + daysColor + ';margin:0 5px;flex-shrink:0">' + maxDays + 'd</div>' : '<div style="width:24px"></div>')
-            + '<div style="display:flex;gap:3px;padding-right:8px;flex-shrink:0" onclick="event.stopPropagation()">' + primaryBtn + '</div>'
-            + '</div>';
-    });
+    gEntries.forEach((e, idx) => { html += buildRow(e, idx, true, true, true); });
     html += '</div>';
   });
 
