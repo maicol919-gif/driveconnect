@@ -4473,8 +4473,8 @@ function showInstProfile(instId, fromHome) {
     + '</div>';
 
   container.innerHTML =
-    '<button onclick="fromHome ? switchCoordTab('main') : renderCoordInstructors()" style="display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--brand-light);cursor:pointer;background:transparent;border:none;font-family:inherit;padding:0;margin-bottom:.85rem">'
-    + '<i class="ti ti-arrow-left" style="font-size:13px" aria-hidden="true"></i> Instructores'
+    '<button onclick="' + (fromHome ? "switchCoordTab('main')" : 'renderCoordInstructors()') + '" style="display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--brand-light);cursor:pointer;background:transparent;border:none;font-family:inherit;padding:0;margin-bottom:.85rem">'
+    + '<i class="ti ti-arrow-left" style="font-size:13px" aria-hidden="true"></i> ' + (fromHome ? 'Inicio' : 'Instructores')
     + '</button>'
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:.85rem;padding-bottom:.75rem;border-bottom:1px solid rgba(255,255,255,.07)">'
     + '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:white;flex-shrink:0">' + initials + '</div>'
