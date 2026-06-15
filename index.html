@@ -871,12 +871,14 @@
 
     <!-- ===== VISTA INICIO ===== -->
     <div id="coord-view-main">
-      <div style="margin-bottom:1.25rem">
+      <!-- HEADER -->
+      <div style="margin-bottom:1rem">
         <h1 id="coord-greeting" style="font-family:var(--font-title);font-size:1.4rem;font-weight:800;line-height:1.2">¡Buen día!</h1>
-        <p id="coord-welcome" style="color:var(--text-secondary);font-size:.82rem;margin-top:.2rem">Bienvenido/a</p>
+        <p id="coord-welcome" style="color:var(--text-secondary);font-size:.82rem;margin-top:.2rem;margin-bottom:.65rem">Bienvenido/a</p>
+        <div id="coord-home-pills" style="display:flex;gap:8px;flex-wrap:wrap"></div>
       </div>
 
-      <!-- IDs ocultos para compatibilidad con lógica existente -->
+      <!-- IDs ocultos compatibilidad -->
       <span id="coord-pending-count" style="display:none">0</span>
       <span id="coord-ready-count" style="display:none">0</span>
       <span id="coord-practice-stale-count" style="display:none">0</span>
@@ -894,14 +896,10 @@
       <div id="mcard-alerts" style="display:none"></div>
       <div id="mcard-alerts-bar" style="display:none"></div>
       <div id="mcard-alerts-icon" style="display:none"></div>
+      <button id="btn-pending-qr" style="display:none" onclick="coordShowPending()">📋 Activar registros <span id="coord-pending-badge"></span></button>
 
-      <!-- ACCIONES RÁPIDAS -->
-      <div style="display:flex;gap:.65rem;margin-bottom:1.25rem;flex-wrap:wrap">
-        <button class="btn-sec" style="padding:.5rem 1rem;font-size:.82rem" onclick="coordShowPending()" id="btn-pending-qr" style="display:none">📋 Activar registros <span id="coord-pending-badge" style="background:var(--danger);color:white;border-radius:9999px;padding:.05rem .4rem;font-size:.7rem;font-weight:700;margin-left:.3rem"></span></button>
-      </div>
-
-      <!-- LISTA DE TAREAS -->
-      <div id="coord-task-list" style="display:flex;flex-direction:column;gap:.6rem"></div>
+      <!-- CONTENIDO PRINCIPAL -->
+      <div id="coord-task-list"></div>
 
     </div>
 
@@ -3652,69 +3650,119 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
   const container = document.getElementById('coord-task-list');
   if (!container) return;
 
-  const sinInstructor = STATE.procesos.filter(p => p.state === 'theory_passed').length;
-  const enSeguimiento = STATE.procesos.filter(p => ['instructor_assigned','contacted'].includes(p.state)).length;
-  const enProgreso    = STATE.procesos.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
-  const totalActivos  = sinInstructor + enSeguimiento + enProgreso;
-
-  // ── KPI cards ──────────────────────────────────────────────────
-  const kpis = [
-    { n: critical,      label: 'Críticos >20d',    color: '#ef4444', border: 'rgba(239,68,68,.35)',   bg: 'rgba(239,68,68,.07)',   group: null },
-    { n: sinInstructor, label: 'Sin instructor',    color: '#f59e0b', border: 'rgba(245,158,11,.35)',  bg: 'rgba(245,158,11,.07)',  group: 'theory_passed' },
-    { n: enProgreso,    label: 'En práctica',       color: '#10b981', border: 'rgba(16,185,129,.3)',   bg: 'rgba(16,185,129,.06)',  group: 'practice_started' },
-    { n: totalActivos,  label: 'Total activos',     color: '#60a5fa', border: 'rgba(96,165,250,.3)',   bg: 'rgba(96,165,250,.06)',  group: null },
-  ];
-
-  const kpiHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.65rem;margin-bottom:1.5rem">
-    ${kpis.map(k => `
-      <div onclick="${k.group ? `switchCoordTab('students');coordExpandGroup('${k.group}')` : `switchCoordTab('students')`}"
-           style="cursor:pointer;padding:1rem 1.1rem;border-radius:var(--r-md);border:1px solid ${k.border};background:${k.bg};transition:background .15s"
-           onmouseenter="this.style.background='${k.bg.replace('.07','0.13').replace('.06','0.12')}'"
-           onmouseleave="this.style.background='${k.bg}'">
-        <div style="font-size:2.2rem;font-weight:800;font-family:var(--font-title);color:${k.color};line-height:1">${k.n}</div>
-        <div style="font-size:.75rem;color:var(--text-secondary);margin-top:.3rem">${k.label}</div>
-      </div>`).join('')}
-  </div>`;
-
-  // ── Urgent students list ────────────────────────────────────────
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
   const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
-  const LIC_COLORS  = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
-  const LIC_TEXT    = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
 
+  const sinInstructor  = STATE.procesos.filter(p => p.state === 'theory_passed').length;
+  const pendContacto   = STATE.procesos.filter(p => p.state === 'instructor_assigned').length;
+  const contactado     = STATE.procesos.filter(p => p.state === 'contacted').length;
+  const enClasesCount  = STATE.procesos.filter(p => ['contact_confirmed','practice_started'].includes(p.state)).length;
+  const totalActivos   = sinInstructor + pendContacto + contactado + enClasesCount;
+  const totalSistema   = Math.max(totalActivos, 1);
+
+  // ── Pills críticos ──────────────────────────────────────────────
+  const pillsEl = document.getElementById('coord-home-pills');
+  if (pillsEl) {
+    pillsEl.innerHTML = critical > 0
+      ? `<div onclick="switchCoordTab('students')" style="display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:600;padding:.4rem .8rem;border-radius:9999px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.07);color:#fca5a5;cursor:pointer">
+           <b style="font-family:var(--font-title);font-size:.92rem">${critical}</b> críticos &gt;20d — ver lista <span style="opacity:.6;font-size:.7rem">→</span>
+         </div>`
+      : '';
+  }
+
+  // ── FILA 1: Flujo + Carga instructores ─────────────────────────
+  const funnelStates = [
+    { label: 'Pend. asignar instructor', n: sinInstructor,  color: '#f43f5e', pct: Math.round((sinInstructor/totalSistema)*100), badge: sinInstructor > 0 ? `<div style="display:flex;align-items:center;gap:4px;font-size:.7rem;font-weight:700;color:#fca5a5;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:9999px;padding:.15rem .55rem;white-space:nowrap">⚠ ${sinInstructor} sin asignar</div>` : '' },
+    { label: 'Pend. contacto instructor', n: pendContacto,  color: '#f59e0b', pct: Math.round((pendContacto/totalSistema)*100),  badge: critical > 0 ? `<div style="display:flex;align-items:center;gap:4px;font-size:.7rem;font-weight:700;color:#fca5a5;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:9999px;padding:.15rem .55rem;white-space:nowrap">⚠ ${critical} vencidos</div>` : '' },
+    { label: 'Contactado',               n: contactado,     color: '#3b82f6', pct: Math.round((contactado/totalSistema)*100),    badge: '' },
+    { label: 'En clases',                n: enClasesCount,  color: '#10b981', pct: Math.round((enClasesCount/totalSistema)*100), badge: '' },
+  ];
+  const maxPct = Math.max(...funnelStates.map(f => f.pct), 1);
+
+  const funnelHtml = `
+    <div>
+      <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.6rem">Flujo de alumnos</div>
+      <div style="background:rgba(30,41,59,.45);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-md);padding:1.2rem;display:flex;flex-direction:column;gap:9px">
+        ${funnelStates.map(f => {
+          const barW = Math.round((f.pct / maxPct) * 100);
+          return `<div style="display:flex;align-items:center;gap:12px;cursor:pointer" onclick="switchCoordTab('students')">
+            <div style="width:140px;font-size:.76rem;color:var(--text-secondary);flex-shrink:0">${f.label}</div>
+            <div style="flex:1;background:rgba(255,255,255,.03);border-radius:6px;height:26px;overflow:hidden;display:flex">
+              <div style="width:${barW}%;height:100%;background:${f.color};display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:.76rem;font-weight:700;color:#fff;border-radius:6px;transition:width .8s cubic-bezier(.16,1,.3,1)">${f.n}</div>
+            </div>
+            ${f.badge}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+  // ── Carga instructores (segmentada) ────────────────────────────
+  const activeInsts = STATE.instructors.filter(i => i.active !== 'false' && i.active !== false);
+  const instLoadHtml = activeInsts.length ? `
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+        <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Carga de instructores</div>
+        <span onclick="switchCoordTab('instructors')" style="font-size:.75rem;color:var(--brand-light);cursor:pointer">Gestionar →</span>
+      </div>
+      <div style="background:rgba(30,41,59,.45);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-md);padding:1.2rem;display:flex;flex-direction:column;gap:9px">
+        ${activeInsts.map(inst => {
+          const myProcs  = STATE.procesos.filter(p => p.instructorId === inst.id && !['completed','pending'].includes(p.state));
+          const crits    = myProcs.filter(p => {
+            const st = STATE.students.find(s => s.docNumber === p.docNumber);
+            return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
+          }).length;
+          const norm     = myProcs.length - crits;
+          const pctN     = Math.round((norm  / totalSistema) * 100);
+          const pctC     = Math.round((crits / totalSistema) * 100);
+          const initials = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+          return `<div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="switchCoordTab('instructors');showInstProfile('${inst.id}')">
+            <div style="width:20px;height:20px;border-radius:50%;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:var(--brand-light);flex-shrink:0">${initials}</div>
+            <div style="width:82px;font-size:.76rem;color:var(--text-secondary);flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${inst.name.split(' ')[0]}</div>
+            <div style="flex:1;background:rgba(255,255,255,.04);border-radius:9999px;height:10px;overflow:hidden;display:flex">
+              ${pctN > 0 ? `<div style="width:${pctN}%;height:10px;background:#10b981"></div>` : ''}
+              ${pctC > 0 ? `<div style="width:${pctC}%;height:10px;background:#ef4444"></div>` : ''}
+            </div>
+            <div style="font-size:.7rem;color:var(--text-muted);min-width:30px;text-align:right;flex-shrink:0">${pctN+pctC}%</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  // ── Requieren atención ─────────────────────────────────────────
   const activeProcesos = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
   const studentMap = new Map();
   activeProcesos.forEach(p => {
     if (!studentMap.has(p.docNumber)) studentMap.set(p.docNumber, []);
     studentMap.get(p.docNumber).push(p);
   });
-
-  let urgentEntries = Array.from(studentMap.entries()).map(([docNum, procs]) => {
+  const urgentEntries = Array.from(studentMap.entries()).map(([docNum, procs]) => {
     const st = STATE.students.find(s => s.docNumber === docNum);
     const maxDays = Math.max(...procs.map(p => daysWaiting(p, st)));
     const urgIdx  = Math.min(...procs.map(p => STATE_ORDER.indexOf(p.state)).filter(i => i >= 0));
     return { docNum, procs, st, maxDays, urgIdx };
   }).filter(e => e.maxDays >= CONFIG.WAIT_DAYS_WARNING || e.urgIdx === 0)
     .sort((a,b) => b.maxDays - a.maxDays || a.urgIdx - b.urgIdx)
-    .slice(0, 6);
+    .slice(0, 8);
 
-  const urgentHtml = urgentEntries.length ? `
-    <div style="margin-bottom:1.5rem">
+  const attnHtml = urgentEntries.length ? `
+    <div style="display:flex;flex-direction:column">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
         <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Requieren atención</div>
-        <span onclick="switchCoordTab('students')" style="font-size:.75rem;color:var(--brand-light);cursor:pointer">Ver todos &rarr;</span>
+        <span onclick="switchCoordTab('students')" style="font-size:.75rem;color:var(--brand-light);cursor:pointer">Ver todos →</span>
       </div>
-      <div style="border:1px solid rgba(255,255,255,.07);border-radius:var(--r-md);overflow:hidden">
-        ${urgentEntries.map(({ docNum, procs, st, maxDays, urgIdx }, idx) => {
+      <div style="border:1px solid rgba(255,255,255,.07);border-radius:var(--r-md);overflow:hidden;flex:1">
+        ${urgentEntries.map(({ docNum, procs, st, maxDays }, idx) => {
           const name = st?.name || docNum;
           const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
           const isUnassigned = procs.some(p => p.state === 'theory_passed');
-          const barColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : '#10b981';
+          const barColor  = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : '#10b981';
           const daysColor = maxDays >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : maxDays >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--text-muted)';
           const stateLabel = isUnassigned ? 'Sin instructor' : procs[0]?.state === 'instructor_assigned' ? 'Pdte. contacto' : 'En seguimiento';
           const licPills = procs.map(p => `<span style="background:${LIC_COLORS[p.license]||'rgba(255,255,255,.1)'};border-radius:9999px;padding:.05rem .4rem;font-size:.65rem;color:${LIC_TEXT[p.license]||'#fff'};font-weight:600">${p.license}</span>`).join('');
           const border = idx > 0 ? 'border-top:1px solid rgba(255,255,255,.06);' : '';
           const actionBtn = isUnassigned
-            ? `<button onclick="event.stopPropagation();openModal('${docNum}','${procs.find(p=>p.state==='theory_passed')?.license}')" style="padding:.25rem .6rem;border-radius:var(--r-sm);border:1px solid rgba(168,85,247,.4);background:rgba(168,85,247,.12);color:#c084fc;font-size:.7rem;cursor:pointer;white-space:nowrap">+ Asignar</button>`
+            ? `<button onclick="event.stopPropagation();openModal('${docNum}','${procs.find(p=>p.state==='theory_passed')?.license||''}')" style="padding:.25rem .6rem;border-radius:var(--r-sm);border:1px solid rgba(168,85,247,.4);background:rgba(168,85,247,.12);color:#c084fc;font-size:.7rem;cursor:pointer;white-space:nowrap">+ Asignar</button>`
             : `<button onclick="event.stopPropagation();openCoordSheet('${docNum}')" style="padding:.25rem .6rem;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--text-secondary);font-size:.7rem;cursor:pointer">Ver</button>`;
           return `<div style="${border}display:flex;align-items:center;min-height:48px;cursor:pointer;transition:background .15s" onclick="openCoordSheet('${docNum}')" onmouseenter="this.style.background='rgba(255,255,255,.04)'" onmouseleave="this.style.background=''">
             <div style="width:3px;min-height:48px;background:${barColor};flex-shrink:0"></div>
@@ -3732,38 +3780,41 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
       </div>
     </div>` : '';
 
-  // ── Instructors summary ─────────────────────────────────────────
-  const instHtml = STATE.instructors.length ? `
-    <div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
-        <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Instructores</div>
-        <span onclick="switchCoordTab('instructors')" style="font-size:.75rem;color:var(--brand-light);cursor:pointer">Gestionar &rarr;</span>
+  // ── Acciones rápidas ───────────────────────────────────────────
+  const pendingStudents = STATE.students.filter(s => s.active === 'false' || s.active === '');
+  const qaHtml = `
+    <div style="display:flex;flex-direction:column;gap:1rem">
+      <div>
+        <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.6rem">Acciones rápidas</div>
+        <div style="background:rgba(30,41,59,.45);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-md);padding:.9rem;display:flex;flex-direction:column;gap:.5rem">
+          ${pendingStudents.length > 0 ? `
+          <div onclick="coordShowPending()" style="display:flex;align-items:center;gap:.7rem;padding:.65rem .85rem;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);cursor:pointer;transition:background .15s" onmouseenter="this.style.background='rgba(255,255,255,.04)'" onmouseleave="this.style.background='rgba(255,255,255,.02)'">
+            <div style="font-size:1rem;width:26px;height:26px;border-radius:7px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">📋</div>
+            <div style="flex:1"><div style="font-size:.8rem;font-weight:700">Activar registros</div><div style="font-size:.7rem;color:var(--text-muted)">Pendientes por QR</div></div>
+            <div style="background:var(--danger);color:white;border-radius:9999px;padding:.05rem .45rem;font-size:.68rem;font-weight:700">${pendingStudents.length}</div>
+          </div>` : ''}
+          <div onclick="openNewStudentModal ? openNewStudentModal() : null" style="display:flex;align-items:center;gap:.7rem;padding:.65rem .85rem;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);cursor:pointer;transition:background .15s" onmouseenter="this.style.background='rgba(255,255,255,.04)'" onmouseleave="this.style.background='rgba(255,255,255,.02)'">
+            <div style="font-size:1rem;width:26px;height:26px;border-radius:7px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">➕</div>
+            <div style="flex:1"><div style="font-size:.8rem;font-weight:700">Nuevo alumno</div><div style="font-size:.7rem;color:var(--text-muted)">Registro manual</div></div>
+          </div>
+          <div onclick="coordShowQR ? coordShowQR() : null" style="display:flex;align-items:center;gap:.7rem;padding:.65rem .85rem;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);cursor:pointer;transition:background .15s" onmouseenter="this.style.background='rgba(255,255,255,.04)'" onmouseleave="this.style.background='rgba(255,255,255,.02)'">
+            <div style="font-size:1rem;width:26px;height:26px;border-radius:7px;background:rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">📱</div>
+            <div style="flex:1"><div style="font-size:.8rem;font-weight:700">Ver QR de registro</div><div style="font-size:.7rem;color:var(--text-muted)">Para imprimir si se pierde</div></div>
+          </div>
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:.4rem">
-        ${STATE.instructors.slice(0,4).map(inst => {
-          const specs = [inst.specialty, inst.specialtyB, inst.specialtyC].filter(Boolean);
-          const alumnosInst = STATE.procesos.filter(p => p.instructorId === inst.id && !['completed','pending'].includes(p.state)).length;
-          const initials = (inst.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-          const licPills = specs.map(s => `<span style="background:${LIC_COLORS[s]||'rgba(255,255,255,.1)'};border-radius:9999px;padding:.05rem .4rem;font-size:.63rem;color:${LIC_TEXT[s]||'#fff'};font-weight:600">${s}</span>`).join('');
-          return `<div style="display:flex;align-items:center;gap:.65rem;padding:.55rem .75rem;border:1px solid rgba(255,255,255,.06);border-radius:var(--r-sm);background:rgba(255,255,255,.02)">
-            <div style="width:28px;height:28px;border-radius:50%;background:rgba(59,130,246,.12);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:var(--brand-light);flex-shrink:0">${initials}</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:.8rem;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${inst.name||'—'}</div>
-              <div style="display:flex;gap:.25rem;margin-top:2px">${licPills}</div>
-            </div>
-            <div style="font-size:.75rem;color:var(--text-muted);flex-shrink:0">${alumnosInst} alumno${alumnosInst!==1?'s':''}</div>
-          </div>`;
-        }).join('')}
-      </div>
-    </div>` : '';
+    </div>`;
 
-  container.innerHTML = totalActivos === 0
-    ? `<div style="text-align:center;padding:2.5rem 1rem;background:rgba(16,185,129,.04);border:1px solid rgba(16,185,129,.15);border-radius:var(--r-md)">
-        <div style="font-size:2.5rem;margin-bottom:.75rem">&#127881;</div>
-        <h4 style="color:var(--success);margin-bottom:.25rem">Sin tareas pendientes</h4>
-        <p style="font-size:.82rem;color:var(--text-muted)">Todo al día.</p>
-      </div>`
-    : kpiHtml + urgentHtml + instHtml;
+  // ── Ensamblar layout ───────────────────────────────────────────
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:1rem;margin-bottom:1rem">
+      ${funnelHtml}
+      ${instLoadHtml}
+    </div>
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:1rem">
+      ${attnHtml}
+      ${qaHtml}
+    </div>`;
 }
 
 
