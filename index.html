@@ -3399,7 +3399,9 @@ function switchCoordTab(tab) {
     if (det) { det.style.display='none'; det.dataset.doc=''; }
   }
   if (tab !== 'instructors') {
-    window._coordSelectedInst = null;
+    window._coordSelectedInst    = null;
+    window._coordInstCardFilter  = null;
+    window._coordInstStuSelected = null;
   }
   if (tab === 'instructors') {
     renderCoordInstructors();
@@ -3763,15 +3765,15 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 }
 
 
-function openCoordDetail(docNum) {
-  const detail = document.getElementById('coord-stu-detail');
+function openCoordDetail(docNum, targetId) {
+  const detail = document.getElementById(targetId || 'coord-stu-detail');
   if (!detail) { openCoordSheet(docNum); return; }
 
   // Toggle off if same student
   if (detail.dataset.doc === docNum && detail.style.display !== 'none') {
     detail.style.display = 'none';
     detail.dataset.doc = '';
-    _renderCoordCards();
+    if (!targetId) _renderCoordCards(); else _renderInstStudentList();
     return;
   }
 
@@ -3904,7 +3906,7 @@ function openCoordDetail(docNum) {
     <div style="font-size:9px;font-weight:600;color:#1e293b;text-transform:uppercase;letter-spacing:.07em;margin:10px 0 5px">Acciones</div>
     ${actHtml}`;
 
-  _renderCoordCards(); // re-render to highlight selected row
+  if (!targetId) _renderCoordCards(); else _renderInstStudentList(); // highlight selected
 }
 
 
@@ -4264,214 +4266,255 @@ function renderCoordInstructors() {
   const container = document.getElementById('coord-inst-list');
   if (!container) return;
 
-  const selectedId = window._coordSelectedInst || null;
+  // Reset profile state when re-entering list
+  window._coordSelectedInst    = null;
+  window._coordInstCardFilter  = null;
+  window._coordInstStuSelected = null;
+
   const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
   const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
 
   const isCarro = s => ['B1','C1','C2'].some(l => [s.specialty,s.specialtyB,s.specialtyC].includes(l));
   const isMoto  = s => ['A2'].some(l => [s.specialty,s.specialtyB,s.specialtyC].includes(l));
 
-  const af = window._coordInstTypeFilter;
-  const query = (window._coordInstQuery || '').toLowerCase();
+  const af = window._coordInstTypeFilter || null;
 
-  let filtered = af === 'carro' ? STATE.instructors.filter(isCarro)
-               : af === 'moto'  ? STATE.instructors.filter(isMoto)
-               : STATE.instructors;
-  if (query) filtered = filtered.filter(i => i.name.toLowerCase().includes(query));
+  let list = af === 'carro' ? STATE.instructors.filter(isCarro)
+           : af === 'moto'  ? STATE.instructors.filter(isMoto)
+           : [...STATE.instructors];
 
-  // ── header row ──────────────────────────────────────────────────
+  // Compute críticos per instructor (instructor_assigned + days >= WAIT_DAYS_CRITICAL)
+  const getCriticos = inst => STATE.procesos.filter(p => {
+    if (p.instructorId !== inst.id || p.state !== 'instructor_assigned') return false;
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    return daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
+  }).length;
+
+  if (af === null) {
+    // alphabetical
+    list.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  } else {
+    // sort by críticos desc, then alphabetical
+    list.sort((a,b) => {
+      const diff = getCriticos(b) - getCriticos(a);
+      return diff !== 0 ? diff : (a.name||'').localeCompare(b.name||'');
+    });
+  }
+
   const chip = (key, lbl) => {
     const on = af === key;
-    return '<button onclick="_coordInstFilter(\'' + key + '\')" style="padding:4px 11px;border-radius:20px;font-size:11px;cursor:pointer;font-family:inherit;border:1px solid ' + (on?'rgba(99,102,241,.4)':'rgba(255,255,255,.08)') + ';background:' + (on?'rgba(79,70,229,.22)':'transparent') + ';color:' + (on?'#a5b4fc':'#475569') + ';font-weight:' + (on?'500':'400') + '">' + lbl + '</button>';
+    return '<button onclick="_coordInstFilter(\'' + (key||'null') + '\')" style="padding:4px 12px;border-radius:20px;font-size:11px;cursor:pointer;font-family:inherit;border:1px solid ' + (on?'rgba(99,102,241,.4)':'rgba(255,255,255,.08)') + ';background:' + (on?'rgba(79,70,229,.22)':'transparent') + ';color:' + (on?'#a5b4fc':'#475569') + ';font-weight:' + (on?'500':'400') + '">' + lbl + '</button>';
   };
 
+  const rows = list.map((inst, idx) => {
+    const criticos = getCriticos(inst);
+    const load     = STATE.procesos.filter(p => p.instructorId === inst.id && !['completed','pending'].includes(p.state)).length;
+    const initials = (inst.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const specs    = [inst.specialty,inst.specialtyB,inst.specialtyC].filter(Boolean);
+    const specPills = specs.map(s => '<span style="background:' + (LIC_COLORS[s]||'rgba(255,255,255,.08)') + ';border-radius:9999px;padding:1px 5px;font-size:8px;color:' + (LIC_TEXT[s]||'#fff') + ';font-weight:600">' + s + '</span>').join('');
+    const border = idx > 0 ? 'border-top:1px solid rgba(255,255,255,.05);' : '';
+    const critBadge = criticos > 0
+      ? '<span style="background:rgba(239,68,68,.12);color:#fca5a5;border-radius:9999px;padding:2px 8px;font-size:10px;font-weight:600;white-space:nowrap">' + criticos + ' crítico' + (criticos!==1?'s':'') + '</span>'
+      : '<span style="background:rgba(16,185,129,.08);color:#6ee7b7;border-radius:9999px;padding:2px 8px;font-size:10px;font-weight:600">0 críticos</span>';
+    return '<div style="' + border + 'display:flex;align-items:center;min-height:50px;cursor:pointer;transition:background .12s" onclick="showInstProfile(\'' + inst.id + '\')" onmouseenter="this.style.background=\'rgba(255,255,255,.03)\'" onmouseleave="this.style.background=\'\'">'
+      + '<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:white;flex-shrink:0;margin:0 10px">' + initials + '</div>'
+      + '<div style="flex:1;min-width:0;padding:9px 0">'
+      + '<div style="font-size:.82rem;font-weight:500;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (inst.name||'—') + '</div>'
+      + '<div style="display:flex;gap:3px;margin-top:3px;align-items:center">' + specPills + '<span style="font-size:9px;color:#334155">· ' + load + ' activos</span></div>'
+      + '</div>'
+      + critBadge
+      + '<span style="font-size:14px;color:#1e293b;padding:0 10px">›</span>'
+      + '</div>';
+  }).join('');
+
   container.innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem">'
-    + '<div><div style="font-size:.95rem;font-weight:600;color:var(--text-primary)">Instructores</div>'
-    + '<div style="font-size:10px;color:#334155;margin-top:3px">' + STATE.instructors.length + ' registrados</div></div>'
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem">'
+    + '<div style="font-size:.95rem;font-weight:600;color:var(--text-primary)">Instructores</div>'
     + '<button class="btn-primary" style="width:auto;padding:.32rem .75rem;font-size:.78rem" onclick="openInstructorModal(null)">+ Agregar</button>'
     + '</div>'
-    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:.85rem;flex-wrap:wrap">'
-    + '<div style="display:flex;gap:4px">' + chip(null,'Todos') + chip('carro','Carro') + chip('moto','Moto') + '</div>'
-    + '<div style="position:relative;margin-left:auto"><input id="coord-inst-search" type="text" placeholder="Buscar…" value="' + (window._coordInstQuery||'') + '"'
-    + ' style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:5px 8px 5px 26px;font-size:11px;color:var(--text-secondary);width:155px;font-family:inherit;outline:none"'
-    + ' oninput="window._coordInstQuery=this.value;renderCoordInstructors()">'
-    + '<span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:13px;color:#334155;pointer-events:none">&#128269;</span></div>'
+    + '<div style="display:flex;gap:5px;margin-bottom:.85rem">'
+    + chip(null,'Todos') + chip('carro','Carro') + chip('moto','Moto')
     + '</div>'
-    + '<div id="coord-inst-split" style="display:flex;gap:0;align-items:flex-start">'
-    + '<div id="coord-inst-cards-wrap" style="' + (selectedId ? 'width:270px;flex-shrink:0' : 'flex:1;min-width:0') + '">'
-    + '<div id="coord-inst-cards"></div>'
-    + '</div>'
-    + '<div id="coord-inst-detail" style="' + (selectedId ? 'flex:1;min-width:0;border-left:1px solid rgba(255,255,255,.07);padding-left:1rem;margin-left:1rem' : 'display:none') + '"></div>'
-    + '</div>';
-
-  const cardsEl = document.getElementById('coord-inst-cards');
-  if (!cardsEl) return;
-
-  if (!filtered.length) {
-    cardsEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:.85rem">Sin instructores encontrados.</div>';
-    return;
-  }
-
-  const isNarrow = !!selectedId;
-  const maxLoad  = Math.max(...filtered.map(i => STATE.procesos.filter(p => p.instructorId === i.id && p.state !== 'completed').length), 1);
-
-  if (isNarrow) {
-    // vertical list
-    cardsEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:.45rem">'
-      + filtered.map(inst => {
-        const load    = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed').length;
-        const criticos = STATE.procesos.filter(p => {
-          if (p.instructorId !== inst.id || p.state !== 'instructor_assigned') return false;
-          const st = STATE.students.find(s => s.docNumber === p.docNumber);
-          return daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
-        }).length;
-        const initials = (inst.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-        const specs    = [inst.specialty,inst.specialtyB,inst.specialtyC].filter(Boolean);
-        const specPills = specs.map(s => '<span style="background:' + (LIC_COLORS[s]||'rgba(255,255,255,.08)') + ';border-radius:9999px;padding:1px 5px;font-size:8px;color:' + (LIC_TEXT[s]||'#fff') + ';font-weight:600">' + s + '</span>').join('');
-        const isSel = inst.id === selectedId;
-        const bdr   = isSel ? '1.5px solid #6366f1;background:rgba(79,70,229,.08)' : '1px solid rgba(255,255,255,.08)';
-        return '<div onclick="openInstDetail(\'' + inst.id + '\')" style="border:' + bdr + ';border-radius:9px;padding:.6rem .75rem;cursor:pointer;transition:border .12s">'
-          + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:.4rem">'
-          + '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:white;flex-shrink:0">' + initials + '</div>'
-          + '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (inst.name||'—') + '</div>'
-          + '<div style="display:flex;gap:3px;margin-top:2px">' + specPills + '</div></div>'
-          + '<div style="font-size:11px;font-weight:600;color:' + (criticos>0?'#ef4444':'#475569') + ';flex-shrink:0">' + load + '</div>'
-          + '</div></div>';
-      }).join('')
-      + '</div>';
-  } else {
-    // grid
-    cardsEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.65rem">'
-      + filtered.map(inst => {
-        const myProcs  = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed');
-        const load     = myProcs.length;
-        const criticos = myProcs.filter(p => {
-          const st = STATE.students.find(s => s.docNumber === p.docNumber);
-          return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
-        }).length;
-        const enClases = myProcs.filter(p => p.state === 'practice_started').length;
-        const initials = (inst.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-        const specs    = [inst.specialty,inst.specialtyB,inst.specialtyC].filter(Boolean);
-        const specPills = specs.map(s => '<span style="background:' + (LIC_COLORS[s]||'rgba(255,255,255,.08)') + ';border-radius:9999px;padding:1px 5px;font-size:8px;color:' + (LIC_TEXT[s]||'#fff') + ';font-weight:600">' + s + '</span>').join('');
-        const fillPct  = Math.round((load/maxLoad)*100);
-        const barColor = criticos > 0 ? '#ef4444' : fillPct > 75 ? '#f59e0b' : fillPct > 45 ? '#6366f1' : '#10b981';
-        const bdr      = criticos > 0 ? '1px solid rgba(239,68,68,.35)' : '1px solid rgba(255,255,255,.08)';
-        return '<div onclick="openInstDetail(\'' + inst.id + '\')" style="border:' + bdr + ';border-radius:9px;padding:.75rem .85rem;cursor:pointer;transition:border .12s,transform .12s"'
-          + ' onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.borderColor=\'rgba(99,102,241,.5)\'" onmouseleave="this.style.transform=\'\';this.style.borderColor=\'' + (criticos>0?'rgba(239,68,68,.35)':'rgba(255,255,255,.08)') + '\'">'
-          + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:.55rem">'
-          + '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;flex-shrink:0">' + initials + '</div>'
-          + '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (inst.name||'—') + '</div>'
-          + '<div style="display:flex;gap:3px;margin-top:2px">' + specPills + '</div></div>'
-          + '</div>'
-          + '<div style="display:flex;gap:5px;margin-bottom:.55rem">'
-          + '<div style="flex:1;background:rgba(255,255,255,.04);border-radius:6px;padding:5px 7px;text-align:center"><div style="font-size:15px;font-weight:600;color:#e2e8f0">' + load + '</div><div style="font-size:9px;color:#334155">activos</div></div>'
-          + '<div style="flex:1;background:' + (criticos>0?'rgba(239,68,68,.1)':'rgba(255,255,255,.04)') + ';border-radius:6px;padding:5px 7px;text-align:center"><div style="font-size:15px;font-weight:600;color:' + (criticos>0?'#ef4444':'#1e293b') + '">' + criticos + '</div><div style="font-size:9px;color:' + (criticos>0?'#ef4444':'#334155') + '">críticos</div></div>'
-          + '<div style="flex:1;background:rgba(255,255,255,.04);border-radius:6px;padding:5px 7px;text-align:center"><div style="font-size:15px;font-weight:600;color:#10b981">' + enClases + '</div><div style="font-size:9px;color:#334155">en clase</div></div>'
-          + '</div>'
-          + '<div style="margin-bottom:.4rem"><div style="height:4px;background:rgba(255,255,255,.06);border-radius:9999px;overflow:hidden"><div style="height:100%;width:' + fillPct + '%;background:' + barColor + ';border-radius:9999px"></div></div></div>'
-          + '<div style="display:flex;gap:4px;flex-wrap:wrap">' + specPills + '</div>'
-          + '</div>';
-      }).join('')
-      + '</div>';
-  }
-
-  if (selectedId) openInstDetail(selectedId);
+    + (list.length
+        ? '<div style="border:1px solid rgba(255,255,255,.07);border-radius:9px;overflow:hidden">' + rows + '</div>'
+        : '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:.85rem">Sin instructores registrados.</div>');
 }
 
-window._coordInstTypeFilter = window._coordInstTypeFilter || null;
-window._coordInstQuery      = window._coordInstQuery      || '';
+window._coordInstTypeFilter  = window._coordInstTypeFilter  || null;
+window._coordInstCardFilter  = window._coordInstCardFilter  || null;
+window._coordInstStuSelected = window._coordInstStuSelected || null;
+
 function _coordInstFilter(key) {
-  window._coordInstTypeFilter = key;
+  window._coordInstTypeFilter = (key === 'null' || key === null) ? null : key;
   renderCoordInstructors();
 }
 
-function openInstDetail(instId) {
-  window._coordSelectedInst = instId;
-  const detailEl = document.getElementById('coord-inst-detail');
-  if (!detailEl) { renderCoordInstructors(); return; }
+function showInstProfile(instId) {
+  const container = document.getElementById('coord-inst-list');
+  if (!container) return;
+  window._coordSelectedInst    = instId;
+  window._coordInstCardFilter  = null;
+  window._coordInstStuSelected = null;
 
   const inst = STATE.instructors.find(i => i.id === instId);
   if (!inst) return;
 
   const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
   const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
-  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
-  const STATE_LABEL = { theory_passed:'Sin contacto', instructor_assigned:'Pdte. contacto', contacted:'Contactado', contact_confirmed:'Confirmado', practice_started:'En clases' };
-  const STATE_COLOR = { theory_passed:'#ef4444', instructor_assigned:'#f59e0b', contacted:'#a78bfa', contact_confirmed:'#10b981', practice_started:'#10b981' };
 
-  const myProcs  = STATE.procesos.filter(p => p.instructorId === instId && p.state !== 'completed');
-  const load     = myProcs.length;
-  const maxLoad  = Math.max(...STATE.instructors.map(i => STATE.procesos.filter(p => p.instructorId === i.id && p.state !== 'completed').length), 1);
-  const fillPct  = Math.round((load/maxLoad)*100);
-  const barColor = fillPct > 75 ? '#f59e0b' : fillPct > 45 ? '#6366f1' : '#10b981';
-
-  const criticos = myProcs.filter(p => {
+  const myProcs  = STATE.procesos.filter(p => p.instructorId === instId && !['completed','pending'].includes(p.state));
+  const nActivos = myProcs.length;
+  const nCrit    = myProcs.filter(p => {
     const st = STATE.students.find(s => s.docNumber === p.docNumber);
     return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
   }).length;
-  const enClases = myProcs.filter(p => p.state === 'practice_started').length;
+  const nClases  = myProcs.filter(p => p.state === 'practice_started').length;
 
   const initials = (inst.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
   const specs    = [inst.specialty,inst.specialtyB,inst.specialtyC].filter(Boolean);
-  const specStr  = specs.join(' · ');
+  const specPills = specs.map(s => '<span style="background:' + (LIC_COLORS[s]||'rgba(255,255,255,.08)') + ';border-radius:9999px;padding:1px 6px;font-size:9px;color:' + (LIC_TEXT[s]||'#fff') + ';font-weight:600">' + s + '</span>').join('');
+  const waMsg = 'Hola ' + (inst.name||'') + ', soy de coordinación. Te escribo sobre el estado de tus alumnos asignados.';
+  const waUrl = inst.phone ? 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') + '?text=' + encodeURIComponent(waMsg) : null;
 
-  const waMsg    = 'Hola ' + inst.name + ', soy de coordinación. Te escribo sobre el estado de tus alumnos asignados.';
-  const waUrl    = inst.phone ? 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') + '?text=' + encodeURIComponent(waMsg) : null;
-
-  // Student rows — one per process
-  const studentRows = myProcs
-    .slice().sort((a,b) => {
-      const sa = STATE.students.find(s => s.docNumber === a.docNumber);
-      const sb = STATE.students.find(s => s.docNumber === b.docNumber);
-      return daysWaiting(b, sb) - daysWaiting(a, sa);
-    })
-    .map(p => {
-      const st      = STATE.students.find(s => s.docNumber === p.docNumber);
-      const name    = st?.name || p.docNumber;
-      const initials2 = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-      const days    = daysWaiting(p, st);
-      const dColor  = days >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : days >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : '#1e293b';
-      const barClr  = days >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : days >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : p.state === 'practice_started' ? '#10b981' : 'transparent';
-      const stLabel = STATE_LABEL[p.state] || p.state;
-      const stColor = STATE_COLOR[p.state] || '#475569';
-      return '<div style="display:flex;align-items:center;min-height:42px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer"'
-        + ' onclick="switchCoordTab(\'students\');setTimeout(()=>openCoordDetail(\'' + p.docNumber + '\'),100)">'
-        + '<div style="width:3px;min-height:42px;background:' + barClr + ';flex-shrink:0"></div>'
-        + '<div style="width:24px;height:24px;border-radius:50%;background:rgba(59,130,246,.12);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#93c5fd;margin:0 8px;flex-shrink:0">' + initials2 + '</div>'
-        + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:11px;font-weight:500;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>'
-        + '<div style="display:flex;align-items:center;gap:3px;margin-top:2px">'
-        + '<span style="background:' + (LIC_COLORS[p.license]||'rgba(255,255,255,.1)') + ';border-radius:9999px;padding:1px 5px;font-size:8px;color:' + (LIC_TEXT[p.license]||'#fff') + ';font-weight:600">' + p.license + '</span>'
-        + '<span style="font-size:9px;color:' + stColor + '">' + stLabel + '</span>'
-        + '</div></div>'
-        + (days > 0 ? '<div style="font-size:11px;font-weight:600;color:' + dColor + ';padding-right:6px;flex-shrink:0">' + days + 'd</div>' : '<div style="width:20px"></div>')
-        + '</div>';
-    }).join('');
-
-  detailEl.style.display = 'block';
-  detailEl.innerHTML =
-    '<div style="display:flex;align-items:center;gap:9px;margin-bottom:.75rem;padding-bottom:.65rem;border-bottom:1px solid rgba(255,255,255,.07)">'
-    + '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:white;flex-shrink:0">' + initials + '</div>'
-    + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--text-primary)">' + (inst.name||'—') + '</div>'
-    + '<div style="font-size:9px;color:#334155;margin-top:2px">' + specStr + (inst.phone ? ' · ' + inst.phone : '') + '</div></div>'
-    + '<button onclick="window._coordSelectedInst=null;renderCoordInstructors()" style="width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#475569;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">&times;</button>'
-    + '</div>'
-    + '<div style="display:flex;gap:5px;margin-bottom:.65rem">'
-    + '<div style="flex:1;background:rgba(255,255,255,.03);border-radius:7px;padding:6px 8px"><div style="font-size:15px;font-weight:600;color:#e2e8f0;line-height:1">' + load + '</div><div style="font-size:9px;color:#334155;margin-top:3px">activos</div></div>'
-    + '<div style="flex:1;background:' + (criticos>0?'rgba(239,68,68,.08)':'rgba(255,255,255,.03)') + ';border-radius:7px;padding:6px 8px"><div style="font-size:15px;font-weight:600;color:' + (criticos>0?'#ef4444':'#1e293b') + ';line-height:1">' + criticos + '</div><div style="font-size:9px;color:' + (criticos>0?'#ef4444':'#334155') + ';margin-top:3px">críticos</div></div>'
-    + '<div style="flex:1;background:rgba(255,255,255,.03);border-radius:7px;padding:6px 8px"><div style="font-size:15px;font-weight:600;color:#10b981;line-height:1">' + enClases + '</div><div style="font-size:9px;color:#334155;margin-top:3px">en clases</div></div>'
-    + '</div>'
-    + '<div style="margin-bottom:.75rem"><div style="display:flex;justify-content:space-between;font-size:9px;color:#334155;margin-bottom:3px"><span>Carga</span><span>' + fillPct + '%</span></div>'
-    + '<div style="height:4px;background:rgba(255,255,255,.06);border-radius:9999px;overflow:hidden"><div style="height:100%;width:' + fillPct + '%;background:' + barColor + ';border-radius:9999px"></div></div></div>'
-    + '<div style="font-size:9px;font-weight:600;color:#1e293b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Alumnos asignados</div>'
-    + (myProcs.length
-        ? '<div style="border:1px solid rgba(255,255,255,.07);border-radius:8px;overflow:hidden;margin-bottom:.65rem">' + studentRows + '</div>'
-        : '<div style="text-align:center;padding:1.5rem;color:#1e293b;font-size:.8rem;margin-bottom:.65rem">Sin alumnos asignados.</div>')
-    + '<div style="display:flex;gap:5px">'
-    + (waUrl ? '<a href="' + waUrl + '" target="_blank" onclick="event.stopPropagation()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 10px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:6px;font-size:10px;font-weight:500;color:#4ade80;text-decoration:none">&#128241; WhatsApp</a>' : '')
-    + '<button onclick="openInstructorModal(\'' + instId + '\')" style="flex:1;padding:5px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:10px;font-family:inherit;cursor:pointer">&#9998; Editar</button>'
+  const metricCard = (filter, n, label, sub, nColor, borderColor, bg) =>
+    '<div onclick="_coordInstCardFilter(\'' + filter + '\')" style="flex:1;border-radius:9px;padding:.75rem .8rem;cursor:pointer;border:1.5px solid ' + borderColor + ';background:' + bg + ';transition:border .12s">'
+    + '<div style="font-size:22px;font-weight:600;line-height:1;color:' + nColor + ';margin-bottom:4px">' + n + '</div>'
+    + '<div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:' + nColor + '">' + label + '</div>'
+    + '<div style="font-size:9px;color:#334155;margin-top:3px">' + sub + '</div>'
     + '</div>';
+
+  container.innerHTML =
+    '<button onclick="renderCoordInstructors()" style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;cursor:pointer;background:transparent;border:none;font-family:inherit;padding:0;margin-bottom:.85rem">'
+    + '<i class="ti ti-arrow-left" style="font-size:13px" aria-hidden="true"></i> Instructores'
+    + '</button>'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:.85rem;padding-bottom:.75rem;border-bottom:1px solid rgba(255,255,255,.07)">'
+    + '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:white;flex-shrink:0">' + initials + '</div>'
+    + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#e2e8f0">' + (inst.name||'—') + '</div>'
+    + '<div style="display:flex;gap:3px;margin-top:3px;align-items:center">' + specPills + (inst.phone ? '<span style="font-size:9px;color:#334155">· ' + inst.phone + '</span>' : '') + '</div></div>'
+    + (waUrl ? '<a href="' + waUrl + '" target="_blank" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:6px;font-size:10px;color:#4ade80;text-decoration:none;flex-shrink:0">&#128241; WA</a>' : '')
+    + '<button onclick="openInstructorModal(\'' + instId + '\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:10px;cursor:pointer;font-family:inherit">&#9998; Editar</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:.55rem;margin-bottom:.9rem">'
+    + metricCard('all',    nActivos, 'Activos',   'ver todos',     '#a5b4fc', 'rgba(99,102,241,.35)',  'rgba(79,70,229,.08)')
+    + metricCard('critical', nCrit,  'Críticos',  'sin contacto',  '#fca5a5', 'rgba(239,68,68,.35)',   'rgba(239,68,68,.07)')
+    + metricCard('practice', nClases,'En clases', 'en práctica',   '#6ee7b7', 'rgba(16,185,129,.25)',  'rgba(16,185,129,.05)')
+    + '</div>'
+    + '<div id="coord-inst-stu-area" style="display:flex;gap:0;align-items:flex-start">'
+    + '<div id="coord-inst-stu-list" style="flex:1;min-width:0">'
+    + '<div style="text-align:center;padding:2rem;border:1px dashed rgba(255,255,255,.06);border-radius:8px;color:#1e293b;font-size:.78rem">Presiona una card para ver alumnos</div>'
+    + '</div>'
+    + '<div id="coord-inst-stu-detail" style="display:none;width:310px;flex-shrink:0;border-left:1px solid rgba(255,255,255,.07);padding-left:.9rem;margin-left:.9rem"></div>'
+    + '</div>';
+}
+
+function _coordInstCardFilter(filter) {
+  window._coordInstCardFilter  = filter;
+  window._coordInstStuSelected = null;
+  const detEl = document.getElementById('coord-inst-stu-detail');
+  if (detEl) { detEl.style.display = 'none'; detEl.dataset.doc = ''; }
+
+  // Update card borders
+  const selectedInst = window._coordSelectedInst;
+  const inst = STATE.instructors.find(i => i.id === selectedInst);
+  if (!inst) return;
+
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+  const myProcs  = STATE.procesos.filter(p => p.instructorId === selectedInst && !['completed','pending'].includes(p.state));
+  const nActivos = myProcs.length;
+  const nCrit    = myProcs.filter(p => { const st = STATE.students.find(s => s.docNumber === p.docNumber); return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL; }).length;
+  const nClases  = myProcs.filter(p => p.state === 'practice_started').length;
+
+  const metricCard = (f, n, label, sub, nColor, borderActive, bgActive, borderInact, bgInact) => {
+    const on = filter === f;
+    return '<div onclick="_coordInstCardFilter(\'' + f + '\')" style="flex:1;border-radius:9px;padding:.75rem .8rem;cursor:pointer;border:1.5px solid ' + (on?borderActive:borderInact) + ';background:' + (on?bgActive:bgInact) + ';transition:border .12s">'
+      + '<div style="font-size:22px;font-weight:600;line-height:1;color:' + (on?nColor:'#475569') + ';margin-bottom:4px">' + n + '</div>'
+      + '<div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:' + (on?nColor:'#334155') + '">' + label + (on?' ✓':'') + '</div>'
+      + (on ? '<div style="font-size:9px;color:' + nColor + ';margin-top:3px">seleccionado</div>' : '<div style="font-size:9px;color:#334155;margin-top:3px">' + sub + '</div>')
+      + '</div>';
+  };
+
+  const cardsEl = document.querySelector('#coord-inst-list > div:nth-child(3)');
+  if (cardsEl) cardsEl.innerHTML =
+    metricCard('all',      nActivos,'Activos',  'ver todos',   '#a5b4fc','rgba(99,102,241,.5)','rgba(79,70,229,.14)','rgba(255,255,255,.08)','transparent')
+    + metricCard('critical', nCrit,  'Críticos', 'sin contacto','#fca5a5','rgba(239,68,68,.5)', 'rgba(239,68,68,.14)','rgba(255,255,255,.08)','transparent')
+    + metricCard('practice', nClases,'En clases','en práctica', '#6ee7b7','rgba(16,185,129,.4)','rgba(16,185,129,.1)', 'rgba(255,255,255,.08)','transparent');
+
+  _renderInstStudentList();
+}
+
+function _renderInstStudentList() {
+  const listEl = document.getElementById('coord-inst-stu-list');
+  if (!listEl) return;
+
+  const instId = window._coordSelectedInst;
+  const filter = window._coordInstCardFilter;
+  const selDoc = window._coordInstStuSelected;
+
+  if (!instId || !filter) return;
+
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
+  const STATE_LABEL = { theory_passed:'Sin contacto', instructor_assigned:'Pdte. contacto', contacted:'Contactado', contact_confirmed:'Confirmado', practice_started:'En clases' };
+  const STATE_COLOR = { theory_passed:'#ef4444', instructor_assigned:'#f59e0b', contacted:'#a78bfa', contact_confirmed:'#10b981', practice_started:'#10b981' };
+  const LIC_COLORS  = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_TEXT    = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+
+  let procs = STATE.procesos.filter(p => p.instructorId === instId && !['completed','pending'].includes(p.state));
+
+  if (filter === 'critical') {
+    procs = procs.filter(p => {
+      const st = STATE.students.find(s => s.docNumber === p.docNumber);
+      return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
+    });
+  } else if (filter === 'practice') {
+    procs = procs.filter(p => p.state === 'practice_started');
+  }
+
+  procs.sort((a,b) => {
+    const sa = STATE.students.find(s => s.docNumber === a.docNumber);
+    const sb = STATE.students.find(s => s.docNumber === b.docNumber);
+    return daysWaiting(b,sb) - daysWaiting(a,sa);
+  });
+
+  const filterLabels = { all:'Todos los alumnos', critical:'Críticos · sin contacto', practice:'En clases' };
+  const filterColors = { all:'#a5b4fc', critical:'#ef4444', practice:'#10b981' };
+
+  if (!procs.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--text-muted);font-size:.82rem">Sin alumnos en esta categoría.</div>';
+    return;
+  }
+
+  const rows = procs.map((p, idx) => {
+    const st      = STATE.students.find(s => s.docNumber === p.docNumber);
+    const name    = st?.name || p.docNumber;
+    const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const days    = daysWaiting(p, st);
+    const dColor  = days >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : days >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : '#1e293b';
+    const barClr  = days >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : days >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : p.state === 'practice_started' ? '#10b981' : 'transparent';
+    const stLabel = STATE_LABEL[p.state] || p.state;
+    const stColor = STATE_COLOR[p.state] || '#475569';
+    const isSel   = p.docNumber === selDoc;
+    const border  = idx > 0 ? 'border-top:1px solid rgba(255,255,255,.04);' : '';
+    const selBg   = isSel ? 'background:rgba(79,70,229,.1);border-left:2px solid #6366f1;' : '';
+    const leaveBg = isSel ? 'rgba(79,70,229,.1)' : '';
+    return '<div style="' + border + selBg + 'display:flex;align-items:center;min-height:46px;cursor:pointer;transition:background .12s"'
+      + ' onclick="window._coordInstStuSelected=\'' + p.docNumber + '\';_renderInstStudentList();openCoordDetail(\'' + p.docNumber + '\',\'coord-inst-stu-detail\')"'
+      + ' onmouseenter="this.style.background=\'rgba(255,255,255,.04)\'" onmouseleave="this.style.background=\'' + leaveBg + '\'">'
+      + '<div style="width:3px;min-height:46px;background:' + barClr + ';flex-shrink:0"></div>'
+      + '<div style="width:26px;height:26px;border-radius:50%;background:rgba(59,130,246,.12);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#93c5fd;margin:0 8px;flex-shrink:0">' + initials + '</div>'
+      + '<div style="flex:1;min-width:0;padding:8px 0">'
+      + '<div style="font-size:.78rem;font-weight:' + (isSel?'600':'500') + ';color:' + (isSel?'#e2e8f0':'#94a3b8') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>'
+      + '<div style="display:flex;align-items:center;gap:3px;margin-top:2px">'
+      + '<span style="background:' + (LIC_COLORS[p.license]||'rgba(255,255,255,.1)') + ';border-radius:9999px;padding:1px 5px;font-size:8px;color:' + (LIC_TEXT[p.license]||'#fff') + ';font-weight:600">' + p.license + '</span>'
+      + '<span style="font-size:9px;color:' + stColor + '">' + stLabel + '</span>'
+      + '</div></div>'
+      + (days > 0 ? '<div style="font-size:.75rem;font-weight:700;color:' + dColor + ';padding-right:6px;flex-shrink:0">' + days + 'd</div>' : '<div style="width:20px"></div>')
+      + '</div>';
+  }).join('');
+
+  listEl.innerHTML =
+    '<div style="font-size:9px;font-weight:600;color:' + filterColors[filter] + ';text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">' + filterLabels[filter] + ' · ' + procs.length + ' alumno' + (procs.length!==1?'s':'') + '</div>'
+    + '<div style="border:1px solid rgba(255,255,255,.07);border-radius:8px;overflow:hidden">' + rows + '</div>';
 }
 
 
