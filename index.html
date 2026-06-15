@@ -3400,7 +3400,7 @@ function switchCoordTab(tab) {
   }
   if (tab !== 'instructors') {
     window._coordSelectedInst    = null;
-    window._coordInstCardFilter  = null;
+    window._coordInstActiveFilter  = null;
     window._coordInstStuSelected = null;
   }
   if (tab === 'instructors') {
@@ -4350,7 +4350,7 @@ function renderCoordInstructors() {
 
   // Reset profile state when re-entering list
   window._coordSelectedInst    = null;
-  window._coordInstCardFilter  = null;
+  window._coordInstActiveFilter  = null;
   window._coordInstStuSelected = null;
 
   const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
@@ -4430,7 +4430,7 @@ function renderCoordInstructors() {
 }
 
 window._coordInstTypeFilter  = window._coordInstTypeFilter  || null;
-window._coordInstCardFilter  = window._coordInstCardFilter  || null;
+window._coordInstActiveFilter  = window._coordInstActiveFilter  || null;
 window._coordInstStuSelected = window._coordInstStuSelected || null;
 
 function _coordInstFilter(key) {
@@ -4438,11 +4438,11 @@ function _coordInstFilter(key) {
   renderCoordInstructors();
 }
 
-function showInstProfile(instId) {
+function showInstProfile(instId, fromHome) {
   const container = document.getElementById('coord-inst-list');
   if (!container) return;
   window._coordSelectedInst    = instId;
-  window._coordInstCardFilter  = null;
+  window._coordInstActiveFilter  = null;
   window._coordInstStuSelected = null;
 
   const inst = STATE.instructors.find(i => i.id === instId);
@@ -4473,7 +4473,7 @@ function showInstProfile(instId) {
     + '</div>';
 
   container.innerHTML =
-    '<button onclick="renderCoordInstructors()" style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;cursor:pointer;background:transparent;border:none;font-family:inherit;padding:0;margin-bottom:.85rem">'
+    '<button onclick="fromHome ? switchCoordTab('main') : renderCoordInstructors()" style="display:inline-flex;align-items:center;gap:6px;font-size:.78rem;color:var(--brand-light);cursor:pointer;background:transparent;border:none;font-family:inherit;padding:0;margin-bottom:.85rem">'
     + '<i class="ti ti-arrow-left" style="font-size:13px" aria-hidden="true"></i> Instructores'
     + '</button>'
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:.85rem;padding-bottom:.75rem;border-bottom:1px solid rgba(255,255,255,.07)">'
@@ -4497,7 +4497,7 @@ function showInstProfile(instId) {
 }
 
 function _coordInstCardFilter(filter) {
-  window._coordInstCardFilter  = filter;
+  window._coordInstActiveFilter  = filter;
   window._coordInstStuSelected = null;
   const detEl = document.getElementById('coord-inst-stu-detail');
   if (detEl) { detEl.style.display = 'none'; detEl.dataset.doc = ''; }
@@ -4537,7 +4537,7 @@ function _renderInstStudentList() {
   if (!listEl) return;
 
   const instId = window._coordSelectedInst;
-  const filter = window._coordInstCardFilter;
+  const filter = window._coordInstActiveFilter;
   const selDoc = window._coordInstStuSelected;
 
   if (!instId || !filter) return;
@@ -4775,7 +4775,7 @@ function renderInstructorLoadPanel() {
     const div = document.createElement('div');
     div.className = 'instructor-row-card';
     div.style.cssText = `flex-wrap:wrap;gap:.75rem;cursor:pointer;${criticos > 0 ? 'border-color:rgba(244,63,94,.4);' : ''}`;
-    div.onclick = (e) => { if (!e.target.closest('a')) { switchCoordTab('instructors'); showInstProfile(inst.id); } };
+    div.onclick = (e) => { if (!e.target.closest('a')) { switchCoordTab('instructors'); showInstProfile(inst.id, true); } };
     div.innerHTML = `
       <div class="instructor-row-info" style="flex:1;min-width:200px">
         <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-family:var(--font-title);font-size:.85rem;font-weight:800;color:white;flex-shrink:0">${initials}</div>
