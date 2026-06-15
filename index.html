@@ -918,19 +918,7 @@
 
         <!-- ===== VISTA INSTRUCTORES ===== -->
     <div id="coord-view-instructors" style="display:none">
-      <div class="glass-panel">
-        <div class="panel-header">
-          <h3>Instructores</h3>
-          <button class="btn-primary" style="width:auto;padding:.4rem .9rem;font-size:.78rem" onclick="openInstructorModal(null)">+ Agregar</button>
-        </div>
-        <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:1rem">
-          <input id="coord-inst-search" type="text" placeholder="Buscar instructor por nombre…"
-            style="flex:1;padding:.45rem .8rem;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--bg-card);color:var(--text);font-size:.85rem"
-            oninput="renderCoordInstructors()">
-          <button id="coord-inst-back" class="btn-sec" style="display:none;font-size:.78rem;padding:.4rem .8rem" onclick="document.getElementById('coord-inst-search').value='';renderCoordInstructors()">✕ Limpiar</button>
-        </div>
-        <div id="coord-inst-list"></div>
-      </div>
+      <div id="coord-inst-list"></div>
     </div>
     </div><!-- /.coord-main -->
   </div><!-- /.coord-layout -->
@@ -3410,6 +3398,9 @@ function switchCoordTab(tab) {
     const det = document.getElementById('coord-stu-detail');
     if (det) { det.style.display='none'; det.dataset.doc=''; }
   }
+  if (tab !== 'instructors') {
+    window._coordSelectedInst = null;
+  }
   if (tab === 'instructors') {
     renderCoordInstructors();
     // Restaurar filtros generales y ocultar botón regresar
@@ -4272,149 +4263,217 @@ function toggleTaskCard(id) { toggleDashCard(id); }
 function renderCoordInstructors() {
   const container = document.getElementById('coord-inst-list');
   if (!container) return;
-  if (!STATE.instructors.length) {
-    container.innerHTML = emptyStateHtml('👨‍🏫', 'Sin instructores registrados', 'Agrega el primero usando el botón de abajo.', { label:'+ Agregar instructor', action:"openModal('instructor')" });
-    return;
-  }
-  container.innerHTML = '';
 
-  const isCarro = s => ['B1','C1','C2'].some(l => [s.specialty, s.specialtyB, s.specialtyC].includes(l));
-  const isMoto  = s => ['A2'].some(l => [s.specialty, s.specialtyB, s.specialtyC].includes(l));
+  const selectedId = window._coordSelectedInst || null;
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
 
-  const countAll   = STATE.instructors.length;
-  const countCarro = STATE.instructors.filter(isCarro).length;
-  const countMoto  = STATE.instructors.filter(isMoto).length;
+  const isCarro = s => ['B1','C1','C2'].some(l => [s.specialty,s.specialtyB,s.specialtyC].includes(l));
+  const isMoto  = s => ['A2'].some(l => [s.specialty,s.specialtyB,s.specialtyC].includes(l));
 
-  const chips = [
-    { key: null,    icon: '&#128203;', label: 'Todos',  count: countAll,   color: 'var(--brand)',   glow: 'rgba(59,130,246,.3)',   bg: 'rgba(59,130,246,.12)',  border: 'rgba(59,130,246,.35)'  },
-    { key: 'carro', icon: '&#128663;', label: 'Carro',  count: countCarro, color: '#60a5fa',        glow: 'rgba(96,165,250,.3)',   bg: 'rgba(96,165,250,.12)',  border: 'rgba(96,165,250,.35)'  },
-    { key: 'moto',  icon: '&#128653;', label: 'Moto',   count: countMoto,  color: '#a855f7',        glow: 'rgba(168,85,247,.3)',   bg: 'rgba(168,85,247,.12)',  border: 'rgba(168,85,247,.35)'  },
-  ];
+  const af = window._coordInstTypeFilter;
+  const query = (window._coordInstQuery || '').toLowerCase();
 
-  const filterBar = document.createElement('div');
-  filterBar.style.cssText = 'display:flex;gap:.6rem;margin-bottom:1rem';
-  chips.forEach(c => {
-    const active = _coordInstTypeFilter === c.key;
-    const btn = document.createElement('button');
-    btn.style.cssText = `flex:1;display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.55rem .5rem;border-radius:var(--r-md);border:1.5px solid ${active ? c.border : 'rgba(255,255,255,.08)'};background:${active ? c.bg : 'transparent'};color:${active ? c.color : 'var(--text-secondary)'};font-weight:${active ? '700' : '500'};font-size:.82rem;cursor:pointer;transition:all .18s;box-shadow:${active ? '0 0 14px ' + c.glow : 'none'}`;
-    btn.innerHTML = `<span style="font-size:1.05rem">${c.icon}</span><span>${c.label}</span><span style="background:${active ? c.color : 'rgba(255,255,255,.1)'};color:${active ? 'white' : 'var(--text-muted)'};border-radius:9999px;padding:.05rem .45rem;font-size:.7rem;font-weight:700;min-width:1.4rem;text-align:center">${c.count}</span>`;
-    btn.addEventListener('mouseenter', () => { if (!active) { btn.style.borderColor = c.border; btn.style.color = c.color; } });
-    btn.addEventListener('mouseleave', () => { if (!active) { btn.style.borderColor = 'rgba(255,255,255,.08)'; btn.style.color = 'var(--text-secondary)'; } });
-    btn.addEventListener('click', () => { _coordInstTypeFilter = c.key; renderCoordInstructors(); });
-    filterBar.appendChild(btn);
-  });
-  container.appendChild(filterBar);
+  let filtered = af === 'carro' ? STATE.instructors.filter(isCarro)
+               : af === 'moto'  ? STATE.instructors.filter(isMoto)
+               : STATE.instructors;
+  if (query) filtered = filtered.filter(i => i.name.toLowerCase().includes(query));
 
-  const searchEl = document.getElementById('coord-inst-search');
-  const backBtn  = document.getElementById('coord-inst-back');
-  const query    = (searchEl ? searchEl.value : '').trim().toLowerCase();
-  if (backBtn) backBtn.style.display = query ? 'inline-flex' : 'none';
+  // ── header row ──────────────────────────────────────────────────
+  const chip = (key, lbl) => {
+    const on = af === key;
+    return '<button onclick="_coordInstFilter(\'' + key + '\')" style="padding:4px 11px;border-radius:20px;font-size:11px;cursor:pointer;font-family:inherit;border:1px solid ' + (on?'rgba(99,102,241,.4)':'rgba(255,255,255,.08)') + ';background:' + (on?'rgba(79,70,229,.22)':'transparent') + ';color:' + (on?'#a5b4fc':'#475569') + ';font-weight:' + (on?'500':'400') + '">' + lbl + '</button>';
+  };
 
-  let byType = _coordInstTypeFilter === 'carro' ? STATE.instructors.filter(isCarro)
-             : _coordInstTypeFilter === 'moto'  ? STATE.instructors.filter(isMoto)
-             : STATE.instructors;
+  container.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem">'
+    + '<div><div style="font-size:.95rem;font-weight:600;color:var(--text-primary)">Instructores</div>'
+    + '<div style="font-size:10px;color:#334155;margin-top:3px">' + STATE.instructors.length + ' registrados</div></div>'
+    + '<button class="btn-primary" style="width:auto;padding:.32rem .75rem;font-size:.78rem" onclick="openInstructorModal(null)">+ Agregar</button>'
+    + '</div>'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:.85rem;flex-wrap:wrap">'
+    + '<div style="display:flex;gap:4px">' + chip(null,'Todos') + chip('carro','Carro') + chip('moto','Moto') + '</div>'
+    + '<div style="position:relative;margin-left:auto"><input id="coord-inst-search" type="text" placeholder="Buscar…" value="' + (window._coordInstQuery||'') + '"'
+    + ' style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:5px 8px 5px 26px;font-size:11px;color:var(--text-secondary);width:155px;font-family:inherit;outline:none"'
+    + ' oninput="window._coordInstQuery=this.value;renderCoordInstructors()">'
+    + '<span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:13px;color:#334155;pointer-events:none">&#128269;</span></div>'
+    + '</div>'
+    + '<div id="coord-inst-split" style="display:flex;gap:0;align-items:flex-start">'
+    + '<div id="coord-inst-cards-wrap" style="' + (selectedId ? 'width:270px;flex-shrink:0' : 'flex:1;min-width:0') + '">'
+    + '<div id="coord-inst-cards"></div>'
+    + '</div>'
+    + '<div id="coord-inst-detail" style="' + (selectedId ? 'flex:1;min-width:0;border-left:1px solid rgba(255,255,255,.07);padding-left:1rem;margin-left:1rem' : 'display:none') + '"></div>'
+    + '</div>';
 
-  const filtered = query
-    ? byType.filter(i => i.name.toLowerCase().includes(query))
-    : byType;
+  const cardsEl = document.getElementById('coord-inst-cards');
+  if (!cardsEl) return;
 
   if (!filtered.length) {
-    container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin resultados para "' + query + '".</p>';
+    cardsEl.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:.85rem">Sin instructores encontrados.</div>';
     return;
   }
 
-  const maxLoad = Math.max(...filtered.map(i =>
-    STATE.procesos.filter(p => p.instructorId === i.id && p.state !== 'completed').length
-  ), 1);
+  const isNarrow = !!selectedId;
+  const maxLoad  = Math.max(...filtered.map(i => STATE.procesos.filter(p => p.instructorId === i.id && p.state !== 'completed').length), 1);
 
-  // Grid de cards
-  const grid = document.createElement('div');
-  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;';
-  container.appendChild(grid);
+  if (isNarrow) {
+    // vertical list
+    cardsEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:.45rem">'
+      + filtered.map(inst => {
+        const load    = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed').length;
+        const criticos = STATE.procesos.filter(p => {
+          if (p.instructorId !== inst.id || p.state !== 'instructor_assigned') return false;
+          const st = STATE.students.find(s => s.docNumber === p.docNumber);
+          return daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
+        }).length;
+        const initials = (inst.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+        const specs    = [inst.specialty,inst.specialtyB,inst.specialtyC].filter(Boolean);
+        const specPills = specs.map(s => '<span style="background:' + (LIC_COLORS[s]||'rgba(255,255,255,.08)') + ';border-radius:9999px;padding:1px 5px;font-size:8px;color:' + (LIC_TEXT[s]||'#fff') + ';font-weight:600">' + s + '</span>').join('');
+        const isSel = inst.id === selectedId;
+        const bdr   = isSel ? '1.5px solid #6366f1;background:rgba(79,70,229,.08)' : '1px solid rgba(255,255,255,.08)';
+        return '<div onclick="openInstDetail(\'' + inst.id + '\')" style="border:' + bdr + ';border-radius:9px;padding:.6rem .75rem;cursor:pointer;transition:border .12s">'
+          + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:.4rem">'
+          + '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:white;flex-shrink:0">' + initials + '</div>'
+          + '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (inst.name||'—') + '</div>'
+          + '<div style="display:flex;gap:3px;margin-top:2px">' + specPills + '</div></div>'
+          + '<div style="font-size:11px;font-weight:600;color:' + (criticos>0?'#ef4444':'#475569') + ';flex-shrink:0">' + load + '</div>'
+          + '</div></div>';
+      }).join('')
+      + '</div>';
+  } else {
+    // grid
+    cardsEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.65rem">'
+      + filtered.map(inst => {
+        const myProcs  = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed');
+        const load     = myProcs.length;
+        const criticos = myProcs.filter(p => {
+          const st = STATE.students.find(s => s.docNumber === p.docNumber);
+          return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
+        }).length;
+        const enClases = myProcs.filter(p => p.state === 'practice_started').length;
+        const initials = (inst.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+        const specs    = [inst.specialty,inst.specialtyB,inst.specialtyC].filter(Boolean);
+        const specPills = specs.map(s => '<span style="background:' + (LIC_COLORS[s]||'rgba(255,255,255,.08)') + ';border-radius:9999px;padding:1px 5px;font-size:8px;color:' + (LIC_TEXT[s]||'#fff') + ';font-weight:600">' + s + '</span>').join('');
+        const fillPct  = Math.round((load/maxLoad)*100);
+        const barColor = criticos > 0 ? '#ef4444' : fillPct > 75 ? '#f59e0b' : fillPct > 45 ? '#6366f1' : '#10b981';
+        const bdr      = criticos > 0 ? '1px solid rgba(239,68,68,.35)' : '1px solid rgba(255,255,255,.08)';
+        return '<div onclick="openInstDetail(\'' + inst.id + '\')" style="border:' + bdr + ';border-radius:9px;padding:.75rem .85rem;cursor:pointer;transition:border .12s,transform .12s"'
+          + ' onmouseenter="this.style.transform=\'translateY(-2px)\';this.style.borderColor=\'rgba(99,102,241,.5)\'" onmouseleave="this.style.transform=\'\';this.style.borderColor=\'' + (criticos>0?'rgba(239,68,68,.35)':'rgba(255,255,255,.08)') + '\'">'
+          + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:.55rem">'
+          + '<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:white;flex-shrink:0">' + initials + '</div>'
+          + '<div style="flex:1;min-width:0"><div style="font-size:11px;font-weight:500;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (inst.name||'—') + '</div>'
+          + '<div style="display:flex;gap:3px;margin-top:2px">' + specPills + '</div></div>'
+          + '</div>'
+          + '<div style="display:flex;gap:5px;margin-bottom:.55rem">'
+          + '<div style="flex:1;background:rgba(255,255,255,.04);border-radius:6px;padding:5px 7px;text-align:center"><div style="font-size:15px;font-weight:600;color:#e2e8f0">' + load + '</div><div style="font-size:9px;color:#334155">activos</div></div>'
+          + '<div style="flex:1;background:' + (criticos>0?'rgba(239,68,68,.1)':'rgba(255,255,255,.04)') + ';border-radius:6px;padding:5px 7px;text-align:center"><div style="font-size:15px;font-weight:600;color:' + (criticos>0?'#ef4444':'#1e293b') + '">' + criticos + '</div><div style="font-size:9px;color:' + (criticos>0?'#ef4444':'#334155') + '">críticos</div></div>'
+          + '<div style="flex:1;background:rgba(255,255,255,.04);border-radius:6px;padding:5px 7px;text-align:center"><div style="font-size:15px;font-weight:600;color:#10b981">' + enClases + '</div><div style="font-size:9px;color:#334155">en clase</div></div>'
+          + '</div>'
+          + '<div style="margin-bottom:.4rem"><div style="height:4px;background:rgba(255,255,255,.06);border-radius:9999px;overflow:hidden"><div style="height:100%;width:' + fillPct + '%;background:' + barColor + ';border-radius:9999px"></div></div></div>'
+          + '<div style="display:flex;gap:4px;flex-wrap:wrap">' + specPills + '</div>'
+          + '</div>';
+      }).join('')
+      + '</div>';
+  }
 
-  filtered.forEach(inst => {
-    const myProcs    = STATE.procesos.filter(p => p.instructorId === inst.id && p.state !== 'completed');
-    const load       = myProcs.length;
-    const sinContact = myProcs.filter(p => p.state === 'instructor_assigned').length;
-    const contactado = myProcs.filter(p => p.state === 'contacted').length;
-    const confirmado = myProcs.filter(p => p.state === 'contact_confirmed').length;
-    const enClases   = myProcs.filter(p => p.state === 'practice_started').length;
-    const criticos   = myProcs.filter(p => {
-      const st = STATE.students.find(s => s.docNumber === p.docNumber);
-      return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
-    }).length;
-    const isActive  = inst.active !== 'false' && inst.active !== false;
-    const fillPct   = Math.round((load / maxLoad) * 100);
-    const barColor  = criticos > 0 ? 'var(--danger)' : fillPct > 75 ? 'var(--warning)' : fillPct > 45 ? 'var(--brand)' : 'var(--success)';
-    const initials  = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-    const waMsg     = 'Hola ' + inst.name + ', soy de coordinación. Te escribo sobre el estado de tus alumnos asignados.';
-    const waUrl     = inst.phone ? 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') + '?text=' + encodeURIComponent(waMsg) : null;
-
-    // Especialidades
-    const specs = [inst.specialty, inst.specialtyB, inst.specialtyC].filter(Boolean);
-    const specColors = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
-    const specText   = { A2:'#a855f7', B1:'#60a5fa', C1:'#2dd4bf', C2:'#f59e0b' };
-    const specBadges = specs.map(s => `<span style="background:${specColors[s]||'rgba(255,255,255,.08)'};color:${specText[s]||'var(--text-muted)'};border-radius:9999px;padding:.15rem .5rem;font-size:.68rem;font-weight:700">${s}</span>`).join('');
-
-    // Borde de alerta
-    const borderStyle = criticos > 0
-      ? '1.5px solid rgba(244,63,94,.45)'
-      : load === 0 ? '1.5px solid rgba(255,255,255,.06)' : '1.5px solid rgba(255,255,255,.1)';
-
-    const card = document.createElement('div');
-    card.style.cssText = `background:var(--bg-card);border:\${borderStyle};border-radius:var(--r-lg);padding:1.1rem 1.1rem .9rem;display:flex;flex-direction:column;gap:.7rem;opacity:\${isActive?'1':'.45'};cursor:pointer;transition:border .15s,transform .12s;position:relative`;
-    
-
-    card.addEventListener('mouseenter', () => { card.style.transform = 'translateY(-2px)'; card.style.borderColor = 'rgba(99,102,241,.5)'; });
-    card.addEventListener('mouseleave', () => { card.style.transform = ''; card.style.borderColor = criticos>0?'rgba(244,63,94,.45)':load===0?'rgba(255,255,255,.06)':'rgba(255,255,255,.1)'; });
-
-
-    card.innerHTML = `
-      <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.85rem">
-        <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--brand),#6366f1);display:flex;align-items:center;justify-content:center;font-size:.9rem;font-weight:800;color:white;flex-shrink:0">${initials}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${inst.name}</div>
-          <div style="display:flex;gap:.3rem;margin-top:.2rem;flex-wrap:wrap">${specBadges}</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:.5rem;margin-bottom:.85rem">
-        <div style="flex:1;background:rgba(255,255,255,.05);border-radius:var(--r-sm);padding:.5rem;text-align:center">
-          <div style="font-size:1.3rem;font-weight:800;color:var(--text)">${load}</div>
-          <div style="font-size:.65rem;color:var(--text-muted)">Activos</div>
-        </div>
-        <div style="flex:1;background:${criticos>0?'rgba(244,63,94,.12)':'rgba(255,255,255,.05)'};border-radius:var(--r-sm);padding:.5rem;text-align:center">
-          <div style="font-size:1.3rem;font-weight:800;color:${criticos>0?'var(--danger)':'var(--text-muted)'}">${criticos}</div>
-          <div style="font-size:.65rem;color:${criticos>0?'var(--danger)':'var(--text-muted)'}">Críticos</div>
-        </div>
-      </div>
-      <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:.7rem" id="wa-actions-${inst.id}"></div>
-    `
-
-    // Botones: se agregan fuera del template literal para evitar problemas de evaluación
-    const actionsDiv = card.querySelector('#wa-actions-' + inst.id);
-    if (actionsDiv) {
-      const editBtn = document.createElement('button');
-      editBtn.className = 'btn-sec';
-      editBtn.style.cssText = 'font-size:.72rem;padding:.3rem .6rem;margin-right:.4rem';
-      editBtn.textContent = '✏️ Editar';
-      editBtn.onclick = (e) => { e.stopPropagation(); openInstructorModal(inst.id); };
-      actionsDiv.appendChild(editBtn);
-
-      if (inst.phone) {
-        const waMsg = 'Hola ' + inst.name + ', soy de coordinación. Te escribo sobre el estado de tus alumnos asignados.';
-        const waLink = document.createElement('a');
-        waLink.href = 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') + '?text=' + encodeURIComponent(waMsg);
-        waLink.target = '_blank';
-        waLink.style.cssText = 'display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .6rem;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);border-radius:var(--r-sm);font-size:.72rem;font-weight:600;color:#25d366;text-decoration:none';
-        waLink.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> WA';
-        waLink.onclick = (e) => e.stopPropagation();
-        actionsDiv.appendChild(waLink);
-      }
-    }
-
-    grid.appendChild(card);
-  });
+  if (selectedId) openInstDetail(selectedId);
 }
+
+window._coordInstTypeFilter = window._coordInstTypeFilter || null;
+window._coordInstQuery      = window._coordInstQuery      || '';
+function _coordInstFilter(key) {
+  window._coordInstTypeFilter = key;
+  renderCoordInstructors();
+}
+
+function openInstDetail(instId) {
+  window._coordSelectedInst = instId;
+  const detailEl = document.getElementById('coord-inst-detail');
+  if (!detailEl) { renderCoordInstructors(); return; }
+
+  const inst = STATE.instructors.find(i => i.id === instId);
+  if (!inst) return;
+
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+  const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
+  const STATE_LABEL = { theory_passed:'Sin contacto', instructor_assigned:'Pdte. contacto', contacted:'Contactado', contact_confirmed:'Confirmado', practice_started:'En clases' };
+  const STATE_COLOR = { theory_passed:'#ef4444', instructor_assigned:'#f59e0b', contacted:'#a78bfa', contact_confirmed:'#10b981', practice_started:'#10b981' };
+
+  const myProcs  = STATE.procesos.filter(p => p.instructorId === instId && p.state !== 'completed');
+  const load     = myProcs.length;
+  const maxLoad  = Math.max(...STATE.instructors.map(i => STATE.procesos.filter(p => p.instructorId === i.id && p.state !== 'completed').length), 1);
+  const fillPct  = Math.round((load/maxLoad)*100);
+  const barColor = fillPct > 75 ? '#f59e0b' : fillPct > 45 ? '#6366f1' : '#10b981';
+
+  const criticos = myProcs.filter(p => {
+    const st = STATE.students.find(s => s.docNumber === p.docNumber);
+    return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
+  }).length;
+  const enClases = myProcs.filter(p => p.state === 'practice_started').length;
+
+  const initials = (inst.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  const specs    = [inst.specialty,inst.specialtyB,inst.specialtyC].filter(Boolean);
+  const specStr  = specs.join(' · ');
+
+  const waMsg    = 'Hola ' + inst.name + ', soy de coordinación. Te escribo sobre el estado de tus alumnos asignados.';
+  const waUrl    = inst.phone ? 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') + '?text=' + encodeURIComponent(waMsg) : null;
+
+  // Student rows — one per process
+  const studentRows = myProcs
+    .slice().sort((a,b) => {
+      const sa = STATE.students.find(s => s.docNumber === a.docNumber);
+      const sb = STATE.students.find(s => s.docNumber === b.docNumber);
+      return daysWaiting(b, sb) - daysWaiting(a, sa);
+    })
+    .map(p => {
+      const st      = STATE.students.find(s => s.docNumber === p.docNumber);
+      const name    = st?.name || p.docNumber;
+      const initials2 = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      const days    = daysWaiting(p, st);
+      const dColor  = days >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : days >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : '#1e293b';
+      const barClr  = days >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : days >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : p.state === 'practice_started' ? '#10b981' : 'transparent';
+      const stLabel = STATE_LABEL[p.state] || p.state;
+      const stColor = STATE_COLOR[p.state] || '#475569';
+      return '<div style="display:flex;align-items:center;min-height:42px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer"'
+        + ' onclick="switchCoordTab(\'students\');setTimeout(()=>openCoordDetail(\'' + p.docNumber + '\'),100)">'
+        + '<div style="width:3px;min-height:42px;background:' + barClr + ';flex-shrink:0"></div>'
+        + '<div style="width:24px;height:24px;border-radius:50%;background:rgba(59,130,246,.12);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#93c5fd;margin:0 8px;flex-shrink:0">' + initials2 + '</div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:11px;font-weight:500;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + name + '</div>'
+        + '<div style="display:flex;align-items:center;gap:3px;margin-top:2px">'
+        + '<span style="background:' + (LIC_COLORS[p.license]||'rgba(255,255,255,.1)') + ';border-radius:9999px;padding:1px 5px;font-size:8px;color:' + (LIC_TEXT[p.license]||'#fff') + ';font-weight:600">' + p.license + '</span>'
+        + '<span style="font-size:9px;color:' + stColor + '">' + stLabel + '</span>'
+        + '</div></div>'
+        + (days > 0 ? '<div style="font-size:11px;font-weight:600;color:' + dColor + ';padding-right:6px;flex-shrink:0">' + days + 'd</div>' : '<div style="width:20px"></div>')
+        + '</div>';
+    }).join('');
+
+  detailEl.style.display = 'block';
+  detailEl.innerHTML =
+    '<div style="display:flex;align-items:center;gap:9px;margin-bottom:.75rem;padding-bottom:.65rem;border-bottom:1px solid rgba(255,255,255,.07)">'
+    + '<div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#6366f1);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:white;flex-shrink:0">' + initials + '</div>'
+    + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:var(--text-primary)">' + (inst.name||'—') + '</div>'
+    + '<div style="font-size:9px;color:#334155;margin-top:2px">' + specStr + (inst.phone ? ' · ' + inst.phone : '') + '</div></div>'
+    + '<button onclick="window._coordSelectedInst=null;renderCoordInstructors()" style="width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#475569;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">&times;</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:5px;margin-bottom:.65rem">'
+    + '<div style="flex:1;background:rgba(255,255,255,.03);border-radius:7px;padding:6px 8px"><div style="font-size:15px;font-weight:600;color:#e2e8f0;line-height:1">' + load + '</div><div style="font-size:9px;color:#334155;margin-top:3px">activos</div></div>'
+    + '<div style="flex:1;background:' + (criticos>0?'rgba(239,68,68,.08)':'rgba(255,255,255,.03)') + ';border-radius:7px;padding:6px 8px"><div style="font-size:15px;font-weight:600;color:' + (criticos>0?'#ef4444':'#1e293b') + ';line-height:1">' + criticos + '</div><div style="font-size:9px;color:' + (criticos>0?'#ef4444':'#334155') + ';margin-top:3px">críticos</div></div>'
+    + '<div style="flex:1;background:rgba(255,255,255,.03);border-radius:7px;padding:6px 8px"><div style="font-size:15px;font-weight:600;color:#10b981;line-height:1">' + enClases + '</div><div style="font-size:9px;color:#334155;margin-top:3px">en clases</div></div>'
+    + '</div>'
+    + '<div style="margin-bottom:.75rem"><div style="display:flex;justify-content:space-between;font-size:9px;color:#334155;margin-bottom:3px"><span>Carga</span><span>' + fillPct + '%</span></div>'
+    + '<div style="height:4px;background:rgba(255,255,255,.06);border-radius:9999px;overflow:hidden"><div style="height:100%;width:' + fillPct + '%;background:' + barColor + ';border-radius:9999px"></div></div></div>'
+    + '<div style="font-size:9px;font-weight:600;color:#1e293b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">Alumnos asignados</div>'
+    + (myProcs.length
+        ? '<div style="border:1px solid rgba(255,255,255,.07);border-radius:8px;overflow:hidden;margin-bottom:.65rem">' + studentRows + '</div>'
+        : '<div style="text-align:center;padding:1.5rem;color:#1e293b;font-size:.8rem;margin-bottom:.65rem">Sin alumnos asignados.</div>')
+    + '<div style="display:flex;gap:5px">'
+    + (waUrl ? '<a href="' + waUrl + '" target="_blank" onclick="event.stopPropagation()" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 10px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:6px;font-size:10px;font-weight:500;color:#4ade80;text-decoration:none">&#128241; WhatsApp</a>' : '')
+    + '<button onclick="openInstructorModal(\'' + instId + '\')" style="flex:1;padding:5px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:10px;font-family:inherit;cursor:pointer">&#9998; Editar</button>'
+    + '</div>';
+}
+
 
 async function renderCoordinatorPortal() {
   const user = STATE.currentUser.data.username;
