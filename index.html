@@ -3699,31 +3699,40 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 
   // ── Carga instructores (segmentada) ────────────────────────────
   const activeInsts = STATE.instructors.filter(i => i.active !== 'false' && i.active !== false);
-  const instLoadHtml = activeInsts.length ? `
+
+  const instDataSorted = activeInsts.map(inst => {
+    const myProcs = STATE.procesos.filter(p => p.instructorId === inst.id && !['completed','pending'].includes(p.state));
+    const sinCont = myProcs.filter(p => p.state === 'instructor_assigned').length;
+    return { inst, myProcs, sinCont };
+  }).sort((a,b) => b.sinCont - a.sinCont).slice(0,4);
+
+  const maxGrupo = Math.max(...instDataSorted.map(d => d.myProcs.length), 1);
+
+  const instLoadHtml = instDataSorted.length ? `
     <div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
         <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Carga de instructores</div>
         <span onclick="switchCoordTab('instructors')" style="font-size:.75rem;color:var(--brand-light);cursor:pointer">Gestionar →</span>
       </div>
       <div style="background:rgba(30,41,59,.45);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-md);padding:1.2rem;display:flex;flex-direction:column;gap:9px">
-        ${activeInsts.map(inst => {
-          const myProcs  = STATE.procesos.filter(p => p.instructorId === inst.id && !['completed','pending'].includes(p.state));
-          const crits    = myProcs.filter(p => {
-            const st = STATE.students.find(s => s.docNumber === p.docNumber);
-            return p.state === 'instructor_assigned' && daysWaiting(p, st) >= CONFIG.WAIT_DAYS_CRITICAL;
-          }).length;
-          const norm     = myProcs.length - crits;
-          const pctN     = Math.round((norm  / totalSistema) * 100);
-          const pctC     = Math.round((crits / totalSistema) * 100);
-          const initials = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+        ${instDataSorted.map(({ inst, myProcs, sinCont }) => {
+          const norm       = myProcs.length - sinCont;
+          const pctBarTot  = Math.round((myProcs.length / maxGrupo) * 100);
+          const pctBarC    = Math.round((sinCont / Math.max(myProcs.length,1)) * pctBarTot);
+          const pctBarN    = pctBarTot - pctBarC;
+          const pctReal    = Math.round((myProcs.length / totalSistema) * 100);
+          const initials   = inst.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
           return `<div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="switchCoordTab('instructors');showInstProfile('${inst.id}')">
-            <div style="width:20px;height:20px;border-radius:50%;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:var(--brand-light);flex-shrink:0">${initials}</div>
-            <div style="width:82px;font-size:.76rem;color:var(--text-secondary);flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${inst.name.split(' ')[0]}</div>
-            <div style="flex:1;background:rgba(255,255,255,.04);border-radius:9999px;height:10px;overflow:hidden;display:flex">
-              ${pctN > 0 ? `<div style="width:${pctN}%;height:10px;background:#10b981"></div>` : ''}
-              ${pctC > 0 ? `<div style="width:${pctC}%;height:10px;background:#ef4444"></div>` : ''}
+            <div style="width:22px;height:22px;border-radius:50%;background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:var(--brand-light);flex-shrink:0">${initials}</div>
+            <div style="min-width:62px;flex-shrink:0">
+              <div style="font-size:.76rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${inst.name.split(' ')[0]}</div>
+              <div style="font-size:.62rem;color:var(--text-muted)">${myProcs.length} activos</div>
             </div>
-            <div style="font-size:.7rem;color:var(--text-muted);min-width:30px;text-align:right;flex-shrink:0">${pctN+pctC}%</div>
+            <div style="flex:1;background:rgba(255,255,255,.04);border-radius:9999px;height:14px;overflow:hidden;display:flex">
+              ${pctBarN > 0 ? `<div style="width:${pctBarN}%;height:14px;background:#10b981"></div>` : ''}
+              ${pctBarC > 0 ? `<div style="width:${pctBarC}%;height:14px;background:#ef4444;display:flex;align-items:center;justify-content:center"><span style="font-size:.6rem;color:#fff;font-weight:600;padding:0 3px">${sinCont}</span></div>` : ''}
+            </div>
+            <div style="font-size:.68rem;color:var(--text-muted);min-width:34px;text-align:right;flex-shrink:0">${pctReal}% tot.</div>
           </div>`;
         }).join('')}
       </div>
