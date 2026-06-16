@@ -11666,13 +11666,13 @@ async function approveStudentExec(docNumber) {
 
   try {
 
-    const data = await apiCall({ action: 'approveStudent', docNumber });
+    const data = await apiCall({ action: 'approveStudent', docNumber, theoryPassedDate: today() });
 
     if (!data.success) throw new Error(data.error || 'Error');
 
     const s = STATE.students.find(x => x.docNumber === docNumber);
 
-    if (s) s.active = 'true';
+    if (s) { s.active = 'true'; s.theoryPassedDate = today(); }
 
     STATE.procesos.filter(p => p.docNumber === docNumber).forEach(p => p.state = 'theory_passed');
 
