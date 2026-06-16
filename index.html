@@ -2658,7 +2658,7 @@
 
         <div id="reg-license-pills" style="display:flex;flex-wrap:wrap;gap:.5rem">
 
-          <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this)">🏍 A2 — Moto +125cc</button>
+          <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this)">🏍️ A2 — Moto +125cc</button>
 
           <button type="button" class="reg-pill" data-val="B1" onclick="toggleLicense(this)">🚗 B1 — Carro particular</button>
 
@@ -4812,6 +4812,8 @@ async function confirmAdminLogin() {
   // Show skeleton/loading state immediately
 
   showView('view-admin');
+
+  if (!STATE.cloudConnected) await loadData();
 
   document.getElementById('metric-total').textContent = '...';
 
