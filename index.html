@@ -7310,7 +7310,7 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 
 
 
-  const sinInstructor  = STATE.procesos.filter(p => p.state === 'theory_passed').length;
+  const sinInstructor  = STATE.procesos.filter(p => p.state === 'theory_passed' || (p.state === 'instructor_assigned' && !p.instructorId)).length;
 
   const pendContacto   = STATE.procesos.filter(p => p.state === 'instructor_assigned').length;
 
@@ -8034,7 +8034,7 @@ function renderCoordGroups(_expandKey) {
 
     if (maxDays >= CONFIG.WAIT_DAYS_CRITICAL) nCritical++;
 
-    if (procs.some(p => p.state === 'theory_passed')) nUnassigned++;
+    if (procs.some(p => p.state === 'theory_passed' || (p.state === 'instructor_assigned' && !p.instructorId))) nUnassigned++;
 
     if (procs.some(p => ['contact_confirmed','practice_started'].includes(p.state))) nPractice++;
 
@@ -8205,7 +8205,7 @@ function _renderCoordCards() {
   if (searchVal) entries = entries.filter(e => (e.st?.name || '').toLowerCase().includes(searchVal) || e.docNum.includes(searchVal));
 
   if      (af === 'critical')      entries = entries.filter(e => e.maxDays >= CONFIG.WAIT_DAYS_CRITICAL);
-  else if (af === 'unassigned')    entries = entries.filter(e => e.procs.some(p => p.state === 'theory_passed'));
+  else if (af === 'unassigned')    entries = entries.filter(e => e.procs.some(p => p.state === 'theory_passed' || (p.state === 'instructor_assigned' && !p.instructorId)));
   else if (af === 'practice')      entries = entries.filter(e => e.procs.some(p => ['contact_confirmed','practice_started'].includes(p.state)));
   else if (af === 'pdte_contacto') entries = entries.filter(e => e.procs.some(p => p.state === 'instructor_assigned'));
   else if (af === 'contactado')    entries = entries.filter(e => e.procs.some(p => p.state === 'contacted'));
@@ -8318,7 +8318,7 @@ function _renderCoordCards() {
 
     return '<div style="' + border + rowSelBg + 'display:flex;align-items:center;min-height:50px;cursor:pointer;transition:background .12s"'
 
-          + ' onclick="openCoordDetail(\'' + docNum + '\')"'
+          + ' onclick="openCoordSheet(\'' + docNum + '\')"'
 
           + ' onmouseenter="this.style.background=\'rgba(255,255,255,.04)\'" onmouseleave="this.style.background=\'' + leaveClr + '\'">'
 
@@ -8496,6 +8496,12 @@ function openCoordSheet(docNum) {
 
     const inst = p.instructorId ? STATE.instructors.find(i => i.id === p.instructorId) : null;
 
+    const instIncompat = inst ? (() => {
+      const specs = [inst.specialty, inst.specialtyB, inst.specialtyC].filter(Boolean).map(s => s.trim().toUpperCase());
+      const licToCheck = p.license === 'C1' ? ['C1','C2'] : [p.license];
+      return specs.length && !licToCheck.some(l => specs.includes(l));
+    })() : false;
+
     const pdays = daysWaiting(p, st);
 
     const si = STATE_INFO[p.state] || { label: p.state, color: 'var(--text-muted)' };
@@ -8540,7 +8546,8 @@ function openCoordSheet(docNum) {
 
         <span style="background:${lc.bg};border-radius:9999px;padding:.1rem .55rem;font-size:.7rem;color:${lc.text};font-weight:600">${p.license}</span>
 
-        ${inst ? `<span style="font-size:.68rem;color:var(--text-muted)">${inst.name?.split(' ')[0] || '—'}</span>` : ''}
+        ${inst && !instIncompat ? `<span style="font-size:.68rem;color:var(--text-muted)">${inst.name?.split(' ')[0] || '—'}</span>` : ''}
+        ${instIncompat ? `<span style="font-size:.68rem;color:#ef4444;font-weight:600">⚠ ${inst.name?.split(' ')[0]} — no cubre ${p.license}</span>` : ''}
 
         <div style="margin-left:auto;display:flex;align-items:center;gap:.5rem">
 
@@ -9196,7 +9203,7 @@ function _renderInstStudentList() {
 
     return '<div style="' + border + selBg + 'display:flex;align-items:center;min-height:46px;cursor:pointer;transition:background .12s"'
 
-      + ' onclick="window._coordInstStuSelected=\'' + p.docNumber + '\';_renderInstStudentList();openCoordDetail(\'' + p.docNumber + '\',\'coord-inst-stu-detail\')"'
+      + ' onclick="openCoordSheet(\'' + p.docNumber + '\')"'
 
       + ' onmouseenter="this.style.background=\'rgba(255,255,255,.04)\'" onmouseleave="this.style.background=\'' + leaveBg + '\'">'
 
@@ -9266,7 +9273,7 @@ async function renderCoordinatorPortal() {
 
   const activeProcesos = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
 
-  const unassigned = STATE.procesos.filter(p => p.state === 'theory_passed').length;
+  const unassigned = STATE.procesos.filter(p => p.state === 'theory_passed' || (p.state === 'instructor_assigned' && !p.instructorId)).length;
 
   const enClases   = STATE.procesos.filter(p => p.state === 'practice_started').length;
 
@@ -9694,7 +9701,7 @@ async function renderAdminPortal() {
 
   const activeProcs    = STATE.procesos.filter(p => !['completed','pending'].includes(p.state));
 
-  const unassigned     = STATE.procesos.filter(p => p.state === 'theory_passed').length;
+  const unassigned     = STATE.procesos.filter(p => p.state === 'theory_passed' || (p.state === 'instructor_assigned' && !p.instructorId)).length;
 
   const critical       = activeProcs.filter(p => {
 
