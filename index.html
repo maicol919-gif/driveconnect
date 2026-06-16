@@ -12,6 +12,12 @@
 
   <title>DriveConnect - Academia de Conducción</title>
 
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#3b82f6">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
 
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2734,6 +2740,11 @@
 
       <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:1.25rem">Tu cuenta está pendiente de aprobación por la administración. Una vez aprobada podrás ingresar al portal.</p>
 
+      <div id="reg-waiting-status" style="display:flex;align-items:center;gap:.5rem;justify-content:center;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.25);border-radius:var(--r-sm);padding:.65rem 1rem;margin-bottom:1.25rem;font-size:.78rem;color:var(--brand-light)">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--brand-light);display:inline-block;animation:pulse 1.4s infinite"></span>
+        <span>Esperando aprobación... entrarás automáticamente cuando te activen</span>
+      </div>
+
       <div style="background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.75rem 1rem;margin-bottom:1.25rem;font-size:.75rem;color:var(--text-muted);text-align:left">
 
         📅 Si aprobaste el examen teórico antes de hoy, repórtalo a la administración para que actualicen tu fecha de inicio.
@@ -4158,6 +4169,32 @@ function generatePIN() {
 
 
 
+function startApprovalPolling(docNumber) {
+  if (window._dcApprovalPoll) clearInterval(window._dcApprovalPoll);
+  window._dcApprovalPoll = setInterval(async () => {
+    try {
+      const ok = await loadData();
+      if (!ok) return;
+      const student = STATE.students.find(s => s.docNumber === docNumber);
+      if (!student) return;
+      if (student.active === 'true' || student.active === true) {
+        clearInterval(window._dcApprovalPoll);
+        window._dcApprovalPoll = null;
+        STATE.currentUser = { role: 'student', data: student };
+        localStorage.setItem('dc_session', JSON.stringify({ session: STATE.currentUser, ts: Date.now() }));
+        document.querySelector('.logo-container')?.classList.add('no-click');
+        if (student.tempPin === 'true' || student.tempPin === true) {
+          showView('view-change-pin');
+        } else {
+          renderStudentPortal();
+          showView('view-student');
+          setTimeout(maybeShowInstallBanner, 1000);
+        }
+      }
+    } catch(e) { /* sigue intentando en el siguiente ciclo */ }
+  }, 30000);
+}
+
 async function registerStudent() {
 
   const docType   = document.getElementById('reg-docType').value;
@@ -4233,6 +4270,8 @@ async function registerStudent() {
     document.getElementById('reg-pin-display').textContent = pin;
 
     document.getElementById('register-success').style.display = 'block';
+
+    startApprovalPolling(docNumber);
 
 
 
@@ -4357,6 +4396,8 @@ async function loginStudent() {
     renderStudentPortal();
 
     showView('view-student');
+
+    setTimeout(maybeShowInstallBanner, 1000);
 
   } catch(e) {
 
@@ -12641,7 +12682,63 @@ function toast(msg, type = 'info') { showToast(msg, type); }
 
 // =============================================================================
 
+window._dcInstallPromptEvent = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  window._dcInstallPromptEvent = e;
+  maybeShowInstallBanner();
+});
+
+function dcIsIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+
+function dcIsStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function maybeShowInstallBanner() {
+  if (dcIsStandalone()) return;
+  if (localStorage.getItem('dc_install_dismissed')) return;
+  if (!window._dcInstallPromptEvent && !dcIsIOS()) return;
+  if (document.getElementById('dc-install-banner')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'dc-install-banner';
+  banner.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9998;background:#1e293b;border-top:1px solid rgba(255,255,255,.1);padding:.85rem 1rem;display:flex;align-items:center;gap:.75rem;box-shadow:0 -4px 20px rgba(0,0,0,.3)';
+  banner.innerHTML = `
+    <span style="font-size:1.4rem">📲</span>
+    <div style="flex:1;font-size:.78rem;color:#e2e8f0">Agrega DriveConnect a tu pantalla de inicio pa entrar más fácil la próxima vez.</div>
+    <button id="dc-install-btn" style="background:var(--brand,#3b82f6);color:white;border:none;border-radius:6px;padding:.5rem .75rem;font-size:.75rem;font-weight:600;cursor:pointer;white-space:nowrap">Agregar</button>
+    <button id="dc-install-dismiss" style="background:transparent;border:none;color:#64748b;font-size:1.1rem;cursor:pointer;padding:.25rem">&times;</button>
+  `;
+  document.body.appendChild(banner);
+
+  document.getElementById('dc-install-dismiss').onclick = () => {
+    localStorage.setItem('dc_install_dismissed', 'true');
+    banner.remove();
+  };
+
+  document.getElementById('dc-install-btn').onclick = async () => {
+    if (dcIsIOS()) {
+      alert('Pa agregarla:\n\n1. Toca el botón "Compartir" (cuadrado con flecha hacia arriba)\n2. Elige "Agregar a pantalla de inicio"\n3. Toca "Agregar"');
+      localStorage.setItem('dc_install_dismissed', 'true');
+      banner.remove();
+      return;
+    }
+    if (window._dcInstallPromptEvent) {
+      window._dcInstallPromptEvent.prompt();
+      try { await window._dcInstallPromptEvent.userChoice; } catch(e) {}
+      window._dcInstallPromptEvent = null;
+    }
+    localStorage.setItem('dc_install_dismissed', 'true');
+    banner.remove();
+  };
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+
+  setTimeout(maybeShowInstallBanner, 1500);
 
   // Set default admin password on first run only
 
