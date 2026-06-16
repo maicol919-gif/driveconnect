@@ -4210,7 +4210,7 @@ async function registerStudent() {
 
       action: 'registerStudent',
 
-      docNumber, docType, name, phone, license, license2, schedule, pin
+      docNumber, docType, name, phone, license, license2, schedule, pin, active: 'false'
 
     });
 
@@ -4304,7 +4304,7 @@ async function loginStudent() {
 
     // Check if pending approval
 
-    if (student.active === 'false' || student.active === '') {
+    if (student.active === 'false' || student.active === false || student.active === '' || student.active === null) {
 
       throw new Error('Tu registro está pendiente de aprobación. La academia te notificará cuando esté activo.');
 
