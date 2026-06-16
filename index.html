@@ -3120,7 +3120,7 @@ function normalizeStudent(obj) {
 
     tempPin:          String(k('tempPin') || 'false').trim(),
 
-    active:           String(k('active') || 'true').trim(),
+    active:           k('active') === false || k('active') === 'false' ? 'false' : 'true',
 
   };
 
