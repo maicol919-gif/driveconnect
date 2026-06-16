@@ -6815,6 +6815,12 @@ function switchCoordTab(tab) {
 
     if (det) { det.style.display='none'; det.dataset.doc=''; }
 
+    const search = document.getElementById('coord-stu-search');
+
+    if (search) search.value = '';
+
+    window._coordStuFilter = null;
+
   }
 
   if (tab !== 'instructors') {
@@ -6824,6 +6830,12 @@ function switchCoordTab(tab) {
     window._coordInstActiveFilter  = null;
 
     window._coordInstStuSelected = null;
+
+    window._coordInstSearchQ     = '';
+
+    const instSearch = document.getElementById('coord-inst-search');
+
+    if (instSearch) instSearch.value = '';
 
   }
 
@@ -8905,6 +8917,16 @@ function renderCoordInstructors() {
         ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:.6rem">' + cards + '</div>'
 
         : '<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:.85rem">Sin instructores registrados.</div>');
+
+  // Re-focus search if it was active
+
+  if (prevInstSearch) {
+
+    const sEl = document.getElementById('coord-inst-search');
+
+    if (sEl) { sEl.focus(); sEl.setSelectionRange(sEl.value.length, sEl.value.length); }
+
+  }
 
 }
 
