@@ -4813,8 +4813,6 @@ async function confirmAdminLogin() {
 
   showView('view-admin');
 
-  if (!STATE.cloudConnected) await loadData();
-
   document.getElementById('metric-total').textContent = '...';
 
   document.getElementById('metric-unassigned').textContent = '...';
@@ -7742,7 +7740,7 @@ function openCoordDetail(docNum, targetId) {
 
   const flowSteps = [
 
-    { label: 'Teórico aprobado',    sub: 'Examen teórico superado' },
+    { label: 'Teórico aprobado',    sub: st?.theoryPassedDate ? `Examen: ${formatDate(st.theoryPassedDate)}` : 'Examen teórico superado' },
 
     { label: 'Instructor asignado', sub: 'Instructor confirmado' },
 
@@ -7800,7 +7798,7 @@ function openCoordDetail(docNum, targetId) {
 
         <div style="font-size:11px;font-weight:${nmWeight};color:${nmColor};margin-top:1px">${step.label}</div>
 
-        ${isActive ? `<div style="font-size:9px;color:${subColor};margin-top:2px">${maxDays > 0 ? maxDays+'d en este paso' : step.sub}</div>` : ''}
+        ${isActive ? `<div style="font-size:9px;color:${subColor};margin-top:2px">${maxDays > 0 ? maxDays+'d en este paso' : step.sub}</div>` : (i===0 ? `<div style="font-size:9px;color:#1e293b;margin-top:2px">${step.sub}</div>` : '')}
 
       </div>
 
@@ -8532,6 +8530,8 @@ function openCoordSheet(docNum) {
         ${stepsHtml}
 
       </div>
+
+      ${st?.theoryPassedDate ? `<div style="font-size:.68rem;color:var(--text-muted);margin-bottom:.55rem">Examen teórico: ${formatDate(st.theoryPassedDate, true)}</div>` : ''}
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem">
 
@@ -11668,13 +11668,17 @@ async function approveStudentExec(docNumber) {
 
   try {
 
-    const data = await apiCall({ action: 'approveStudent', docNumber, theoryPassedDate: today() });
+    const s0 = STATE.students.find(x => x.docNumber === docNumber);
+
+    const theoryDate = s0?.theoryPassedDate || today();
+
+    const data = await apiCall({ action: 'approveStudent', docNumber, theoryPassedDate: theoryDate });
 
     if (!data.success) throw new Error(data.error || 'Error');
 
     const s = STATE.students.find(x => x.docNumber === docNumber);
 
-    if (s) { s.active = 'true'; s.theoryPassedDate = today(); }
+    if (s) { s.active = 'true'; s.theoryPassedDate = theoryDate; }
 
     STATE.procesos.filter(p => p.docNumber === docNumber).forEach(p => p.state = 'theory_passed');
 
