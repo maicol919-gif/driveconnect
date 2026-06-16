@@ -1722,6 +1722,11 @@
 
       </nav>
 
+      <div style="padding:10px 12px 14px;border-top:1px solid rgba(255,255,255,.06);margin-top:auto">
+        <div style="font-size:.72rem;font-weight:700;color:rgba(255,255,255,.5)" id="sidebar-version"></div>
+        <div style="font-size:.65rem;color:rgba(255,255,255,.2);margin-top:2px" id="sidebar-build-month"></div>
+      </div>
+
 
 
     </aside>
@@ -2843,6 +2848,9 @@ const CONFIG = {
   get ADMIN_PASS() { return localStorage.getItem('dc_admin_pass') || null; },
 
   ADMIN_WHATSAPP:              '573248746629', // Número WhatsApp administración (sin + ni espacios)
+
+  VERSION:                     '1.0.0',
+  BUILD_MONTH:                 'Junio 2026',
 
   WAIT_DAYS_WARNING:           10,
 
@@ -9376,6 +9384,11 @@ async function renderCoordinatorPortal() {
   const greetEl = document.getElementById('coord-greeting');
 
   if (greetEl) greetEl.innerHTML = `${emoji} ${saludo}, ${nombreFinal}`;
+
+  const verEl = document.getElementById('sidebar-version');
+  const monEl = document.getElementById('sidebar-build-month');
+  if (verEl) verEl.textContent = `v${CONFIG.VERSION}`;
+  if (monEl) monEl.textContent = CONFIG.BUILD_MONTH;
 
   const welcomeEl = document.getElementById('coord-welcome');
 
