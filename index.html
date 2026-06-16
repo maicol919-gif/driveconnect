@@ -7291,7 +7291,7 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 
   // ── 2 tarjetas paneo ───────────────────────────────────────────────
 
-  const pendingStudents = STATE.students.filter(s => s.active === 'false' || s.active === '');
+  const pendingCount = STATE.students.filter(s => s.active === 'false' || s.active === '').length;
 
   const pillsEl = document.getElementById('coord-home-pills');
 
@@ -7323,7 +7323,7 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 
       <div onclick="coordShowPending()" style="background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.25);border-radius:10px;padding:.85rem 1rem;cursor:pointer;transition:background .15s" onmouseenter="this.style.background='rgba(249,115,22,.12)'" onmouseleave="this.style.background='rgba(249,115,22,.07)'">
 
-        <div style="font-size:2.1rem;font-weight:800;color:#f97316;line-height:1;font-family:var(--font-title)">${pendingStudents.length}</div>
+        <div style="font-size:2.1rem;font-weight:800;color:#f97316;line-height:1;font-family:var(--font-title)">${pendingCount}</div>
 
         <div style="font-size:.78rem;color:#fdba74;margin-top:5px;font-weight:600">Reg. pendientes</div>
 
