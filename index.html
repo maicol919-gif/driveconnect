@@ -2654,7 +2654,7 @@
 
         <div id="reg-license-pills" style="display:flex;flex-wrap:wrap;gap:.5rem">
 
-          <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this)">? A2 — Moto +125cc</button>
+          <button type="button" class="reg-pill" data-val="A2" onclick="toggleLicense(this)">🏍️ A2 — Moto +125cc</button>
 
           <button type="button" class="reg-pill" data-val="B1" onclick="toggleLicense(this)">🚗 B1 — Carro particular</button>
 
@@ -4918,7 +4918,7 @@ function renderStudentPortal() {
 
 
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'? Moto +125cc' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc' };
 
   const tabsEl = document.getElementById('student-license-tabs');
 
@@ -5004,7 +5004,7 @@ function renderStudentProcessPanel(s, proc) {
 
   const rightPanel    = document.getElementById('student-active-panel');
 
-  const LICENSE_FULL  = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'? Moto +125cc' };
+  const LICENSE_FULL  = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc' };
 
   const licenseLabel  = LICENSE_FULL[proc.license] || proc.license || 'Tu proceso';
 
@@ -5838,9 +5838,9 @@ function renderInstructorPortal() {
 
 
 
-  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'? A2' };
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍️ A2' };
 
-  const LICENSE_FULL   = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'? Moto +125cc', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL   = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado' };
 
 
 
@@ -6174,7 +6174,7 @@ async function instMarkPracticeStarted(docNumber, license) {
 
   if (!student) return;
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'? Moto +125cc', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado' };
 
 
 
@@ -6262,7 +6262,7 @@ async function instMarkReady(docNumber, license) {
 
   modal.className = 'modal-overlay active';
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'? Moto +125cc', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado' };
 
   modal.innerHTML = `
 
@@ -6336,7 +6336,7 @@ async function confirmGraduate(docNumber, license) {
 
   const s = STATE.students.find(st => st.docNumber === docNumber);
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'? Moto +125cc', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado' };
 
 
 
@@ -6418,7 +6418,7 @@ async function coordMarkPracticeStarted(docNumber, license) {
 
   const s = STATE.students.find(st => st.docNumber === docNumber);
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'? Moto +125cc' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc' };
 
   const existing = document.getElementById('coord-start-modal');
 
@@ -6490,7 +6490,7 @@ async function coordCloseProcess(docNumber, license) {
 
   const s = STATE.students.find(st => st.docNumber === docNumber);
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'? Moto +125cc' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc' };
 
   const existing = document.getElementById('coord-close-modal');
 
@@ -10231,7 +10231,7 @@ async function saveInstructor(instId) {
 
   const action = instId ? 'updateInstructor' : 'addInstructor';
 
-  const rInst = await apiCall({ action, id, name, phone, availability, specialty, specialtyB, specialtyC, email: '', photo: '' });
+  const rInst = await apiCall({ action, id, name, phone, availability, specialty, specialtyB, specialtyC, email: '', photo: '', pin: instId ? undefined : '1234' });
 
   if (!rInst?.success) { msg.textContent = '❌ Error: ' + (rInst?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
 
@@ -12109,7 +12109,7 @@ async function coordRegisterSubmit() {
 
 async function studentSelfConfirmContact(license) {
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'? Moto +125cc', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado' };
 
   document.getElementById('self-confirm-modal')?.remove();
 
@@ -12165,9 +12165,9 @@ function openStudentProfile(docNumber) {
 
   const allProcs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
 
-  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'? Moto +125cc' };
+  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc' };
 
-  const LICENSE_SHORT  = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'? A2' };
+  const LICENSE_SHORT  = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍️ A2' };
 
   const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
 
