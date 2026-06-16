@@ -3057,6 +3057,13 @@ async function postData(action, params) {
 
 // apiCall — envía acciones por JSONP (GET) para evitar restricciones de autenticación
 
+async function ensureProcesos(docNumber, licenses) {
+  for (const lic of licenses.filter(Boolean)) {
+    try { await apiCall({ action: 'assignInstructor', docNumber, instructorId: '', license: lic, state: 'theory_passed' }); }
+    catch(e) { console.error('ensureProcesos falló', docNumber, lic, e); }
+  }
+}
+
 function apiCall(params) {
 
   const url = localStorage.getItem('dc_script_url') || CONFIG.SCRIPT_URL;
@@ -4217,7 +4224,7 @@ async function registerStudent() {
 
     if (!data.success) throw new Error(data.error || 'Error al registrar. Intenta de nuevo.');
 
-
+    await ensureProcesos(docNumber, [license, license2]);
 
     // Show PIN screen
 
@@ -12038,7 +12045,7 @@ async function coordRegisterSubmit() {
 
     if (!data.success) throw new Error(data.error || 'Error al registrar.');
 
-
+    await ensureProcesos(docNumber, licVals);
 
     // Approve immediately
 
