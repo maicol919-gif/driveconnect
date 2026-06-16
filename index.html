@@ -4077,7 +4077,7 @@ function toggleLicense(btn, containerId) {
 
   const cid   = containerId || 'reg-license-pills';
 
-  const hint  = document.getElementById(cid === 'mr-license-pills' ? 'mr-license-hint' : 'reg-license-hint');
+  const hint  = document.getElementById(cid.replace('-pills','-hint'));
 
   if (btn.classList.contains('selected')) {
 
@@ -11715,15 +11715,87 @@ async function approveStudent(docNumber) {
 
   modal.className = 'modal-overlay active';
 
+  const theoryVal = s?.theoryPassedDate ? s.theoryPassedDate.substring(0,10) : today();
+
   modal.innerHTML = `
 
-    <div class="modal-content" style="max-width:360px;text-align:center">
+    <div class="modal-content" style="max-width:380px">
 
-      <div style="font-size:2rem;margin-bottom:.65rem">✅</div>
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem">
 
-      <h3 style="font-family:var(--font-title);font-size:1.1rem;font-weight:700;margin-bottom:.35rem">Aprobar registro</h3>
+        <span style="font-size:1.3rem">✅</span>
 
-      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:1.25rem"><strong>${s?.name || docNumber}</strong> podrá ingresar al portal con su PIN.</p>
+        <h3 style="font-family:var(--font-title);font-size:.98rem;font-weight:700;margin:0">Aprobar registro</h3>
+
+        <span style="font-size:.7rem;color:var(--text-muted);margin-left:auto" title="No editable">${getDocLabel(s?.docType)} ${docNumber}</span>
+
+      </div>
+
+      <div style="display:flex;gap:.5rem;margin-bottom:.5rem">
+
+        <div class="form-group" style="margin-bottom:0;flex:1">
+
+          <label class="config-label">Nombre</label>
+
+          <input id="appr-name" class="config-input" style="margin-bottom:0" value="${s?.name || ''}">
+
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;flex:1">
+
+          <label class="config-label">Celular</label>
+
+          <input id="appr-phone" class="config-input" style="margin-bottom:0" value="${s?.phone || ''}">
+
+        </div>
+
+      </div>
+
+      <div class="form-group" style="margin-bottom:.5rem">
+
+        <label class="config-label">Fecha examen teórico</label>
+
+        <input id="appr-date" type="date" class="config-input" style="margin-bottom:0" value="${theoryVal}">
+
+      </div>
+
+      ${(() => {
+
+        const procsForStu = STATE.procesos.filter(p => p.docNumber === docNumber);
+
+        const curLics = procsForStu.map(p => p.license);
+
+        const LICENSE_ICON = { A2:'🏍️', B1:'🚗', C1:'🚌', C2:'🚛' };
+
+        return `<div class="form-group" style="margin-bottom:.5rem">
+
+          <label class="config-label">Licencia <span style="color:var(--text-muted);font-size:.68rem">(máx 2)</span></label>
+
+          <div id="appr-license-pills" data-orig="${curLics.join(',')}" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.2rem">
+
+            ${Object.keys(LICENSE_ICON).map(k => `<button type="button" class="reg-pill ${curLics.includes(k)?'selected':''}" data-val="${k}" onclick="toggleLicense(this,'appr-license-pills')" style="padding:.3rem .6rem;font-size:.75rem" title="${LICENSE_LABELS[k]||k}">${LICENSE_ICON[k]} ${k}</button>`).join('')}
+
+          </div>
+
+          <div id="appr-license-hint" style="font-size:.68rem;color:var(--text-muted);margin-top:.3rem;min-height:.9rem"></div>
+
+        </div>`;
+
+      })()}
+
+      <div class="form-group" style="margin-bottom:.75rem">
+
+        <label class="config-label">Horario</label>
+
+        <div id="appr-schedule-pills" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.2rem">
+
+          ${Object.entries({morning:'Mañana',afternoon:'Tarde',evening:'Noche',weekend:'Finde',flexible:'Flexible'}).map(([k,lbl]) => `<button type="button" class="reg-pill ${(s?.preferredSchedule||'').split(',').includes(k)?'selected':''}" data-val="${k}" onclick="togglePill(this,'appr-schedule-pills')" style="padding:.3rem .6rem;font-size:.75rem">${lbl}</button>`).join('')}
+
+        </div>
+
+      </div>
+
+      <div id="appr-error" style="display:none;color:var(--danger);font-size:.78rem;margin-bottom:.75rem"></div>
 
       <div style="display:flex;gap:.65rem">
 
@@ -11743,6 +11815,26 @@ async function approveStudent(docNumber) {
 
 async function approveStudentExec(docNumber) {
 
+  const errEl = document.getElementById('appr-error');
+
+  const name  = document.getElementById('appr-name').value.trim();
+
+  const phone = document.getElementById('appr-phone').value.trim();
+
+  const theoryDate = document.getElementById('appr-date').value || today();
+
+  if (!name) { errEl.textContent = 'El nombre es obligatorio.'; errEl.style.display = 'block'; return; }
+
+  const licContainer = document.getElementById('appr-license-pills');
+
+  const origLics = licContainer ? licContainer.dataset.orig.split(',').filter(Boolean) : [];
+
+  const newLics  = licContainer ? [...licContainer.querySelectorAll('.reg-pill.selected')].map(b => b.dataset.val) : [];
+
+  const schedule = getPillValues('appr-schedule-pills');
+
+  if (licContainer && newLics.length === 0) { errEl.textContent = 'Selecciona al menos una licencia.'; errEl.style.display = 'block'; return; }
+
   document.getElementById('approve-modal')?.remove();
 
   showToast('Aprobando registro...', 'info');
@@ -11751,7 +11843,39 @@ async function approveStudentExec(docNumber) {
 
     const s0 = STATE.students.find(x => x.docNumber === docNumber);
 
-    const theoryDate = s0?.theoryPassedDate || today();
+    if (name !== s0?.name || phone !== s0?.phone || schedule !== (s0?.preferredSchedule||'')) {
+
+      const dataUp = await apiCall({ action: 'updateStudent', docNumber, name, phone, docType: s0?.docType || 'CC', theoryPassedDate: theoryDate, preferredSchedule: schedule });
+
+      if (!dataUp?.success) throw new Error(dataUp?.error || 'Error al guardar datos editados');
+
+    }
+
+    const toRemove = origLics.filter(l => !newLics.includes(l));
+
+    const toAdd    = newLics.filter(l => !origLics.includes(l));
+
+    for (const lic of toRemove) {
+
+      const dataComplete = await apiCall({ action: 'completeProceso', docNumber, license: lic });
+
+      if (!dataComplete?.success) throw new Error(dataComplete?.error || `Error al cerrar proceso ${lic}`);
+
+      const oldProc = STATE.procesos.find(p => p.docNumber === docNumber && p.license === lic);
+
+      if (oldProc) oldProc.state = 'completed';
+
+    }
+
+    for (const lic of toAdd) {
+
+      const dataNewProc = await apiCall({ action: 'assignInstructor', docNumber, instructorId: '', license: lic, state: 'theory_passed' });
+
+      if (!dataNewProc?.success) throw new Error(dataNewProc?.error || `Error al crear proceso ${lic}`);
+
+      STATE.procesos.push({ docNumber, license: lic, state: 'theory_passed', instructorId: '' });
+
+    }
 
     const data = await apiCall({ action: 'approveStudent', docNumber, theoryPassedDate: theoryDate });
 
@@ -11759,9 +11883,9 @@ async function approveStudentExec(docNumber) {
 
     const s = STATE.students.find(x => x.docNumber === docNumber);
 
-    if (s) { s.active = 'true'; s.theoryPassedDate = theoryDate; }
+    if (s) { s.active = 'true'; s.theoryPassedDate = theoryDate; s.name = name; s.phone = phone; s.preferredSchedule = schedule; }
 
-    STATE.procesos.filter(p => p.docNumber === docNumber).forEach(p => p.state = 'theory_passed');
+    STATE.procesos.filter(p => p.docNumber === docNumber && p.state !== 'completed').forEach(p => p.state = 'theory_passed');
 
     showToast('✓ Alumno aprobado. Ya puede ingresar al portal.', 'success');
 
