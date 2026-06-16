@@ -6595,6 +6595,12 @@ function openEditStudent(docNumber) {
 
 
 
+  const coordSheet = document.getElementById('coord-sheet-overlay');
+
+  if (coordSheet) coordSheet.remove();
+
+
+
   document.getElementById('edit-st-name').value    = s.name    || '';
 
   document.getElementById('edit-st-phone').value   = s.phone   || '';
@@ -7940,6 +7946,8 @@ function openCoordDetail(docNum, targetId) {
 
       </div>
 
+      <button onclick="openEditStudent('${docNum}')" title="Actualizar datos" style="width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#93c5fd;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">✎</button>
+
       <button onclick="(function(){const d=document.getElementById('${targetId||'coord-stu-detail'}');if(d){d.style.display='none';d.dataset.doc='';}window._coordInstStuSelected=null;if('${targetId}'==='coord-inst-stu-detail')_renderInstStudentList();})()" style="width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:#475569;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0">&times;</button>
 
     </div>
@@ -8640,6 +8648,9 @@ function openCoordSheet(docNum) {
           <div style="font-size:.72rem;color:var(--text-muted)">${docNum}</div>
 
         </div>
+
+        <button onclick="openEditStudent('${docNum}')" title="Actualizar datos"
+          style="width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);color:var(--brand-light);cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;flex-shrink:0">✎</button>
 
         <button onclick="document.getElementById('coord-sheet-overlay').remove()"
 
