@@ -11015,14 +11015,38 @@ async function writeLog(action, target, detail) {
   apiCall({ action: 'addLog', entry: JSON.stringify(entry) });
 }
 
+const LOG_LABELS = {
+  login:                t => `${t} inició sesión`,
+  instructor_asignado:  t => `Instructor asignado a ${t}`,
+  estado_cambiado:      (t,d) => `Estado cambiado: ${t}${d ? ' — '+d : ''}`,
+  alumno_agregado:      t => `Alumno agregado: ${t}`,
+  alumno_editado:       t => `Alumno editado: ${t}`,
+  alumno_aprobado:      t => `Alumno aprobado: ${t}`,
+  alumno_eliminado:     t => `Alumno eliminado: ${t}`,
+  instructor_agregado:  t => `Instructor agregado: ${t}`,
+  instructor_editado:   t => `Instructor editado: ${t}`,
+  instructor_estado:    (t,d) => `Instructor ${d}: ${t}`,
+  contacto_registrado:  (t,d) => `Contacto registrado: ${t}${d ? ' ['+d+']' : ''}`,
+  contacto_confirmado:  (t,d) => `Contacto confirmado: ${t}${d ? ' ['+d+']' : ''}`,
+  practica_iniciada:    (t,d) => `Prácticas iniciadas: ${t}${d ? ' ['+d+']' : ''}`,
+  proceso_completado:   (t,d) => `Proceso completado: ${t}${d ? ' ['+d+']' : ''}`,
+  expediente_cerrado:   (t,d) => `Expediente cerrado: ${t}${d ? ' ['+d+']' : ''}`,
+  reset_pin:            (t,d) => `PIN reseteado: ${t} (${d})`,
+  coordinador_agregado: t => `Coordinador agregado: ${t}`,
+  coordinador_editado:  t => `Coordinador editado: ${t}`,
+  coordinador_estado:   (t,d) => `Coordinador ${d}: ${t}`,
+};
+
 function _renderLogEntry(entry) {
   const icon = LOG_ICONS[entry.action] || '📋';
   const d = new Date(entry.ts);
   const ts = isNaN(d) ? '' : d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  const labelFn = LOG_LABELS[entry.action];
+  const label = labelFn ? labelFn(entry.target, entry.detail) : (entry.target || entry.detail || entry.action || '');
   return `<div style="display:flex;align-items:flex-start;gap:.5rem;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05)">
     <span style="flex-shrink:0;font-size:.85rem;line-height:1.5">${icon}</span>
     <div style="flex:1;min-width:0">
-      <div style="font-size:.73rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${entry.target || entry.detail || ''}</div>
+      <div style="font-size:.73rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
       <div style="font-size:.67rem;color:var(--text-muted)">${entry.who || ''}${ts ? ' · ' + ts : ''}</div>
     </div>
   </div>`;
