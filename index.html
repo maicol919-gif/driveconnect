@@ -11015,7 +11015,8 @@ async function writeLog(action, target, detail) {
     : role === 'instructor'  ? (STATE.currentUser?.data?.name || 'Instructor')
     : role === 'student'     ? (STATE.currentUser?.data?.name || 'Alumno')
     : 'Sistema';
-  const entry = { ts: new Date().toISOString(), who, role, action, target: target || '', detail: detail || '' };
+  const coordRole = STATE.currentUser?.data?.coordRole || '';
+  const entry = { ts: new Date().toISOString(), who, role, coordRole, action, target: target || '', detail: detail || '' };
   _logSaveLocal(entry);
   apiCall({ action: 'addLog', entry: JSON.stringify(entry) });
 }
@@ -11130,7 +11131,6 @@ async function openLogModal() {
           <option value="">Todos los roles</option>
           <option value="admin">Admin</option>
           <option value="office">Office</option>
-          <option value="">Sin rol</option>
         </select>` : ''}
       </div>
       <div id="lm-list" style="overflow-y:auto;flex:1;padding:.25rem 0">
