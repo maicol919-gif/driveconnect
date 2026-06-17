@@ -912,18 +912,6 @@
 
     .coord-main{flex:1;min-width:0;padding:1.25rem 1.4rem;overflow-y:auto}
 
-    /* ── Coordinator mobile layout ── */
-    .coord-bottom-nav{display:none}
-    @media(max-width:640px){
-      .coord-sidebar{display:none}
-      .coord-main{padding:.9rem 1rem 80px}
-      .coord-bottom-nav{display:grid;grid-template-columns:repeat(3,1fr);position:fixed;bottom:0;left:0;right:0;height:58px;background:#0f172a;border-top:1px solid rgba(255,255,255,.07);z-index:200}
-      .cbn-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:transparent;border:none;color:#4f6089;font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;position:relative;transition:color .15s}
-      .cbn-item.active{color:#818cf8}
-      .cbn-item i{font-size:20px}
-      .cbn-badge{position:absolute;top:6px;right:calc(50% - 18px);background:#dc2626;color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:20px;min-width:16px;text-align:center}
-    }
-
 
 
     /* Horario pills */
@@ -1868,20 +1856,6 @@
 
   </div><!-- /.coord-layout -->
 
-  <nav class="coord-bottom-nav">
-    <button class="cbn-item active" id="cbn-main" onclick="switchCoordTab('main')">
-      <i class="ti ti-home" aria-hidden="true"></i> Inicio
-    </button>
-    <button class="cbn-item" id="cbn-students" onclick="switchCoordTab('students')">
-      <i class="ti ti-users" aria-hidden="true"></i>
-      <span class="cbn-badge" id="cbn-badge-students" style="display:none"></span>
-      Alumnos
-    </button>
-    <button class="cbn-item" id="cbn-instructors" onclick="switchCoordTab('instructors')">
-      <i class="ti ti-chalkboard" aria-hidden="true"></i> Instructores
-    </button>
-  </nav>
-
   </section>
 
 
@@ -1919,6 +1893,8 @@
       <button class="coord-tab"        id="atab-students"   onclick="switchAdminTab('students')">🎓 Alumnos</button>
 
       <button class="coord-tab"        id="atab-logs"       onclick="switchAdminTab('logs')">📋 Logs</button>
+
+      <button class="coord-tab"        id="atab-integrity"  onclick="switchAdminTab('integrity')">🛡 Integridad <span id="integrity-tab-badge" style="display:none;background:#ef4444;color:#fff;font-size:.65rem;font-weight:700;border-radius:999px;padding:1px 6px;margin-left:3px">0</span></button>
 
     </div>
 
@@ -2228,6 +2204,31 @@
 
         </div>
 
+      </div>
+
+    </div>
+
+    <!-- TAB: INTEGRIDAD -->
+
+    <div id="aview-integrity" style="display:none">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem">
+        <div>
+          <h3 style="font-size:1rem;font-weight:700;margin-bottom:.2rem">Integridad de datos</h3>
+          <p class="text-muted" style="font-size:.78rem" id="integrity-last-run">No revisado aún</p>
+        </div>
+        <button class="btn-sec" style="font-size:.82rem" onclick="runIntegrityCheck()">🔄 Revisar ahora</button>
+      </div>
+
+      <div id="integrity-summary-row" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;margin-bottom:1.5rem">
+        <div class="metric-card"><div class="metric-icon-wrap">🔴</div><div class="metric-info"><h4>Críticos</h4><div class="metric-val" id="integrity-count-critical">—</div></div></div>
+        <div class="metric-card warning"><div class="metric-icon-wrap">🟡</div><div class="metric-info"><h4>Advertencias</h4><div class="metric-val" id="integrity-count-warn">—</div></div></div>
+        <div class="metric-card success"><div class="metric-icon-wrap">✅</div><div class="metric-info"><h4>Checks OK</h4><div class="metric-val" id="integrity-count-ok">—</div></div></div>
+        <div class="metric-card"><div class="metric-icon-wrap">📋</div><div class="metric-info"><h4>Total procesos</h4><div class="metric-val" id="integrity-count-total">—</div></div></div>
+      </div>
+
+      <div id="integrity-results">
+        <p class="text-muted text-center" style="padding:2rem">Presiona "Revisar ahora" para correr las validaciones.</p>
       </div>
 
     </div>
@@ -6827,10 +6828,6 @@ function switchCoordTab(tab) {
 
     if (btn) { btn.classList.toggle('active', t === tab); }
 
-    const cbn = document.getElementById('cbn-' + t);
-
-    if (cbn) { cbn.classList.toggle('active', t === tab); }
-
     const v = document.getElementById('coord-view-' + t);
 
     if (v) v.style.display = t === tab ? 'block' : 'none';
@@ -9525,10 +9522,6 @@ async function renderCoordinatorPortal() {
 
     sbBadge.style.display = urgentCount > 0 ? 'inline-block' : 'none';
 
-    const cbnBadge = document.getElementById('cbn-badge-students');
-
-    if (cbnBadge) { cbnBadge.textContent = urgentCount; cbnBadge.style.display = urgentCount > 0 ? 'inline-block' : 'none'; }
-
   }
 
 
@@ -9739,7 +9732,7 @@ async function switchAdminTab(tab) {
 
   _adminActiveTab = tab;
 
-  ['system','instructors','coordinators','students','logs'].forEach(t => {
+  ['system','instructors','coordinators','students','logs','integrity'].forEach(t => {
 
     document.getElementById('atab-' + t)?.classList.toggle('active', t === tab);
 
@@ -9766,6 +9759,115 @@ async function switchAdminTab(tab) {
   if (tab === 'students') renderAdminStudents();
 
   if (tab === 'logs') loadAdminLogs();
+
+  if (tab === 'integrity') runIntegrityCheck();
+
+}
+
+
+
+function runIntegrityCheck() {
+
+  const students  = STATE.students  || [];
+  const procesos  = STATE.procesos  || [];
+  const instrs    = STATE.instructors || [];
+
+  if (!students.length && !procesos.length) {
+    document.getElementById('integrity-results').innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin datos — conecta primero la base de datos.</p>';
+    return;
+  }
+
+  const instIds   = new Set(instrs.map(i => i.id));
+  const docsCon   = new Set(procesos.map(p => p.docNumber));
+
+  const issues = [];
+
+  // CHECK 1 — completed sin instructor ni contactDate
+  procesos.filter(p => p.state === 'completed' && !p.instructorId && !p.contactDate).forEach(p => {
+    issues.push({ level: 'critical', icon: '🔴', title: 'Completed sin historial real', desc: 'Proceso marcado completado sin instructor ni contacto — posible dato fantasma', case: p.docNumber + ' · ' + p.license });
+  });
+
+  // CHECK 2 — instructor asignado inexistente (en procesos activos)
+  procesos.filter(p => p.instructorId && !instIds.has(p.instructorId) && p.state !== 'completed').forEach(p => {
+    issues.push({ level: 'critical', icon: '🔴', title: 'Instructor inexistente asignado', desc: 'El instructorId del proceso no existe en el sistema', case: p.docNumber + ' · ' + p.license + ' · inst=' + p.instructorId });
+  });
+
+  // CHECK 3 — aprobados sin proceso
+  students.filter(s => s.active === 'true' && s.theoryPassedDate && !docsCon.has(s.docNumber)).forEach(s => {
+    issues.push({ level: 'warn', icon: '🟡', title: 'Aprobado sin proceso creado', desc: 'Alumno con examen aprobado pero sin ninguna fila en procesos', case: s.docNumber + ' · ' + s.name });
+  });
+
+  // CHECK 4 — estado avanzado sin instructor
+  procesos.filter(p => ['contacted','contact_confirmed','practice_started'].includes(p.state) && !p.instructorId).forEach(p => {
+    issues.push({ level: 'warn', icon: '🟡', title: 'Estado avanzado sin instructor', desc: 'Proceso en ' + p.state + ' pero instructorId vacío', case: p.docNumber + ' · ' + p.license });
+  });
+
+  // CHECK 5 — docNumber basura (>15 dígitos)
+  procesos.filter(p => p.docNumber && p.docNumber.length > 15).forEach(p => {
+    issues.push({ level: 'warn', icon: '🟡', title: 'DocNumber sospechoso', desc: 'docNumber con más de 15 caracteres — posible concatenación errónea del import', case: p.docNumber + ' · ' + p.license });
+  });
+
+  const critical = issues.filter(i => i.level === 'critical').length;
+  const warns    = issues.filter(i => i.level === 'warn').length;
+
+  const TOTAL_CHECKS = 5;
+  const checksOk = TOTAL_CHECKS - (critical > 0 ? 1 : 0) - (warns > 0 ? 1 : 0);
+
+  document.getElementById('integrity-count-critical').textContent = critical;
+  document.getElementById('integrity-count-warn').textContent     = warns;
+  document.getElementById('integrity-count-ok').textContent       = Math.max(0, TOTAL_CHECKS - (critical > 0 ? issues.filter(i=>i.level==='critical').map(i=>i.title).filter((v,k,a)=>a.indexOf(v)===k).length : 0) - (warns > 0 ? issues.filter(i=>i.level==='warn').map(i=>i.title).filter((v,k,a)=>a.indexOf(v)===k).length : 0));
+  document.getElementById('integrity-count-total').textContent    = procesos.length;
+  document.getElementById('integrity-last-run').textContent       = 'Última revisión: ' + new Date().toLocaleString('es-CO');
+
+  const badge = document.getElementById('integrity-tab-badge');
+  if (critical > 0) { badge.textContent = critical; badge.style.display = 'inline'; }
+  else { badge.style.display = 'none'; }
+
+  if (!issues.length) {
+    document.getElementById('integrity-results').innerHTML = '<div style="text-align:center;padding:2.5rem;color:var(--text-secondary)"><div style="font-size:2rem;margin-bottom:.5rem">✅</div><p style="font-weight:600">Todo OK — ninguna anomalía detectada</p><p style="font-size:.82rem;margin-top:.3rem">Se revisaron ' + TOTAL_CHECKS + ' validaciones sobre ' + procesos.length + ' procesos y ' + students.length + ' alumnos</p></div>';
+    return;
+  }
+
+  const grouped = {};
+  issues.forEach(i => { if (!grouped[i.title]) grouped[i.title] = { ...i, cases: [] }; grouped[i.title].cases.push(i.case); });
+
+  let html = '';
+  const critItems = Object.values(grouped).filter(g => g.level === 'critical');
+  const warnItems = Object.values(grouped).filter(g => g.level === 'warn');
+
+  if (critItems.length) {
+    html += '<p style="font-size:.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.5rem">Críticos — acción requerida</p>';
+    critItems.forEach(g => {
+      html += `<div class="glass-panel" style="border-left:3px solid #ef4444;margin-bottom:.75rem;padding:.875rem 1rem">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <span style="font-size:1.1rem">${g.icon}</span>
+          <div style="flex:1">
+            <p style="font-weight:700;font-size:.88rem;margin-bottom:.2rem">${g.title} <span style="background:#ef4444;color:#fff;font-size:.65rem;font-weight:700;border-radius:999px;padding:1px 6px;margin-left:4px">${g.cases.length}</span></p>
+            <p style="font-size:.78rem;color:var(--text-secondary);margin-bottom:.4rem">${g.desc}</p>
+            ${g.cases.map(c => `<code style="display:block;font-size:.7rem;color:var(--brand-light);margin-top:2px">${c}</code>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  if (warnItems.length) {
+    html += '<p style="font-size:.72rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin:.75rem 0 .5rem">Advertencias</p>';
+    warnItems.forEach(g => {
+      html += `<div class="glass-panel" style="border-left:3px solid #f59e0b;margin-bottom:.75rem;padding:.875rem 1rem">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <span style="font-size:1.1rem">${g.icon}</span>
+          <div style="flex:1">
+            <p style="font-weight:700;font-size:.88rem;margin-bottom:.2rem">${g.title} <span style="background:#f59e0b;color:#fff;font-size:.65rem;font-weight:700;border-radius:999px;padding:1px 6px;margin-left:4px">${g.cases.length}</span></p>
+            <p style="font-size:.78rem;color:var(--text-secondary);margin-bottom:.4rem">${g.desc}</p>
+            ${g.cases.map(c => `<code style="display:block;font-size:.7rem;color:var(--brand-light);margin-top:2px">${c}</code>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('integrity-results').innerHTML = html;
 
 }
 
@@ -9856,6 +9958,10 @@ async function renderAdminPortal() {
   if (_adminActiveTab === 'coordinators') renderAdminCoordinators();
 
   if (_adminActiveTab === 'students') renderAdminStudents();
+
+  if (_adminActiveTab === 'integrity') runIntegrityCheck();
+
+  runIntegrityCheck();
 
 }
 
