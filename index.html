@@ -3332,6 +3332,8 @@ function normalizeCoordinator(obj) {
 
     active:   String(k('active') || 'true').trim(),
 
+    role:     String(k('role') || '').trim().toLowerCase(),
+
   };
 
 }
@@ -4714,7 +4716,7 @@ async function loginCoordinator() {
 
 
 
-    STATE.currentUser = { role: 'coordinator', data: { username: user, name: coord.name || '' } };
+    STATE.currentUser = { role: 'coordinator', data: { username: user, name: coord.name || '', coordRole: coord.role || '' } };
 
     localStorage.setItem('dc_session', JSON.stringify({ session: STATE.currentUser, ts: Date.now() }));
 
@@ -11055,7 +11057,9 @@ function _renderLogEntry(entry) {
 function loadActivityLog() {
   const container = document.getElementById('coord-activity-log');
   if (!container) return;
-  const who = STATE.currentUser?.data?.name || STATE.currentUser?.data?.username || '';
+  const coordRole = STATE.currentUser?.data?.coordRole || '';
+  const isAdmin = coordRole === 'admin' || coordRole === 'office';
+  const who = isAdmin ? '' : (STATE.currentUser?.data?.name || STATE.currentUser?.data?.username || '');
   const renderLogs = (rawLogs) => {
     try {
       const entries = rawLogs.map(s => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean);
