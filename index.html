@@ -11148,10 +11148,6 @@ async function openLogModal() {
   } catch {}
   document.getElementById('lm-count').textContent = _allEntries.length + ' registros';
 
-  window._lmEntries = _allEntries;
-  window._lmPage = 0;
-  lmFilter();
-
   function lmRenderEntry(e) {
     const icon = LOG_ICONS[e.action] || '📋';
     const labelFn = LOG_LABELS[e.action];
@@ -11179,7 +11175,7 @@ async function openLogModal() {
     });
     window._lmFiltered = filtered;
     window._lmPage = 0;
-    lmRender();
+    window.lmRender();
   };
   window.lmRender = function() {
     const list = document.getElementById('lm-list');
@@ -11188,9 +11184,13 @@ async function openLogModal() {
     const slice = (window._lmFiltered||[]).slice(0, (window._lmPage+1)*PAGE);
     const more = slice.length < (window._lmFiltered||[]).length;
     list.innerHTML = slice.length
-      ? slice.map(lmRenderEntry).join('') + (more ? `<div style="text-align:center;padding:.75rem"><button onclick="window._lmPage++;lmRender()" style="background:none;border:none;color:var(--accent);font-size:.78rem;cursor:pointer;text-decoration:underline">Cargar más</button></div>` : '')
+      ? slice.map(lmRenderEntry).join('') + (more ? `<div style="text-align:center;padding:.75rem"><button onclick="window._lmPage++;window.lmRender()" style="background:none;border:none;color:var(--accent);font-size:.78rem;cursor:pointer;text-decoration:underline">Cargar más</button></div>` : '')
       : `<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:.8rem">Sin resultados</div>`;
   };
+
+  window._lmEntries = _allEntries;
+  window._lmPage = 0;
+  window.lmFilter();
 }
 
 function loadAdminLogs() {
