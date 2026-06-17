@@ -11121,12 +11121,12 @@ async function openLogModal() {
         <button onclick="document.getElementById('log-modal-overlay').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;line-height:1">×</button>
       </div>
       <div style="display:flex;gap:8px;padding:.65rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap">
-        <input id="lm-search" type="text" placeholder="Buscar por nombre o cédula…" oninput="lmFilter()" style="flex:1;min-width:140px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:.8rem;outline:none">
-        <select id="lm-action" onchange="lmFilter()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:.8rem;outline:none">
+        <input id="lm-search" type="text" placeholder="Buscar por nombre o cédula…" oninput="lmFilter()" style="flex:1;min-width:140px;background:#1e293b;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 10px;color:#f1f5f9;font-size:.8rem;outline:none">
+        <select id="lm-action" onchange="lmFilter()" style="background:#1e293b;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 10px;color:#f1f5f9;font-size:.8rem;outline:none">
           <option value="">Todas las acciones</option>
           ${Object.entries(ACTION_ES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
         </select>
-        ${isAdmin ? `<select id="lm-role" onchange="lmFilter()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:.8rem;outline:none">
+        ${isAdmin ? `<select id="lm-role" onchange="lmFilter()" style="background:#1e293b;border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:6px 10px;color:#f1f5f9;font-size:.8rem;outline:none">
           <option value="">Todos los roles</option>
           <option value="admin">Admin</option>
           <option value="office">Office</option>
