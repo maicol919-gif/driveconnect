@@ -4584,6 +4584,8 @@ async function loginInstructor() {
 
     document.querySelector('.logo-container').classList.add('no-click');
 
+    writeLog('login', instructor.name, 'instructor');
+
     renderInstructorPortal();
 
     showView('view-instructor');
@@ -4717,6 +4719,8 @@ async function loginCoordinator() {
     localStorage.setItem('dc_session', JSON.stringify({ session: STATE.currentUser, ts: Date.now() }));
 
     document.querySelector('.logo-container').classList.add('no-click');
+
+    writeLog('login', coord.name || user, 'coordinator');
 
     renderCoordinatorPortal();
 
@@ -5780,6 +5784,8 @@ async function studentConfirmContact(confirmed, license) {
 
     await apiCall({ action: 'confirmContact', docNumber: student.docNumber, license, confirmedDate: now });
 
+    await writeLog('contacto_confirmado', student.name, license);
+
   } else {
 
     proc.state = 'instructor_assigned';
@@ -6196,6 +6202,8 @@ async function instMarkContactedConfirm(docNumber, license) {
 
       showToast('✓ Contacto registrado — el alumno verá la solicitud de confirmación.', 'success');
 
+      await writeLog('contacto_registrado', STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber, license);
+
       renderInstructorPortal();
 
     } else {
@@ -6436,7 +6444,7 @@ async function confirmGraduateExec(docNumber, license) {
 
       showToast('🎓 Expediente cerrado exitosamente.', 'success');
 
-      await writeLog(`Expediente cerrado: ${STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber} [${license}]`);
+      await writeLog('expediente_cerrado', STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber, license);
 
       renderCoordinatorPortal();
 
@@ -6516,7 +6524,7 @@ async function coordMarkPracticeStartedExec(docNumber, license) {
 
       showToast('🚗 Clases iniciadas registradas.', 'success');
 
-      await writeLog(`Clases iniciadas: ${STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber} [${license}]`);
+      await writeLog('practica_iniciada', STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber, license);
 
       await renderCoordinatorPortal();
 
@@ -6590,7 +6598,7 @@ async function coordCloseProcessExec(docNumber, license) {
 
       showToast('🎓 Proceso cerrado exitosamente.', 'success');
 
-      await writeLog(`Proceso cerrado: ${STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber} [${license}]`);
+      await writeLog('proceso_completado', STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber, license);
 
       await renderCoordinatorPortal();
 
@@ -6700,7 +6708,7 @@ async function editStudentSubmit() {
 
     showToast('✅ Datos del alumno actualizados.', 'success');
 
-    await writeLog(`Alumno editado: ${name} (${_editStudentDoc})`);
+    await writeLog('alumno_editado', name, _editStudentDoc);
 
 
 
@@ -9572,7 +9580,7 @@ async function renderCoordinatorPortal() {
 
   });
 
-
+  loadActivityLog();
 
   // Wire search/filter listeners (una sola vez)
 
@@ -10439,7 +10447,7 @@ async function saveInstructor(instId) {
 
   if (!rInst?.success) { msg.textContent = '❌ Error: ' + (rInst?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
 
-  await writeLog(`Instructor ${instId ? 'editado' : 'agregado'}: ${name} (CC ${id})`);
+  await writeLog(instId ? 'instructor_editado' : 'instructor_agregado', name, id);
 
   document.getElementById('inst-edit-modal').remove();
 
@@ -10469,7 +10477,7 @@ async function toggleInstructor(instId) {
 
   if (!rTog?.success) { showToast('❌ Error al cambiar estado del instructor', 'error'); return; }
 
-  await writeLog(`Instructor ${isActive ? 'desactivado' : 'activado'}: ${inst.name}`);
+  await writeLog('instructor_estado', inst.name, isActive ? 'desactivado' : 'activado');
 
   inst.active = newVal;
 
@@ -10635,7 +10643,7 @@ async function saveCoordinator(oldUser) {
 
   if (!rCoord?.success) { msg.textContent = '❌ Error: ' + (rCoord?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
 
-  await writeLog(`Coordinador ${oldUser ? 'editado' : 'agregado'}: ${user}`);
+  await writeLog(oldUser ? 'coordinador_editado' : 'coordinador_agregado', user);
 
   document.getElementById('coord-edit-modal').remove();
 
@@ -10663,7 +10671,7 @@ async function toggleCoordinator(username) {
 
   if (!rTogC?.success) { showToast('❌ Error al cambiar estado del coordinador', 'error'); return; }
 
-  await writeLog(`Coordinador ${isActive ? 'desactivado' : 'activado'}: ${username}`);
+  await writeLog('coordinador_estado', username, isActive ? 'desactivado' : 'activado');
 
   coord.active = newVal;
 
@@ -10785,7 +10793,7 @@ async function adminAddStudent() {
 
   if (!rAddSt?.success) { msg.textContent = '❌ Error: ' + (rAddSt?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
 
-  await writeLog(`Alumno agregado: ${name} (${docType} ${docNum})`);
+  await writeLog('alumno_agregado', name, docNum);
 
   msg.textContent = '✅ Alumno agregado correctamente.'; msg.style.color = 'var(--success)';
 
@@ -10943,6 +10951,9 @@ async function confirmStateChange(docNumber, license, newState, effects = {}) {
 
     showToast('✅ Estado actualizado', 'success');
 
+    const _sName = STATE.students.find(s=>s.docNumber===docNumber)?.name||docNumber;
+    await writeLog('estado_cambiado', _sName, license + ': → ' + newState);
+
   } else {
 
     showToast('Error al actualizar estado', 'error');
@@ -10967,22 +10978,62 @@ function retryConnection() {
 
 
 
-async function writeLog(message) {
+const LOG_ICONS = {
+  instructor_asignado:  '👤', estado_cambiado:      '🔄',
+  alumno_agregado:      '➕', alumno_editado:       '✏️',
+  alumno_aprobado:      '✅', alumno_eliminado:     '🗑️',
+  instructor_agregado:  '👨‍🏫', instructor_editado:  '✏️',
+  instructor_estado:    '👨‍🏫', contacto_registrado: '📞',
+  contacto_confirmado:  '✔️', practica_iniciada:    '🚗',
+  proceso_completado:   '🏁', expediente_cerrado:   '📁',
+  reset_pin:            '🔑', login:                '🔐',
+  coordinador_agregado: '👤', coordinador_editado:  '✏️',
+  coordinador_estado:   '👤',
+};
 
+async function writeLog(action, target, detail) {
   const role = STATE.currentUser?.role || 'sistema';
-
-  const who = role === 'admin' ? 'Superadmin'
-
-    : role === 'coordinator' ? `Coord. ${STATE.currentUser?.data?.username || ''}`
-
-    : role === 'instructor' ? `Instructor ${STATE.currentUser?.data?.name || ''}`
-
+  const who = role === 'admin'       ? 'Superadmin'
+    : role === 'coordinator' ? (STATE.currentUser?.data?.name || STATE.currentUser?.data?.username || 'Coordinador')
+    : role === 'instructor'  ? (STATE.currentUser?.data?.name || 'Instructor')
+    : role === 'student'     ? (STATE.currentUser?.data?.name || 'Alumno')
     : 'Sistema';
-
-  const entry = `[${new Date().toLocaleString('es-CO')}] ${who}: ${message}`;
-
+  const entry = JSON.stringify({ ts: new Date().toISOString(), who, role, action, target: target || '', detail: detail || '' });
   await postData('addLog', { entry });
+}
 
+async function loadActivityLog() {
+  const container = document.getElementById('coord-activity-log');
+  if (!container) return;
+  try {
+    const raw = await fetchData();
+    const logs = (raw?.logs || []).slice().reverse().slice(0, 12);
+    if (!logs.length) { container.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:.5rem 0">Sin actividad registrada aún</div>'; return; }
+    container.innerHTML = logs.map(l => {
+      let ts = '', who = '', action = '', target = '', icon = '📋';
+      try {
+        const p = JSON.parse(l.entry || l);
+        const d = new Date(p.ts);
+        ts = isNaN(d) ? '' : d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+        who = p.who || ''; action = p.action || ''; target = p.target || p.detail || '';
+        icon = LOG_ICONS[action] || '📋';
+      } catch {
+        const str = String(l.entry || l);
+        ts = str.match(/\[([^\]]+)\]/)?.[1] || '';
+        target = str.replace(/\[[^\]]+\]\s*/, '').replace(/^[^:]+:\s*/, '');
+        who = str.match(/\]\s*([^:]+):/)?.[1]?.trim() || '';
+      }
+      return `<div style="display:flex;align-items:flex-start;gap:.5rem;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <span style="flex-shrink:0;font-size:.85rem;line-height:1.5">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.73rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${target}</div>
+          <div style="font-size:.67rem;color:var(--text-muted)">${who}${ts ? ' · ' + ts : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:.5rem 0">Error cargando actividad</div>';
+  }
 }
 
 
@@ -11007,13 +11058,28 @@ async function loadAdminLogs() {
 
     }
 
-    container.innerHTML = logs.map(l => `
-
-      <div style="padding:.65rem 1rem;border-bottom:1px solid var(--border-color);font-size:.8rem;color:var(--text-secondary)">
-
-        ${String(l.entry || l)}
-
-      </div>`).join('');
+    container.innerHTML = logs.map(l => {
+      let ts = '', who = '', action = '', target = '', detail = '', icon = '📋';
+      try {
+        const p = JSON.parse(l.entry || l);
+        const d = new Date(p.ts);
+        ts = isNaN(d) ? '' : d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+        who = p.who || ''; action = p.action || ''; target = p.target || ''; detail = p.detail || '';
+        icon = LOG_ICONS[action] || '📋';
+      } catch {
+        const str = String(l.entry || l);
+        ts = str.match(/\[([^\]]+)\]/)?.[1] || '';
+        who = str.match(/\]\s*([^:]+):/)?.[1]?.trim() || '';
+        target = str.replace(/\[[^\]]+\]\s*/, '').replace(/^[^:]+:\s*/, '');
+      }
+      return `<div style="display:flex;align-items:flex-start;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--border-color)">
+        <span style="flex-shrink:0;font-size:1rem;line-height:1.6">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;color:var(--text-primary)">${target}${detail ? `<span style="color:var(--text-muted)"> · ${detail}</span>` : ''}</div>
+          <div style="font-size:.72rem;color:var(--text-muted);margin-top:2px">${who}${ts ? ' · ' + ts : ''}</div>
+        </div>
+      </div>`;
+    }).join('');
 
   } catch(e) {
 
@@ -11749,7 +11815,7 @@ async function confirmAssign() {
 
     if (!r?.success) { showToast('❌ Error al asignar instructor: ' + (r?.error || 'desconocido'), 'error'); return; }
 
-    await writeLog(`Instructor asignado: ${inst.name} → ${student.name} (${docNumber}) [${license}]`);
+    await writeLog('instructor_asignado', student.name, inst.name + ' [' + license + ']');
 
   }
 
@@ -12043,7 +12109,7 @@ async function approveStudentExec(docNumber) {
 
     showToast('✓ Alumno aprobado. Ya puede ingresar al portal.', 'success');
 
-    await writeLog(`Registro aprobado: ${STATE.students.find(x=>x.docNumber===docNumber)?.name||docNumber} (${docNumber})`);
+    await writeLog('alumno_aprobado', STATE.students.find(x=>x.docNumber===docNumber)?.name||docNumber, docNumber);
 
     renderPendingList();
 
@@ -12117,7 +12183,7 @@ async function rejectStudentExec(docNumber) {
 
     showToast('Registro rechazado y eliminado.', 'success');
 
-    await writeLog(`Registro rechazado/eliminado: ${docNumber}`);
+    await writeLog('alumno_eliminado', docNumber);
 
     renderPendingList();
 
@@ -12312,6 +12378,7 @@ async function rpConfirm() {
       if (res?.success) { const i = STATE.instructors.find(x => x.id === sel.id); if (i) i.pin = '1234'; }
     }
     if (!res?.success) throw new Error(res?.error || 'Error');
+    await writeLog('reset_pin', sel.label, tab);
     document.getElementById('reset-pin-modal')?.remove();
     showToast(`🔑 PIN de ${sel.label.split(' ')[0]} reseteado a 1234`, 'success');
   } catch(e) {
@@ -12536,7 +12603,7 @@ async function coordRegisterSubmit() {
 
     showToast(`✓ Alumno registrado. PIN: ${pin} — entrégaselo en mano.`, 'success');
 
-    await writeLog(`Alumno registrado (manual): ${name} (${docType} ${docNumber}) [${licVals.join('+')}]`);
+    await writeLog('alumno_agregado', name, docNumber);
 
 
 
