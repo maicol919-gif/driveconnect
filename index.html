@@ -10991,6 +10991,18 @@ const LOG_ICONS = {
   coordinador_estado:   '👤',
 };
 
+const DC_LOG_KEY = 'dc_activity_log';
+const DC_LOG_MAX = 20;
+
+function _logSaveLocal(entry) {
+  try {
+    const logs = JSON.parse(localStorage.getItem(DC_LOG_KEY) || '[]');
+    logs.unshift(entry);
+    if (logs.length > DC_LOG_MAX) logs.length = DC_LOG_MAX;
+    localStorage.setItem(DC_LOG_KEY, JSON.stringify(logs));
+  } catch {}
+}
+
 async function writeLog(action, target, detail) {
   const role = STATE.currentUser?.role || 'sistema';
   const who = role === 'admin'       ? 'Superadmin'
@@ -10998,94 +11010,62 @@ async function writeLog(action, target, detail) {
     : role === 'instructor'  ? (STATE.currentUser?.data?.name || 'Instructor')
     : role === 'student'     ? (STATE.currentUser?.data?.name || 'Alumno')
     : 'Sistema';
-  const entry = JSON.stringify({ ts: new Date().toISOString(), who, role, action, target: target || '', detail: detail || '' });
-  await postData('addLog', { entry });
+  const entry = { ts: new Date().toISOString(), who, role, action, target: target || '', detail: detail || '' };
+  _logSaveLocal(entry);
+  apiCall({ action: 'addLog', entry: JSON.stringify(entry) });
 }
 
-async function loadActivityLog() {
+function _renderLogEntry(entry) {
+  const icon = LOG_ICONS[entry.action] || '📋';
+  const d = new Date(entry.ts);
+  const ts = isNaN(d) ? '' : d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+  return `<div style="display:flex;align-items:flex-start;gap:.5rem;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05)">
+    <span style="flex-shrink:0;font-size:.85rem;line-height:1.5">${icon}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:.73rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${entry.target || entry.detail || ''}</div>
+      <div style="font-size:.67rem;color:var(--text-muted)">${entry.who || ''}${ts ? ' · ' + ts : ''}</div>
+    </div>
+  </div>`;
+}
+
+function loadActivityLog() {
   const container = document.getElementById('coord-activity-log');
   if (!container) return;
   try {
-    const raw = await fetchData();
-    const logs = (raw?.logs || []).slice().reverse().slice(0, 12);
+    const logs = JSON.parse(localStorage.getItem(DC_LOG_KEY) || '[]').slice(0, 12);
     if (!logs.length) { container.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:.5rem 0">Sin actividad registrada aún</div>'; return; }
-    container.innerHTML = logs.map(l => {
-      let ts = '', who = '', action = '', target = '', icon = '📋';
-      try {
-        const p = JSON.parse(l.entry || l);
-        const d = new Date(p.ts);
-        ts = isNaN(d) ? '' : d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
-        who = p.who || ''; action = p.action || ''; target = p.target || p.detail || '';
-        icon = LOG_ICONS[action] || '📋';
-      } catch {
-        const str = String(l.entry || l);
-        ts = str.match(/\[([^\]]+)\]/)?.[1] || '';
-        target = str.replace(/\[[^\]]+\]\s*/, '').replace(/^[^:]+:\s*/, '');
-        who = str.match(/\]\s*([^:]+):/)?.[1]?.trim() || '';
-      }
-      return `<div style="display:flex;align-items:flex-start;gap:.5rem;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.05)">
-        <span style="flex-shrink:0;font-size:.85rem;line-height:1.5">${icon}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.73rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${target}</div>
-          <div style="font-size:.67rem;color:var(--text-muted)">${who}${ts ? ' · ' + ts : ''}</div>
-        </div>
-      </div>`;
-    }).join('');
-  } catch(e) {
-    container.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:.5rem 0">Error cargando actividad</div>';
+    container.innerHTML = logs.map(_renderLogEntry).join('');
+  } catch {
+    container.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:.5rem 0">Sin actividad registrada aún</div>';
   }
 }
 
 
 
-async function loadAdminLogs() {
+function loadAdminLogs() {
 
   const container = document.getElementById('admin-logs-container');
+  if (!container) return;
 
-  container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">⏳ Cargando logs...</p>';
+  const logs = (() => { try { return JSON.parse(localStorage.getItem(DC_LOG_KEY) || '[]'); } catch { return []; } })();
 
-  try {
-
-    const raw = await fetchData();
-
-    const logs = (raw?.logs || []).reverse();
-
-    if (!logs.length) {
-
-      container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin actividad registrada aún.</p>';
-
-      return;
-
-    }
-
-    container.innerHTML = logs.map(l => {
-      let ts = '', who = '', action = '', target = '', detail = '', icon = '📋';
-      try {
-        const p = JSON.parse(l.entry || l);
-        const d = new Date(p.ts);
-        ts = isNaN(d) ? '' : d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
-        who = p.who || ''; action = p.action || ''; target = p.target || ''; detail = p.detail || '';
-        icon = LOG_ICONS[action] || '📋';
-      } catch {
-        const str = String(l.entry || l);
-        ts = str.match(/\[([^\]]+)\]/)?.[1] || '';
-        who = str.match(/\]\s*([^:]+):/)?.[1]?.trim() || '';
-        target = str.replace(/\[[^\]]+\]\s*/, '').replace(/^[^:]+:\s*/, '');
-      }
-      return `<div style="display:flex;align-items:flex-start;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--border-color)">
-        <span style="flex-shrink:0;font-size:1rem;line-height:1.6">${icon}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.8rem;color:var(--text-primary)">${target}${detail ? `<span style="color:var(--text-muted)"> · ${detail}</span>` : ''}</div>
-          <div style="font-size:.72rem;color:var(--text-muted);margin-top:2px">${who}${ts ? ' · ' + ts : ''}</div>
-        </div>
-      </div>`;
-    }).join('');
-
-  } catch(e) {
-
-    container.innerHTML = `<p class="text-muted text-center" style="padding:2rem">❌ Error al cargar logs: ${e.message}</p>`;
-
+  if (!logs.length) {
+    container.innerHTML = '<p class="text-muted text-center" style="padding:2rem">Sin actividad registrada aún.</p>';
+    return;
   }
+
+  container.innerHTML = logs.map(entry => {
+    const icon = LOG_ICONS[entry.action] || '📋';
+    const d = new Date(entry.ts);
+    const ts = isNaN(d) ? '' : d.toLocaleString('es-CO', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+    return `<div style="display:flex;align-items:flex-start;gap:.75rem;padding:.6rem 1rem;border-bottom:1px solid var(--border-color)">
+      <span style="flex-shrink:0;font-size:1rem;line-height:1.6">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.8rem;color:var(--text-primary)">${entry.target || ''}${entry.detail ? `<span style="color:var(--text-muted)"> · ${entry.detail}</span>` : ''}</div>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:2px">${entry.who || ''}${ts ? ' · ' + ts : ''}</div>
+      </div>
+    </div>`;
+  }).join('');
 
 }
 
