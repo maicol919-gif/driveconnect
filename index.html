@@ -10421,7 +10421,7 @@ async function saveInstructor(instId) {
 
   const action = instId ? 'updateInstructor' : 'addInstructor';
 
-  const rInst = await apiCall({ action, id, name, phone, availability, specialty, specialtyB, specialtyC, email: '', photo: '', pin: instId ? undefined : '1234' });
+  const rInst = await apiCall({ action, id, name, phone, availability, specialty, specialtyB, specialtyC, pin: instId ? undefined : '1234' });
 
   if (!rInst?.success) { msg.textContent = '❌ Error: ' + (rInst?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
 
