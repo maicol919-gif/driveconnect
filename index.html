@@ -912,6 +912,18 @@
 
     .coord-main{flex:1;min-width:0;padding:1.25rem 1.4rem;overflow-y:auto}
 
+    /* ── Coordinator mobile layout ── */
+    .coord-bottom-nav{display:none}
+    @media(max-width:640px){
+      .coord-sidebar{display:none}
+      .coord-main{padding:.9rem 1rem 80px}
+      .coord-bottom-nav{display:grid;grid-template-columns:repeat(3,1fr);position:fixed;bottom:0;left:0;right:0;height:58px;background:#0f172a;border-top:1px solid rgba(255,255,255,.07);z-index:200}
+      .cbn-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:transparent;border:none;color:#4f6089;font-size:10px;font-weight:600;font-family:inherit;cursor:pointer;position:relative;transition:color .15s}
+      .cbn-item.active{color:#818cf8}
+      .cbn-item i{font-size:20px}
+      .cbn-badge{position:absolute;top:6px;right:calc(50% - 18px);background:#dc2626;color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:20px;min-width:16px;text-align:center}
+    }
+
 
 
     /* Horario pills */
@@ -1855,6 +1867,20 @@
     </div><!-- /.coord-main -->
 
   </div><!-- /.coord-layout -->
+
+  <nav class="coord-bottom-nav">
+    <button class="cbn-item active" id="cbn-main" onclick="switchCoordTab('main')">
+      <i class="ti ti-home" aria-hidden="true"></i> Inicio
+    </button>
+    <button class="cbn-item" id="cbn-students" onclick="switchCoordTab('students')">
+      <i class="ti ti-users" aria-hidden="true"></i>
+      <span class="cbn-badge" id="cbn-badge-students" style="display:none"></span>
+      Alumnos
+    </button>
+    <button class="cbn-item" id="cbn-instructors" onclick="switchCoordTab('instructors')">
+      <i class="ti ti-chalkboard" aria-hidden="true"></i> Instructores
+    </button>
+  </nav>
 
   </section>
 
@@ -6801,6 +6827,10 @@ function switchCoordTab(tab) {
 
     if (btn) { btn.classList.toggle('active', t === tab); }
 
+    const cbn = document.getElementById('cbn-' + t);
+
+    if (cbn) { cbn.classList.toggle('active', t === tab); }
+
     const v = document.getElementById('coord-view-' + t);
 
     if (v) v.style.display = t === tab ? 'block' : 'none';
@@ -9494,6 +9524,10 @@ async function renderCoordinatorPortal() {
     sbBadge.textContent = urgentCount;
 
     sbBadge.style.display = urgentCount > 0 ? 'inline-block' : 'none';
+
+    const cbnBadge = document.getElementById('cbn-badge-students');
+
+    if (cbnBadge) { cbnBadge.textContent = urgentCount; cbnBadge.style.display = urgentCount > 0 ? 'inline-block' : 'none'; }
 
   }
 
