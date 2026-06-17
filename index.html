@@ -4586,7 +4586,6 @@ async function loginInstructor() {
 
     document.querySelector('.logo-container').classList.add('no-click');
 
-    writeLog('login', instructor.name, 'instructor');
 
     renderInstructorPortal();
 
@@ -4722,7 +4721,6 @@ async function loginCoordinator() {
 
     document.querySelector('.logo-container').classList.add('no-click');
 
-    writeLog('login', coord.name || user, 'coordinator');
 
     renderCoordinatorPortal();
 
@@ -7727,7 +7725,10 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 
       <div>
 
-        <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.6rem">Actividad reciente</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+          <div style="font-size:.72rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.07em">Actividad reciente</div>
+          <button onclick="openLogModal()" style="font-size:.68rem;color:var(--accent);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Ver todo</button>
+        </div>
 
         <div id="coord-activity-log" style="background:rgba(30,41,59,.45);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-md);padding:.85rem 1rem;display:flex;flex-direction:column;gap:0">
 
@@ -11081,7 +11082,109 @@ async function loadActivityLog() {
   }
 }
 
+async function openLogModal() {
+  document.getElementById('log-modal-overlay')?.remove();
+  const coordRole = STATE.currentUser?.data?.coordRole || '';
+  const isAdmin = coordRole === 'admin';
+  const who = isAdmin ? '' : (STATE.currentUser?.data?.name || STATE.currentUser?.data?.username || '');
 
+  const ACTION_ES = {
+    alumno_aprobado:'Alumno aprobado', alumno_eliminado:'Alumno eliminado',
+    alumno_agregado:'Alumno agregado', alumno_editado:'Alumno editado',
+    estado_cambiado:'Estado cambiado', instructor_asignado:'Instructor asignado',
+    contacto_registrado:'Contacto registrado', contacto_confirmado:'Contacto confirmado',
+    practica_iniciada:'Práctica iniciada', proceso_completado:'Proceso completado',
+    expediente_cerrado:'Expediente cerrado', reset_pin:'Reset PIN',
+    instructor_editado:'Instructor editado', instructor_agregado:'Instructor agregado',
+    instructor_estado:'Instructor estado', coordinador_editado:'Coordinador editado',
+    coordinador_agregado:'Coordinador agregado', coordinador_estado:'Coordinador estado',
+  };
+  const ROLE_ES = { admin:'Admin', office:'Office', '':'Sin rol' };
+
+  const ov = document.createElement('div');
+  ov.id = 'log-modal-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  ov.innerHTML = `
+    <div style="background:var(--bg-card,#1e293b);border:1px solid rgba(255,255,255,.1);border-radius:12px;width:100%;max-width:680px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:1rem">📋</span>
+          <span style="font-size:.95rem;font-weight:600;color:var(--text-primary)">${isAdmin ? 'Log de actividad' : 'Mi actividad'}</span>
+          <span id="lm-count" style="font-size:.7rem;padding:2px 8px;border-radius:20px;background:rgba(255,255,255,.07);color:var(--text-muted)">…</span>
+        </div>
+        <button onclick="document.getElementById('log-modal-overlay').remove()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;line-height:1">×</button>
+      </div>
+      <div style="display:flex;gap:8px;padding:.65rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap">
+        <input id="lm-search" type="text" placeholder="Buscar por nombre o cédula…" oninput="lmFilter()" style="flex:1;min-width:140px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:.8rem;outline:none">
+        <select id="lm-action" onchange="lmFilter()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:.8rem;outline:none">
+          <option value="">Todas las acciones</option>
+          ${Object.entries(ACTION_ES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}
+        </select>
+        ${isAdmin ? `<select id="lm-role" onchange="lmFilter()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 10px;color:var(--text-primary);font-size:.8rem;outline:none">
+          <option value="">Todos los roles</option>
+          <option value="admin">Admin</option>
+          <option value="office">Office</option>
+          <option value="">Sin rol</option>
+        </select>` : ''}
+      </div>
+      <div id="lm-list" style="overflow-y:auto;flex:1;padding:.25rem 0">
+        <div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:.8rem">Cargando…</div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+  let _allEntries = [];
+  try {
+    const res = await apiCall({ action: 'getLogs', who });
+    _allEntries = (res?.logs || []).map(s => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean).reverse();
+  } catch {}
+  document.getElementById('lm-count').textContent = _allEntries.length + ' registros';
+
+  window._lmEntries = _allEntries;
+  window._lmPage = 0;
+  lmFilter();
+
+  function lmRenderEntry(e) {
+    const icon = LOG_ICONS[e.action] || '📋';
+    const labelFn = LOG_LABELS[e.action];
+    const label = labelFn ? labelFn(e.target, e.detail) : (e.target || e.action);
+    const d = new Date(e.ts);
+    const ts = isNaN(d) ? '' : d.toLocaleString('es-CO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const roleTag = isAdmin && e.role ? `<span style="font-size:.65rem;padding:1px 6px;border-radius:20px;background:rgba(255,255,255,.07);color:var(--text-muted);margin-left:4px">${ROLE_ES[e.coordRole||'']||e.role}</span>` : '';
+    return `<div style="display:flex;align-items:flex-start;gap:10px;padding:.6rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.06)">
+      <span style="font-size:.85rem;flex-shrink:0;margin-top:1px">${icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.78rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
+        <div style="font-size:.68rem;color:var(--text-muted);margin-top:2px">${isAdmin ? (e.who||'')+ roleTag + ' · ' : ''}${ts}</div>
+      </div>
+    </div>`;
+  }
+  window.lmFilter = function() {
+    const q = (document.getElementById('lm-search')?.value||'').toLowerCase();
+    const act = document.getElementById('lm-action')?.value||'';
+    const rol = document.getElementById('lm-role')?.value;
+    const filtered = (window._lmEntries||[]).filter(e => {
+      if (act && e.action !== act) return false;
+      if (rol !== undefined && rol !== '' && (e.coordRole||'') !== rol) return false;
+      if (q && !JSON.stringify(e).toLowerCase().includes(q)) return false;
+      return true;
+    });
+    window._lmFiltered = filtered;
+    window._lmPage = 0;
+    lmRender();
+  };
+  window.lmRender = function() {
+    const list = document.getElementById('lm-list');
+    if (!list) return;
+    const PAGE = 20;
+    const slice = (window._lmFiltered||[]).slice(0, (window._lmPage+1)*PAGE);
+    const more = slice.length < (window._lmFiltered||[]).length;
+    list.innerHTML = slice.length
+      ? slice.map(lmRenderEntry).join('') + (more ? `<div style="text-align:center;padding:.75rem"><button onclick="window._lmPage++;lmRender()" style="background:none;border:none;color:var(--accent);font-size:.78rem;cursor:pointer;text-decoration:underline">Cargar más</button></div>` : '')
+      : `<div style="text-align:center;padding:2rem;color:var(--text-muted);font-size:.8rem">Sin resultados</div>`;
+  };
+}
 
 function loadAdminLogs() {
 
