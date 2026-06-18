@@ -2104,53 +2104,74 @@
 
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;align-items:end">
-
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
           <div>
-
             <label class="config-label">Nombre completo</label>
-
             <input type="text" id="new-st-name" class="config-input" style="margin-bottom:0" placeholder="Nombre Apellido">
-
           </div>
-
           <div>
-
+            <label class="config-label">N.° documento / Celular</label>
+            <input type="text" id="new-st-docnum" class="config-input" style="margin-bottom:0" placeholder="Cédula o celular (10 dígitos)">
+          </div>
+          <div>
             <label class="config-label">Tipo doc.</label>
-
             <select id="new-st-doctype" class="config-input" style="margin-bottom:0">
-
               <option value="CC">C.C.</option><option value="TI">T.I.</option>
-
               <option value="CE">C.E.</option><option value="PA">Pasaporte</option>
-
             </select>
-
           </div>
-
           <div>
-
-            <label class="config-label">Número documento</label>
-
-            <input type="text" id="new-st-docnum" class="config-input" style="margin-bottom:0" placeholder="123456789">
-
-          </div>
-
-          <div>
-
             <label class="config-label">Fecha teórico</label>
-
             <input type="date" id="new-st-date" class="config-input" style="margin-bottom:0">
-
           </div>
-
-          <div>
-
-            <button class="btn-connect" style="width:100%;padding:.6rem" onclick="adminAddStudent()">Agregar alumno</button>
-
-          </div>
-
         </div>
+
+        <div style="margin-bottom:.75rem">
+          <label class="config-label">Licencias</label>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.25rem">
+            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
+              <input type="checkbox" id="new-st-lic-a2"> 🏍️ A2
+            </label>
+            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
+              <input type="checkbox" id="new-st-lic-b1"> 🚗 B1
+            </label>
+            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
+              <input type="checkbox" id="new-st-lic-c1"> 🚌 C1
+            </label>
+            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
+              <input type="checkbox" id="new-st-lic-c2"> 🚛 C2
+            </label>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem;margin-bottom:.75rem;align-items:end">
+          <div>
+            <label class="config-label">Estado inicial</label>
+            <select id="new-st-estado" class="config-input" style="margin-bottom:0">
+              <option value="theory_passed">Teórico aprobado</option>
+              <option value="instructor_assigned">Instructor asignado</option>
+              <option value="contacted">Contactado</option>
+              <option value="contact_confirmed">Contacto confirmado</option>
+              <option value="practice_started">En práctica</option>
+              <option value="completed">Completado</option>
+            </select>
+          </div>
+          <div>
+            <label class="config-label">Instructor (opcional)</label>
+            <select id="new-st-instructor" class="config-input" style="margin-bottom:0">
+              <option value="">— sin asignar —</option>
+            </select>
+          </div>
+          <div>
+            <label class="config-label">PIN de ingreso</label>
+            <div style="display:flex;gap:.4rem">
+              <input type="text" id="new-st-pin" class="config-input" style="margin-bottom:0;width:80px;font-family:monospace;letter-spacing:2px" maxlength="6" value="1234">
+              <button class="btn-sec" style="padding:.4rem .6rem;font-size:.75rem;white-space:nowrap" onclick="adminGenPin('new-st-pin')">🎲 Gen</button>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-connect" style="width:100%;padding:.6rem" onclick="adminAddStudent()">Agregar alumno</button>
 
         <div id="add-student-msg" style="font-size:.78rem;margin-top:.65rem;min-height:1rem"></div>
 
@@ -9781,7 +9802,7 @@ async function switchAdminTab(tab) {
 
   if (tab === 'coordinators') renderAdminCoordinators();
 
-  if (tab === 'students') renderAdminStudents();
+  if (tab === 'students') { renderAdminStudents(); adminFillInstructorSelect(); }
 
   if (tab === 'logs') loadAdminLogs();
 
@@ -10364,15 +10385,31 @@ function openInstructorModal(instId) {
 
         </div>
 
+        ${!inst ? `
+        <div class="form-group" style="margin-bottom:.75rem">
+          <label class="config-label">PIN inicial</label>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <input id="ie-pin" class="config-input" style="margin-bottom:0;width:90px;font-family:monospace;letter-spacing:2px" maxlength="6" value="1234" oninput="updateWaPreview()">
+            <button class="btn-sec" style="padding:.4rem .6rem;font-size:.75rem" onclick="document.getElementById('ie-pin').value=Math.floor(1000+Math.random()*9000).toString();updateWaPreview()">🎲 Generar</button>
+            <span style="font-size:.72rem;color:var(--text-muted)">Debe cambiarlo al ingresar</span>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:.5rem">
+          <label class="config-label">Vista previa WhatsApp</label>
+          <div id="ie-wa-preview" style="font-size:.78rem;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.3);border-radius:var(--r-sm);padding:.6rem .75rem;white-space:pre-wrap;line-height:1.5;font-family:monospace;color:var(--text-primary)"></div>
+        </div>` : ''}
+
         <div id="ie-msg" style="font-size:.78rem;min-height:1rem;color:var(--danger);margin-top:.5rem"></div>
 
       </div>
 
-      <div class="modal-footer">
+      <div class="modal-footer" style="gap:.5rem;flex-wrap:wrap">
 
         <button class="btn-action-cancel" onclick="document.getElementById('inst-edit-modal').remove()">Cancelar</button>
 
         <button class="btn-action-confirm" onclick="saveInstructor('${instId||''}')">Guardar</button>
+
+        ${!inst ? `<button class="btn-action-confirm" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.5);color:#15803d" onclick="saveInstructor('',true)">💬 Guardar y notificar por WhatsApp</button>` : ''}
 
       </div>
 
@@ -10380,13 +10417,13 @@ function openInstructorModal(instId) {
 
   document.body.appendChild(modal);
 
-  setTimeout(() => document.getElementById(inst ? 'ie-name' : 'ie-id')?.focus(), 100);
+  setTimeout(() => { document.getElementById(inst ? 'ie-name' : 'ie-id')?.focus(); if (!inst) updateWaPreview(); }, 100);
 
 }
 
 
 
-async function saveInstructor(instId) {
+async function saveInstructor(instId, openWa = false) {
 
   const cedula = document.getElementById('ie-id').value.trim();
 
@@ -10446,11 +10483,18 @@ async function saveInstructor(instId) {
 
   const action = instId ? 'updateInstructor' : 'addInstructor';
 
-  const rInst = await apiCall({ action, id, name, phone, availability, specialty, specialtyB, specialtyC, pin: instId ? undefined : '1234' });
+  const pinVal = instId ? undefined : (document.getElementById('ie-pin')?.value?.trim() || '1234');
+  const rInst = await apiCall({ action, id, name, phone, availability, specialty, specialtyB, specialtyC, pin: pinVal });
 
   if (!rInst?.success) { msg.textContent = '❌ Error: ' + (rInst?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
 
   await writeLog(instId ? 'instructor_editado' : 'instructor_agregado', name, id);
+
+  if (openWa && !instId) {
+    const waMsg = document.getElementById('ie-wa-preview')?.textContent || '';
+    const waPhone = phone.replace(/\D/g, '');
+    if (waPhone) window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(waMsg), '_blank');
+  }
 
   document.getElementById('inst-edit-modal').remove();
 
@@ -10464,6 +10508,15 @@ async function saveInstructor(instId) {
 
   loadActivityLog();
 
+}
+
+function updateWaPreview() {
+  const nombre = document.getElementById('ie-name')?.value || '[nombre]';
+  const doc    = document.getElementById('ie-id')?.value  || '[cédula]';
+  const pin    = document.getElementById('ie-pin')?.value || '1234';
+  const el     = document.getElementById('ie-wa-preview');
+  if (!el) return;
+  el.textContent = `Hola ${nombre}, te registramos como instructor en DriveConnect.\n\nTus datos de acceso:\n  ID: ${doc}\n  PIN: ${pin}\n\nIngresa en: https://maicol919-gif.github.io/driveconnect/\nPor seguridad cambia el PIN en tu primer ingreso.`;
 }
 
 
@@ -10776,44 +10829,69 @@ function renderAdminStudents() {
 
 
 
+function adminGenPin(inputId) {
+  document.getElementById(inputId).value = Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+function adminFillInstructorSelect() {
+  const sel = document.getElementById('new-st-instructor');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">— sin asignar —</option>';
+  (STATE.instructors || []).filter(i => String(i.active||'true').trim() !== 'false').forEach(i => {
+    const specs = [i.specialty, i.specialtyB, i.specialtyC].filter(Boolean).join(',');
+    const opt = document.createElement('option');
+    opt.value = i.id;
+    opt.textContent = i.name + ' (' + specs + ')';
+    if (i.id === current) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
 async function adminAddStudent() {
-
-  const name = document.getElementById('new-st-name').value.trim();
-
+  const name    = document.getElementById('new-st-name').value.trim();
   const docType = document.getElementById('new-st-doctype').value;
+  const docNum  = document.getElementById('new-st-docnum').value.trim();
+  const date    = document.getElementById('new-st-date').value;
+  const pin     = document.getElementById('new-st-pin').value.trim() || '1234';
+  const estado  = document.getElementById('new-st-estado').value;
+  const instId  = document.getElementById('new-st-instructor').value;
+  const licA2   = document.getElementById('new-st-lic-a2')?.checked;
+  const licB1   = document.getElementById('new-st-lic-b1')?.checked;
+  const licC1   = document.getElementById('new-st-lic-c1')?.checked;
+  const licC2   = document.getElementById('new-st-lic-c2')?.checked;
+  const lics    = [licA2&&'A2', licB1&&'B1', licC1&&'C1', licC2&&'C2'].filter(Boolean);
+  const msg     = document.getElementById('add-student-msg');
 
-  const docNum = document.getElementById('new-st-docnum').value.trim();
-
-  const date = document.getElementById('new-st-date').value;
-
-  const msg = document.getElementById('add-student-msg');
-
-  if (!name || !docNum || !date) { msg.textContent = '⚠ Todos los campos son obligatorios.'; msg.style.color='var(--danger)'; return; }
-
+  if (!name || !docNum || !date) { msg.textContent = '⚠ Nombre, documento y fecha son obligatorios.'; msg.style.color='var(--danger)'; return; }
+  if (!lics.length) { msg.textContent = '⚠ Selecciona al menos una licencia.'; msg.style.color='var(--danger)'; return; }
   if (STATE.students.find(s => s.docNumber === docNum)) { msg.textContent = '⚠ Ese documento ya existe.'; msg.style.color='var(--danger)'; return; }
 
   msg.textContent = '⏳ Guardando...'; msg.style.color = 'var(--brand-light)';
 
-  const rAddSt = await apiCall({ action: 'addStudent', docNumber: docNum, docType, name, theoryPassedDate: date });
-
+  const rAddSt = await apiCall({ action: 'addStudent', docNumber: docNum, docType, name, theoryPassedDate: date, pin, active: 'true' });
   if (!rAddSt?.success) { msg.textContent = '❌ Error: ' + (rAddSt?.error || 'desconocido'); msg.style.color='var(--danger)'; return; }
 
-  await writeLog('alumno_agregado', name, docNum);
+  for (const lic of lics) {
+    await apiCall({ action: 'assignInstructor', docNumber: docNum, instructorId: instId || '', license: lic, state: estado });
+  }
 
-  msg.textContent = '✅ Alumno agregado correctamente.'; msg.style.color = 'var(--success)';
+  await writeLog('alumno_agregado', name, docNum);
+  msg.textContent = '✅ Alumno agregado (' + lics.join(', ') + ').'; msg.style.color = 'var(--success)';
 
   document.getElementById('new-st-name').value = '';
-
   document.getElementById('new-st-docnum').value = '';
-
   document.getElementById('new-st-date').value = '';
+  document.getElementById('new-st-pin').value = '1234';
+  if (document.getElementById('new-st-lic-a2')) document.getElementById('new-st-lic-a2').checked = false;
+  if (document.getElementById('new-st-lic-b1')) document.getElementById('new-st-lic-b1').checked = false;
+  if (document.getElementById('new-st-lic-c1')) document.getElementById('new-st-lic-c1').checked = false;
+  if (document.getElementById('new-st-lic-c2')) document.getElementById('new-st-lic-c2').checked = false;
 
   await loadData();
-
+  adminFillInstructorSelect();
   renderAdminStudents();
-
   setTimeout(() => { msg.textContent = ''; }, 4000);
-
 }
 
 
