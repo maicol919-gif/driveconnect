@@ -9070,6 +9070,16 @@ function showInstProfile(instId, fromHome) {
 
   const waUrl = inst.phone ? 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') + '?text=' + encodeURIComponent(waMsg) : null;
 
+  const welcomeMsg = 'Hola ' + (inst.name||'') + ', te registramos como instructor en DriveConnect.\n\nTus datos de acceso:\n  ID: ' + instId + '\n  PIN: ' + (inst.pin||'1234') + '\n\nIngresa en: https://maicol919-gif.github.io/driveconnect/\nPor seguridad cambia el PIN en tu primer ingreso.';
+
+  const welcomeUrl = inst.phone ? 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') + '?text=' + encodeURIComponent(welcomeMsg) : null;
+
+  const welcomeSent = inst.welcomeSent === true || inst.welcomeSent === 'true' || inst.welcomeSent === 'TRUE';
+
+  const welcomeBadge = welcomeSent
+    ? '<span style="font-size:9px;font-weight:600;color:#6ee7a8;background:rgba(40,180,110,.14);padding:1px 7px;border-radius:9999px;white-space:nowrap">&#10003; Bienvenida enviada</span>'
+    : '<span style="font-size:9px;font-weight:600;color:#f5c768;background:rgba(245,180,60,.16);padding:1px 7px;border-radius:9999px;white-space:nowrap">Bienvenida pendiente</span>';
+
 
 
   const metricCard = (filter, n, label, sub, nColor, borderColor, bg) =>
@@ -9100,12 +9110,19 @@ function showInstProfile(instId, fromHome) {
 
     + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;color:#e2e8f0">' + (inst.name||'—') + '</div>'
 
-    + '<div style="display:flex;gap:3px;margin-top:3px;align-items:center">' + specPills + (inst.phone ? '<span style="font-size:9px;color:#334155">· ' + inst.phone + '</span>' : '') + '</div></div>'
-
-    + (waUrl ? '<a href="' + waUrl + '" target="_blank" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:6px;font-size:10px;color:#4ade80;text-decoration:none;flex-shrink:0">&#128241; WA</a>' : '')
+    + '<div style="display:flex;gap:5px;margin-top:3px;align-items:center;flex-wrap:wrap">' + specPills + welcomeBadge + (inst.phone ? '<span style="font-size:9px;color:#334155">· ' + inst.phone + '</span>' : '') + '</div></div>'
 
     + '<button onclick="openInstructorModal(\'' + instId + '\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:10px;cursor:pointer;font-family:inherit">&#9998; Editar</button>'
     + '<button onclick="openResetPinModal(\'instructor\',\'' + instId + '\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:10px;cursor:pointer;font-family:inherit">🔑 PIN</button>'
+    + '<div style="position:relative;flex-shrink:0">'
+    + '<button onclick="_toggleInstMoreMenu(event,\'' + instId + '\')" style="width:24px;height:24px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:13px;cursor:pointer;font-family:inherit;line-height:1">&#8943;</button>'
+    + '<div id="inst-more-menu-' + instId + '" style="display:none;position:absolute;top:30px;right:0;background:#1b1b29;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:6px;width:200px;box-shadow:0 8px 28px rgba(0,0,0,.45);z-index:20">'
+    + (welcomeUrl ? '<div onclick="_sendInstWelcome(\'' + instId + '\',\'' + (fromHome?1:0) + '\')" style="display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:7px;font-size:11.5px;color:#dff7e6;cursor:pointer">&#128241; ' + (welcomeSent ? 'Reenviar bienvenida' : 'Enviar bienvenida') + '</div>' : '<div style="padding:8px 9px;font-size:10.5px;color:#475569">Sin teléfono registrado</div>')
+    + (welcomeSent && inst.welcomeSentDate ? '<div style="font-size:9.5px;color:#475569;padding:0 9px 6px">Enviada el ' + inst.welcomeSentDate + '</div>' : '')
+    + '<div style="height:1px;background:rgba(255,255,255,.08);margin:4px 2px"></div>'
+    + (waUrl ? '<div onclick="window.open(\'' + waUrl + '\',\'_blank\');_toggleInstMoreMenu(event,\'' + instId + '\')" style="display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:7px;font-size:11.5px;color:#cbd5e1;cursor:pointer">&#128172; Contactar (alumnos)</div>' : '')
+    + '<div onclick="_toggleInstMoreMenu(event,\'' + instId + '\');toggleInstructor(\'' + instId + '\')" style="display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:7px;font-size:11.5px;color:#fca5a5;cursor:pointer">&#128465; Desactivar instructor</div>'
+    + '</div></div>'
 
     + '</div>'
 
@@ -10520,6 +10537,36 @@ function updateWaPreview() {
 }
 
 
+
+function _toggleInstMoreMenu(ev, instId) {
+  if (ev) ev.stopPropagation();
+  document.querySelectorAll('[id^="inst-more-menu-"]').forEach(el => {
+    if (el.id !== 'inst-more-menu-' + instId) el.style.display = 'none';
+  });
+  const el = document.getElementById('inst-more-menu-' + instId);
+  if (!el) return;
+  el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
+  document.addEventListener('click', function _close(e) {
+    if (!el.contains(e.target)) { el.style.display = 'none'; document.removeEventListener('click', _close); }
+  });
+}
+
+async function _sendInstWelcome(instId, fromHome) {
+  const inst = STATE.instructors.find(i => i.id === instId);
+  if (!inst || !inst.phone) return;
+  const welcomeMsg = 'Hola ' + (inst.name||'') + ', te registramos como instructor en DriveConnect.\n\nTus datos de acceso:\n  ID: ' + instId + '\n  PIN: ' + (inst.pin||'1234') + '\n\nIngresa en: https://maicol919-gif.github.io/driveconnect/\nPor seguridad cambia el PIN en tu primer ingreso.';
+  const welcomeUrl = 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') + '?text=' + encodeURIComponent(welcomeMsg);
+  window.open(welcomeUrl, '_blank');
+  const today = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+  // Best-effort: persiste el estado si el backend soporta estos campos (ver nota de implementación)
+  try {
+    await apiCall({ action: 'updateInstructor', id: instId, welcomeSent: true, welcomeSentDate: today });
+  } catch (e) { /* best-effort, no bloquea la UI */ }
+  inst.welcomeSent = true;
+  inst.welcomeSentDate = today;
+  await writeLog('instructor_bienvenida_enviada', inst.name, instId);
+  showInstProfile(instId, fromHome === '1');
+}
 
 async function toggleInstructor(instId) {
 
