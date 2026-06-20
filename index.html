@@ -928,6 +928,8 @@
     .pill-night{background:rgba(139,92,246,.15);color:#a78bfa}
 
     .pill-any{background:rgba(16,185,129,.15);color:var(--success)}
+    .pill-weekend{background:rgba(236,72,153,.15);color:#f472b6}
+    .pill-flexible{background:rgba(16,185,129,.15);color:var(--success)}
 
 
 
@@ -6834,6 +6836,10 @@ const SCHEDULE_SLOTS = [
 
   { key: 'night',     label: 'Noche',     css: 'pill-night',     icon: '🌙' },
 
+  { key: 'weekend',   label: 'Fines de semana', css: 'pill-weekend', icon: '📅' },
+
+  { key: 'flexible',  label: 'Flexible',  css: 'pill-flexible',  icon: '🔄' },
+
 ];
 
 
@@ -6850,7 +6856,11 @@ function parseSchedule(raw) {
 
   if (r.includes('tarde') || r.includes('afternoon') || r.includes('pm')) slots.push('afternoon');
 
-  if (r.includes('noche') || r.includes('night') || r.includes('nocturno')) slots.push('night');
+  if (r.includes('noche') || r.includes('night') || r.includes('nocturno') || r.includes('evening')) slots.push('night');
+
+  if (r.includes('weekend') || r.includes('finde') || r.includes('fin de semana') || r.includes('sabado') || r.includes('sábado') || r.includes('domingo')) slots.push('weekend');
+
+  if (r.includes('flexible') || r.includes('cualquier')) slots.push('flexible');
 
   return slots;
 
@@ -10410,11 +10420,15 @@ function openInstructorModal(instId) {
 
           <div style="display:flex;gap:.4rem;margin-top:.3rem;flex-wrap:wrap">
 
-            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-morning" ${(inst?.availability||'').toLowerCase().includes('mañana')?'checked':''}> Mañana</label>
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-morning"  ${parseSchedule(inst?.availability||'').includes('morning')?'checked':''}> 🌅 Mañana</label>
 
-            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-afternoon" ${(inst?.availability||'').toLowerCase().includes('tarde')?'checked':''}> Tarde</label>
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-afternoon" ${parseSchedule(inst?.availability||'').includes('afternoon')?'checked':''}> ☀️ Tarde</label>
 
-            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-night" ${(inst?.availability||'').toLowerCase().includes('noche')?'checked':''}> Noche</label>
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-night"     ${parseSchedule(inst?.availability||'').includes('night')?'checked':''}> 🌙 Noche</label>
+
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-weekend"   ${parseSchedule(inst?.availability||'').includes('weekend')?'checked':''}> 📅 Fines de semana</label>
+
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-flexible"  ${parseSchedule(inst?.availability||'').includes('flexible')?'checked':''}> 🔄 Flexible</label>
 
           </div>
 
@@ -10490,7 +10504,10 @@ async function saveInstructor(instId, openWa = false) {
 
 
 
-  const slots = [morning&&'mañana', afternoon&&'tarde', night&&'noche'].filter(Boolean);
+  const weekend  = document.getElementById('ie-weekend')?.checked;
+  const flexible = document.getElementById('ie-flexible')?.checked;
+
+  const slots = [morning&&'mañana', afternoon&&'tarde', night&&'noche', weekend&&'finde', flexible&&'flexible'].filter(Boolean);
 
   const availability = slots.join(', ');
 
