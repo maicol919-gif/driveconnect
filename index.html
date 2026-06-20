@@ -13617,9 +13617,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         else if (session.role === 'instructor') { renderInstructorPortal(); showView('view-instructor'); startPolling(); }
 
-        else if (session.role === 'coordinator') { renderCoordinatorPortal(); showView('view-coordinator'); startPolling(); }
+        else if (session.role === 'coordinator') { renderCoordinatorPortal(); showView('view-coordinator'); switchCoordTab('main'); startPolling(); }
 
-        else if (session.role === 'admin') { showView('view-admin'); renderAdminPortal(); }
+        else if (session.role === 'admin') { showView('view-admin'); renderAdminPortal(); switchAdminTab('system'); }
 
       } else {
 
