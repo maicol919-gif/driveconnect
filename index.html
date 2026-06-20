@@ -2142,6 +2142,9 @@
             <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
               <input type="checkbox" id="new-st-lic-c2"> 🚛 C2
             </label>
+            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
+              <input type="checkbox" id="new-st-lic-rb1"> 🔄 RB1
+            </label>
           </div>
         </div>
 
@@ -2547,6 +2550,8 @@
 
           <button type="button" class="reg-pill" data-val="C2" onclick="toggleLicense(this,'mr-license-pills')">🚛 C2</button>
 
+          <button type="button" class="reg-pill" data-val="RB1" onclick="toggleLicense(this,'mr-license-pills')">🔄 RB1</button>
+
         </div>
 
       </div>
@@ -2738,6 +2743,8 @@
           <button type="button" class="reg-pill" data-val="C1" onclick="toggleLicense(this)">🚌 C1 — Carro público</button>
 
           <button type="button" class="reg-pill" data-val="C2" onclick="toggleLicense(this)">🚛 C2 — Carro público pesado</button>
+
+          <button type="button" class="reg-pill" data-val="RB1" onclick="toggleLicense(this)">🔄 Recategorización (B1→C1)</button>
 
         </div>
 
@@ -4140,7 +4147,7 @@ function setDocType(btn, type) {
 
 function toggleLicense(btn, containerId) {
 
-  const CARRO = ['B1','C1','C2'];
+  const CARRO = ['B1','C1','C2','RB1'];
 
   const MOTO  = ['A2'];
 
@@ -4172,7 +4179,7 @@ function toggleLicense(btn, containerId) {
 
   if (newCarro && hasCarro) {
 
-    if (hint) { hint.textContent = '⚠ Solo puedes elegir una licencia de carro (B1, C1 o C2).'; hint.style.color = 'var(--warning)'; } return;
+    if (hint) { hint.textContent = '⚠ Solo puedes elegir una licencia de carro (B1, C1, C2 o RB1).'; hint.style.color = 'var(--warning)'; } return;
 
   }
 
@@ -5044,7 +5051,7 @@ function renderStudentPortal() {
 
 
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc', RB1:'🔄 Recategorización (B1→C1)' };
 
   const tabsEl = document.getElementById('student-license-tabs');
 
@@ -5130,7 +5137,7 @@ function renderStudentProcessPanel(s, proc) {
 
   const rightPanel    = document.getElementById('student-active-panel');
 
-  const LICENSE_FULL  = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc' };
+  const LICENSE_FULL  = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc', RB1:'🔄 Recategorización (B1→C1)' };
 
   const licenseLabel  = LICENSE_FULL[proc.license] || proc.license || 'Tu proceso';
 
@@ -5924,9 +5931,9 @@ function renderInstructorPortal() {
 
 
 
-  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍️ A2' };
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍️ A2', RB1:'🔄 RB1' };
 
-  const LICENSE_FULL   = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL   = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado', RB1:'🔄 Recategorización (B1→C1)' };
 
 
 
@@ -6262,7 +6269,7 @@ async function instMarkPracticeStarted(docNumber, license) {
 
   if (!student) return;
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado', RB1:'🔄 Recategorización (B1→C1)' };
 
 
 
@@ -6350,7 +6357,7 @@ async function instMarkReady(docNumber, license) {
 
   modal.className = 'modal-overlay active';
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado', RB1:'🔄 Recategorización (B1→C1)' };
 
   modal.innerHTML = `
 
@@ -6424,7 +6431,7 @@ async function confirmGraduate(docNumber, license) {
 
   const s = STATE.students.find(st => st.docNumber === docNumber);
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado', RB1:'🔄 Recategorización (B1→C1)' };
 
 
 
@@ -6506,7 +6513,7 @@ async function coordMarkPracticeStarted(docNumber, license) {
 
   const s = STATE.students.find(st => st.docNumber === docNumber);
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc', RB1:'🔄 Recategorización (B1→C1)' };
 
   const existing = document.getElementById('coord-start-modal');
 
@@ -6578,7 +6585,7 @@ async function coordCloseProcess(docNumber, license) {
 
   const s = STATE.students.find(st => st.docNumber === docNumber);
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc', RB1:'🔄 Recategorización (B1→C1)' };
 
   const existing = document.getElementById('coord-close-modal');
 
@@ -6694,7 +6701,7 @@ function openEditStudent(docNumber) {
   document.getElementById('edit-st-id-doc').textContent  = (docTypeLabel[s.docType] || 'Doc') + ' ' + docNumber;
 
   // Badges: licencias + instructor (read-only)
-  const LIC = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍️ A2' };
+  const LIC = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍️ A2', RB1:'🔄 RB1' };
   const procs = (STATE.procesos || []).filter(p => String(p.docNumber) === String(docNumber));
   const badgesEl = document.getElementById('edit-st-badges');
   const badgeStyle = 'border-radius:9999px;padding:.15rem .55rem;font-size:.68rem;font-weight:600;white-space:nowrap';
@@ -7147,7 +7154,7 @@ function renderCoordTable() { renderCoordGroups(null); return;
 
 
 
-  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'? A2' };
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'? A2', RB1:'🔄 RB1' };
 
   const STATE_LABEL = {
 
@@ -7431,9 +7438,9 @@ function renderCoordTaskList({ unassigned, critical, warn, confirmStale, practic
 
 
 
-  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)', RB1:'rgba(16,185,129,.15)' };
 
-  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d', RB1:'#6ee7b7' };
 
   const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
 
@@ -7875,9 +7882,9 @@ function openCoordDetail(docNum, targetId) {
 
   const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
 
-  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)', RB1:'rgba(16,185,129,.15)' };
 
-  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d', RB1:'#6ee7b7' };
 
 
 
@@ -8281,9 +8288,9 @@ function _renderCoordCards() {
 
 
 
-  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)', RB1:'rgba(16,185,129,.15)' };
 
-  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d', RB1:'#6ee7b7' };
 
   const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started'];
 
@@ -8617,6 +8624,8 @@ function openCoordSheet(docNum) {
 
     C2: { bg: 'rgba(245,158,11,.12)', text: '#fcd34d' },
 
+    RB1: { bg: 'rgba(16,185,129,.12)', text: '#6ee7b7' },
+
   };
 
   const PB_STEPS = ['Teórico','Instructor','Contacto','Confirmar','Clases'];
@@ -8637,7 +8646,7 @@ function openCoordSheet(docNum) {
 
     const instIncompat = inst ? (() => {
       const specs = [inst.specialty, inst.specialtyB, inst.specialtyC].filter(Boolean).map(s => s.trim().toUpperCase());
-      const licToCheck = p.license === 'C1' ? ['C1','C2'] : [p.license];
+      const licToCheck = (p.license === 'C1' || p.license === 'RB1') ? ['C1','C2'] : [p.license];
       return specs.length && !licToCheck.some(l => specs.includes(l));
     })() : false;
 
@@ -8870,13 +8879,13 @@ function renderCoordInstructors() {
 
 
 
-  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)', RB1:'rgba(16,185,129,.15)' };
 
-  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d', RB1:'#6ee7b7' };
 
 
 
-  const isCarro = s => ['B1','C1','C2'].some(l => [s.specialty,s.specialtyB,s.specialtyC].includes(l));
+  const isCarro = s => ['B1','C1','C2','RB1'].some(l => [s.specialty,s.specialtyB,s.specialtyC].includes(l));
 
   const isMoto  = s => ['A2'].some(l => [s.specialty,s.specialtyB,s.specialtyC].includes(l));
 
@@ -9082,9 +9091,9 @@ function showInstProfile(instId, fromHome) {
 
 
 
-  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)', RB1:'rgba(16,185,129,.15)' };
 
-  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d', RB1:'#6ee7b7' };
 
 
 
@@ -9199,9 +9208,9 @@ function _coordInstCardFilter(filter) {
 
 
 
-  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_COLORS = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)', RB1:'rgba(16,185,129,.15)' };
 
-  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+  const LIC_TEXT   = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d', RB1:'#6ee7b7' };
 
   const myProcs  = STATE.procesos.filter(p => p.instructorId === selectedInst && !['completed','pending'].includes(p.state));
 
@@ -9279,9 +9288,9 @@ function _renderInstStudentList() {
 
   const STATE_COLOR = { theory_passed:'#ef4444', instructor_assigned:'#f59e0b', contacted:'#a78bfa', contact_confirmed:'#10b981', practice_started:'#10b981' };
 
-  const LIC_COLORS  = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)' };
+  const LIC_COLORS  = { A2:'rgba(168,85,247,.15)', B1:'rgba(59,130,246,.15)', C1:'rgba(20,184,166,.15)', C2:'rgba(245,158,11,.15)', RB1:'rgba(16,185,129,.15)' };
 
-  const LIC_TEXT    = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d' };
+  const LIC_TEXT    = { A2:'#c084fc', B1:'#93c5fd', C1:'#5eead4', C2:'#fcd34d', RB1:'#6ee7b7' };
 
 
 
@@ -10807,7 +10816,7 @@ function renderAdminStudents() {
 
   }
 
-  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'? A2' };
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'? A2', RB1:'🔄 RB1' };
 
   list.forEach(s => {
 
@@ -10888,7 +10897,8 @@ async function adminAddStudent() {
   const licB1   = document.getElementById('new-st-lic-b1')?.checked;
   const licC1   = document.getElementById('new-st-lic-c1')?.checked;
   const licC2   = document.getElementById('new-st-lic-c2')?.checked;
-  const lics    = [licA2&&'A2', licB1&&'B1', licC1&&'C1', licC2&&'C2'].filter(Boolean);
+  const licRB1  = document.getElementById('new-st-lic-rb1')?.checked;
+  const lics    = [licA2&&'A2', licB1&&'B1', licC1&&'C1', licC2&&'C2', licRB1&&'RB1'].filter(Boolean);
   const msg     = document.getElementById('add-student-msg');
 
   if (!name || !docNum || !date) { msg.textContent = '⚠ Nombre, documento y fecha son obligatorios.'; msg.style.color='var(--danger)'; return; }
@@ -10942,7 +10952,7 @@ function adminChangeState(docNumber, license) {
 
   const labels = { theory_passed:'Sin instructor', instructor_assigned:'Instructor asignado', contacted:'Contactado por instructor', contact_confirmed:'Confirmado por alumno', practice_started:'En prácticas', completed:'Proceso completado' };
 
-  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'? A2' };
+  const LICENSE_LABELS = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'? A2', RB1:'🔄 RB1' };
 
 
 
@@ -11636,7 +11646,7 @@ function openModal(docNumber, license) {
 
     // Instructor C2 puede enseñar C1; instructor C1 NO puede enseñar C2
 
-    const licToCheck = lic === 'C1' ? ['C1','C2'] : [lic];
+    const licToCheck = (lic === 'C1' || lic === 'RB1') ? ['C1','C2'] : [lic];
 
     const allSpecs = [i.specialty, i.specialtyB, i.specialtyC]
 
@@ -12070,7 +12080,7 @@ async function confirmAssign() {
 
 // =============================================================================
 
-const LICENSE_LABELS = { B1:'B1 — Automóvil', A2:'A2 — Moto +125cc', C1:'C1 — Camión', C2:'C2 — Tractocamión' };
+const LICENSE_LABELS = { B1:'B1 — Automóvil', A2:'A2 — Moto +125cc', C1:'C1 — Camión', C2:'C2 — Tractocamión', RB1:'RB1 — Recategorización' };
 
 const SCHEDULE_LABELS = { morning:'Mañanas', afternoon:'Tardes', evening:'Noches', weekend:'Fines de semana', flexible:'Flexible' };
 
@@ -12222,7 +12232,7 @@ async function approveStudent(docNumber) {
 
         const curLics = procsForStu.map(p => p.license);
 
-        const LICENSE_ICON = { A2:'🏍️', B1:'🚗', C1:'🚌', C2:'🚛' };
+        const LICENSE_ICON = { A2:'🏍️', B1:'🚗', C1:'🚌', C2:'🚛', RB1:'🔄' };
 
         return `<div class="form-group" style="margin-bottom:.5rem">
 
@@ -12766,7 +12776,7 @@ function toggleLicense(btn, groupId) {
 
     const adding   = btn.dataset.val;
 
-    const VALID_COMBOS = [['A2','B1'],['A2','C1']];
+    const VALID_COMBOS = [['A2','B1'],['A2','C1'],['A2','RB1']];
 
     const isValid = VALID_COMBOS.some(([a,b]) =>
 
@@ -12778,7 +12788,7 @@ function toggleLicense(btn, groupId) {
 
       if (hint) {
 
-        hint.textContent = '⚠ Combinación no válida. Solo se permite A2+B1 o A2+C1.';
+        hint.textContent = '⚠ Combinación no válida. Solo se permite A2+B1, A2+C1 o A2+RB1.';
 
         hint.style.color = 'var(--danger)';
 
@@ -12918,7 +12928,7 @@ async function coordRegisterSubmit() {
 
 async function studentSelfConfirmContact(license) {
 
-  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado' };
+  const LICENSE_FULL = { B1:'🚗 Carro particular', C1:'🚌 Carro público', A2:'🏍️ Moto +125cc', C2:'🚛 Carro público pesado', RB1:'🔄 Recategorización (B1→C1)' };
 
   document.getElementById('self-confirm-modal')?.remove();
 
@@ -12974,9 +12984,9 @@ function openStudentProfile(docNumber) {
 
   const allProcs = getStudentProcesos(docNumber).filter(p => p.state !== 'completed');
 
-  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc' };
+  const LICENSE_LABELS = { B1:'🚗 Carro particular', C1:'🚌 Carro público', C2:'🚛 Carro público pesado', A2:'🏍️ Moto +125cc', RB1:'🔄 Recategorización (B1→C1)' };
 
-  const LICENSE_SHORT  = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍️ A2' };
+  const LICENSE_SHORT  = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍️ A2', RB1:'🔄 RB1' };
 
   const STATE_ORDER = ['theory_passed','instructor_assigned','contacted','contact_confirmed','practice_started','completed'];
 
