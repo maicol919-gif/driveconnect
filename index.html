@@ -3357,6 +3357,8 @@ function normalizeInstructor(obj) {
 
     pin: String(k('pin') || '').trim(),
 
+    active: (() => { const v = k('active'); return (v === false || String(v).toLowerCase() === 'false') ? 'false' : 'true'; })(),
+
   };
 
 }
