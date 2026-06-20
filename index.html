@@ -10333,8 +10333,16 @@ function openInstructorModal(instId) {
   modal.id = 'inst-edit-modal'; modal.className = 'modal-overlay active';
 
   modal.innerHTML = `
+    <style>
+      .ie-pill{display:inline-flex;align-items:center;gap:.3rem;border-radius:9999px;padding:.28rem .7rem;font-size:.8rem;cursor:pointer;border:1.5px solid var(--border-color);background:rgba(255,255,255,.03);color:var(--text-muted);transition:background .15s,border-color .15s,color .15s;user-select:none}
+      .ie-pill input[type=checkbox]{display:none}
+      .ie-pill-a2:has(:checked){background:rgba(168,85,247,.15);border-color:rgba(168,85,247,.5);color:#c084fc}
+      .ie-pill-b1:has(:checked){background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.5);color:#93c5fd}
+      .ie-pill-c1:has(:checked){background:rgba(20,184,166,.15);border-color:rgba(20,184,166,.5);color:#5eead4}
+      .ie-pill-avail:has(:checked){background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.4);color:#fbbf24}
+    </style>
 
-    <div class="modal-content" style="max-width:380px">
+    <div class="modal-content" style="max-width:400px">
 
       <div class="modal-header">
 
@@ -10346,19 +10354,17 @@ function openInstructorModal(instId) {
 
       <div class="modal-body">
 
-        <div class="form-group" style="margin-bottom:.75rem">
+        <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
 
-          <label class="config-label">Cédula ${inst ? '<span style="color:var(--text-muted);font-size:.68rem">(no editable)</span>' : ''}</label>
+          <div style="flex:1;min-width:0">
+            <label class="config-label">Cédula ${inst ? '<span style="color:var(--text-muted);font-size:.68rem">(no editable)</span>' : ''}</label>
+            <input id="ie-id" class="config-input" style="margin-bottom:0" value="${inst?.id||''}" ${inst?'readonly style="opacity:.5;cursor:not-allowed;margin-bottom:0"':''} placeholder="Ej: 1130741852" inputmode="numeric">
+          </div>
 
-          <input id="ie-id" class="config-input" style="margin-bottom:0" value="${inst?.id||''}" ${inst?'readonly style="opacity:.5;cursor:not-allowed;margin-bottom:0"':''} placeholder="Ej: 1130741852" inputmode="numeric">
-
-        </div>
-
-        <div class="form-group" style="margin-bottom:.75rem">
-
-          <label class="config-label">Nombre completo</label>
-
-          <input id="ie-name" class="config-input" style="margin-bottom:0" value="${inst?.name||''}" placeholder="Nombre Apellido">
+          <div style="flex:2;min-width:0">
+            <label class="config-label">Nombre completo</label>
+            <input id="ie-name" class="config-input" style="margin-bottom:0" value="${inst?.name||''}" placeholder="Nombre Apellido">
+          </div>
 
         </div>
 
@@ -10374,25 +10380,13 @@ function openInstructorModal(instId) {
 
           <label class="config-label">Licencias que puede dar</label>
 
-          <div style="display:flex;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">
+          <div style="display:flex;gap:.4rem;margin-top:.3rem;flex-wrap:wrap">
 
-            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
+            <label class="ie-pill ie-pill-a2"><input type="checkbox" id="ie-spec-a2" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('A2')?'checked':''}> 🏍️ A2 Moto</label>
 
-              <input type="checkbox" id="ie-spec-a2" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('A2')?'checked':''}> A2 Moto
+            <label class="ie-pill ie-pill-b1"><input type="checkbox" id="ie-spec-b1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('B1')?'checked':''}> 🚗 B1 Carro</label>
 
-            </label>
-
-            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
-
-              <input type="checkbox" id="ie-spec-b1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('B1')?'checked':''}> B1 Carro
-
-            </label>
-
-            <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;background:rgba(20,184,166,.08);border:1px solid rgba(20,184,166,.25);border-radius:var(--r-sm);padding:.45rem .75rem">
-
-              <input type="checkbox" id="ie-spec-c1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('C1')?'checked':''}> C1 Público
-
-            </label>
+            <label class="ie-pill ie-pill-c1"><input type="checkbox" id="ie-spec-c1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('C1')?'checked':''}> 🚌 C1 Público</label>
 
           </div>
 
@@ -10402,25 +10396,13 @@ function openInstructorModal(instId) {
 
           <label class="config-label">Disponibilidad</label>
 
-          <div style="display:flex;gap:.5rem;margin-top:.25rem">
+          <div style="display:flex;gap:.4rem;margin-top:.3rem;flex-wrap:wrap">
 
-            <label style="flex:1;display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-morning" ${(inst?.availability||'').toLowerCase().includes('mañana')?'checked':''}> 🌅 Mañana</label>
 
-              <input type="checkbox" id="ie-morning" ${(inst?.availability||'').toLowerCase().includes('mañana')?'checked':''}> 🌅 Mañana
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-afternoon" ${(inst?.availability||'').toLowerCase().includes('tarde')?'checked':''}> ☀️ Tarde</label>
 
-            </label>
-
-            <label style="flex:1;display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
-
-              <input type="checkbox" id="ie-afternoon" ${(inst?.availability||'').toLowerCase().includes('tarde')?'checked':''}> ☀️ Tarde
-
-            </label>
-
-            <label style="flex:1;display:flex;align-items:center;gap:.4rem;font-size:.82rem;cursor:pointer;background:rgba(255,255,255,.03);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.5rem .65rem">
-
-              <input type="checkbox" id="ie-night" ${(inst?.availability||'').toLowerCase().includes('noche')?'checked':''}> 🌙 Noche
-
-            </label>
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-night" ${(inst?.availability||'').toLowerCase().includes('noche')?'checked':''}> 🌙 Noche</label>
 
           </div>
 
@@ -10444,13 +10426,17 @@ function openInstructorModal(instId) {
 
       </div>
 
-      <div class="modal-footer" style="gap:.5rem;flex-wrap:wrap">
+      <div class="modal-footer" style="gap:.5rem;justify-content:space-between;align-items:center">
 
-        <button class="btn-action-cancel" onclick="document.getElementById('inst-edit-modal').remove()">Cancelar</button>
+        <div>
+          ${inst ? `<button class="btn-sec" style="font-size:.78rem;padding:.3rem .7rem" onclick="if(!confirm('${isActive?'¿Desactivar':'¿Activar'} este instructor?')) return; toggleInstructor('${instId}'); document.getElementById('inst-edit-modal').remove()">⏻ ${isActive?'Desactivar':'Activar'}</button>` : ''}
+        </div>
 
-        <button class="btn-action-confirm" onclick="saveInstructor('${instId||''}')">Guardar</button>
-
-        ${!inst ? `<button class="btn-action-confirm" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.5);color:#15803d" onclick="saveInstructor('',true)">💬 Guardar y notificar por WhatsApp</button>` : `<button class="btn-action-cancel" style="color:${isActive?'var(--danger)':'var(--success)'};border-color:${isActive?'rgba(239,68,68,.35)':'rgba(16,185,129,.35)'}" onclick="toggleInstructor('${instId}');document.getElementById('inst-edit-modal').remove()">${isActive?'🚫 Desactivar':'✅ Activar'}</button>`}
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <button class="btn-action-cancel" onclick="document.getElementById('inst-edit-modal').remove()">Cancelar</button>
+          <button class="btn-action-confirm" onclick="saveInstructor('${instId||''}')">Guardar</button>
+          ${!inst ? `<button class="btn-action-confirm" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.5);color:#15803d" onclick="saveInstructor('',true)">💬 Guardar y notificar por WhatsApp</button>` : ''}
+        </div>
 
       </div>
 
