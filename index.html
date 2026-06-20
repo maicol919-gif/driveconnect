@@ -10357,8 +10357,9 @@ function openInstructorModal(instId) {
         <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
 
           <div style="flex:1;min-width:0">
-            <label class="config-label">Cédula ${inst ? '<span style="color:var(--text-muted);font-size:.68rem">(no editable)</span>' : ''}</label>
+            <label class="config-label">Cédula</label>
             <input id="ie-id" class="config-input" style="margin-bottom:0" value="${inst?.id||''}" ${inst?'readonly style="opacity:.5;cursor:not-allowed;margin-bottom:0"':''} placeholder="Ej: 1130741852" inputmode="numeric">
+            ${inst ? '<div style="font-size:.68rem;color:var(--text-muted);margin-top:.2rem">no editable</div>' : ''}
           </div>
 
           <div style="flex:2;min-width:0">
@@ -10382,11 +10383,11 @@ function openInstructorModal(instId) {
 
           <div style="display:flex;gap:.4rem;margin-top:.3rem;flex-wrap:wrap">
 
-            <label class="ie-pill ie-pill-a2"><input type="checkbox" id="ie-spec-a2" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('A2')?'checked':''}> 🏍️ A2 Moto</label>
+            <label class="ie-pill ie-pill-a2"><input type="checkbox" id="ie-spec-a2" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('A2')?'checked':''}> A2 Moto</label>
 
-            <label class="ie-pill ie-pill-b1"><input type="checkbox" id="ie-spec-b1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('B1')?'checked':''}> 🚗 B1 Carro</label>
+            <label class="ie-pill ie-pill-b1"><input type="checkbox" id="ie-spec-b1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('B1')?'checked':''}> B1 Carro</label>
 
-            <label class="ie-pill ie-pill-c1"><input type="checkbox" id="ie-spec-c1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('C1')?'checked':''}> 🚌 C1 Público</label>
+            <label class="ie-pill ie-pill-c1"><input type="checkbox" id="ie-spec-c1" ${[inst?.specialty,inst?.specialtyB,inst?.specialtyC].includes('C1')?'checked':''}> C1 Público</label>
 
           </div>
 
@@ -10398,11 +10399,11 @@ function openInstructorModal(instId) {
 
           <div style="display:flex;gap:.4rem;margin-top:.3rem;flex-wrap:wrap">
 
-            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-morning" ${(inst?.availability||'').toLowerCase().includes('mañana')?'checked':''}> 🌅 Mañana</label>
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-morning" ${(inst?.availability||'').toLowerCase().includes('mañana')?'checked':''}> Mañana</label>
 
-            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-afternoon" ${(inst?.availability||'').toLowerCase().includes('tarde')?'checked':''}> ☀️ Tarde</label>
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-afternoon" ${(inst?.availability||'').toLowerCase().includes('tarde')?'checked':''}> Tarde</label>
 
-            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-night" ${(inst?.availability||'').toLowerCase().includes('noche')?'checked':''}> 🌙 Noche</label>
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-night" ${(inst?.availability||'').toLowerCase().includes('noche')?'checked':''}> Noche</label>
 
           </div>
 
