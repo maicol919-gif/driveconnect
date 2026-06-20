@@ -10324,6 +10324,7 @@ function renderAdminInstructors() {
 function openInstructorModal(instId) {
 
   const inst = instId ? STATE.instructors.find(i => i.id === instId) : null;
+  const isActive = inst ? (inst.active !== 'false' && inst.active !== false) : true;
 
   const ex = document.getElementById('inst-edit-modal'); if (ex) ex.remove();
 
@@ -10449,7 +10450,7 @@ function openInstructorModal(instId) {
 
         <button class="btn-action-confirm" onclick="saveInstructor('${instId||''}')">Guardar</button>
 
-        ${!inst ? `<button class="btn-action-confirm" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.5);color:#15803d" onclick="saveInstructor('',true)">💬 Guardar y notificar por WhatsApp</button>` : ''}
+        ${!inst ? `<button class="btn-action-confirm" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.5);color:#15803d" onclick="saveInstructor('',true)">💬 Guardar y notificar por WhatsApp</button>` : `<button class="btn-action-cancel" style="color:${isActive?'var(--danger)':'var(--success)'};border-color:${isActive?'rgba(239,68,68,.35)':'rgba(16,185,129,.35)'}" onclick="toggleInstructor('${instId}');document.getElementById('inst-edit-modal').remove()">${isActive?'🚫 Desactivar':'✅ Activar'}</button>`}
 
       </div>
 
