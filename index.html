@@ -10455,7 +10455,7 @@ function openInstructorModal(instId) {
       <div class="modal-footer" style="gap:.5rem;justify-content:space-between;align-items:center">
 
         <div>
-          ${inst ? `<button class="btn-sec" style="font-size:.78rem;padding:.3rem .7rem" onclick="if(!confirm('${isActive?'¿Desactivar':'¿Activar'} este instructor?')) return; toggleInstructor('${instId}'); document.getElementById('inst-edit-modal').remove()">⏻ ${isActive?'Desactivar':'Activar'}</button>` : ''}
+          ${inst ? `<button class="btn-sec" style="font-size:.78rem;padding:.3rem .7rem" onclick="_showConfirmDialog({title:'${isActive?'Desactivar':'Activar'} instructor',sub:'${inst.name.replace(/'/g,"\\'")}',fromLabel:'${isActive?'Activo':'Inactivo'}',fromColor:'${isActive?'var(--success)':'var(--danger)'}',toLabel:'${isActive?'Inactivo':'Activo'}',toColor:'${isActive?'var(--danger)':'var(--success)'}',onConfirm:()=>toggleInstructor('${instId}')})">⏻ ${isActive?'Desactivar':'Activar'}</button>` : ''}
         </div>
 
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
