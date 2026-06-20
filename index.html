@@ -425,6 +425,7 @@
     }
 
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+    @keyframes spin{to{transform:rotate(360deg)}}
 
     .config-hint{
 
@@ -2322,6 +2323,18 @@
 
     </div>
 
+    <!-- identity header -->
+    <div id="edit-st-id-header" style="display:flex;align-items:center;gap:.75rem;padding:.65rem 1.25rem;background:rgba(59,130,246,.06);border-bottom:1px solid rgba(59,130,246,.1)">
+      <div id="edit-st-avatar" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:#fff;flex-shrink:0"></div>
+      <div>
+        <div id="edit-st-id-name" style="font-weight:600;font-size:.95rem;color:var(--text-primary)"></div>
+        <div id="edit-st-id-doc" style="font-size:.72rem;color:var(--text-muted);margin-top:1px"></div>
+      </div>
+    </div>
+
+    <!-- read-only badges: categoría + instructor -->
+    <div id="edit-st-badges" style="display:flex;flex-wrap:wrap;gap:.35rem;padding:.5rem 1.25rem;border-bottom:1px solid rgba(59,130,246,.08);min-height:2.2rem"></div>
+
     <div class="modal-body" style="display:flex;flex-direction:column;gap:.75rem">
 
       <div>
@@ -2337,6 +2350,8 @@
         <label class="config-label">Teléfono / WhatsApp</label>
 
         <input type="text" id="edit-st-phone" class="config-input" style="margin-bottom:0" placeholder="10 dígitos">
+
+        <div id="edit-st-phone-error" class="error-msg" style="display:none;margin-top:.25rem"></div>
 
       </div>
 
@@ -2362,7 +2377,9 @@
 
         <label class="config-label">Fecha examen teórico</label>
 
-        <input type="date" id="edit-st-date" class="config-input" style="margin-bottom:0">
+        <input type="date" id="edit-st-date" class="config-input" style="margin-bottom:0" oninput="const p=document.getElementById('edit-st-date-preview');p.textContent=this.value?formatDate(this.value,true):''">
+
+        <div id="edit-st-date-preview" style="font-size:.75rem;color:var(--text-muted);margin-top:.3rem;min-height:1rem"></div>
 
       </div>
 
@@ -2374,7 +2391,7 @@
 
       <button class="btn-action-cancel" onclick="document.getElementById('edit-student-modal').classList.remove('active')">Cancelar</button>
 
-      <button class="btn-action-confirm" onclick="editStudentSubmit()">Guardar cambios</button>
+      <button class="btn-action-confirm" id="edit-st-save-btn" onclick="editStudentSubmit()">Guardar cambios</button>
 
     </div>
 
@@ -6645,11 +6662,11 @@ let _editStudentDoc = null;
 
 function openEditStudent(docNumber) {
 
-  _editStudentDoc = docNumber;
+  _editStudentDoc = String(docNumber);
 
-  const s = STATE.students.find(st => st.docNumber === docNumber);
+  const s = STATE.students.find(st => String(st.docNumber) === String(docNumber));
 
-  if (!s) return;
+  if (!s) { console.warn('[openEditStudent] alumno no encontrado:', docNumber); return; }
 
 
 
@@ -6659,22 +6676,41 @@ function openEditStudent(docNumber) {
 
 
 
+  // Populate fields
   document.getElementById('edit-st-name').value    = s.name    || '';
-
   document.getElementById('edit-st-phone').value   = s.phone   || '';
-
   document.getElementById('edit-st-doctype').value = s.docType || 'CC';
+  const dateVal = s.theoryPassedDate ? s.theoryPassedDate.substring(0,10) : '';
+  document.getElementById('edit-st-date').value    = dateVal;
+  document.getElementById('edit-st-date-preview').textContent = dateVal ? formatDate(dateVal, true) : '';
+  document.getElementById('edit-st-error').style.display      = 'none';
+  document.getElementById('edit-st-phone-error').style.display = 'none';
 
-  document.getElementById('edit-st-date').value    = s.theoryPassedDate ? s.theoryPassedDate.substring(0,10) : '';
+  // Avatar / identity header
+  const initials = (s.name || '?').trim().split(/\s+/).slice(0,2).map(w => w[0]).join('').toUpperCase();
+  document.getElementById('edit-st-avatar').textContent  = initials;
+  document.getElementById('edit-st-id-name').textContent = s.name || '—';
+  const docTypeLabel = { CC:'CC', TI:'TI', CE:'CE', PA:'Pasaporte' };
+  document.getElementById('edit-st-id-doc').textContent  = (docTypeLabel[s.docType] || 'Doc') + ' ' + docNumber;
 
-  document.getElementById('edit-st-error').style.display = 'none';
-
-
+  // Badges: licencias + instructor (read-only)
+  const LIC = { B1:'🚗 B1', C1:'🚌 C1', C2:'🚛 C2', A2:'🏍️ A2' };
+  const procs = (STATE.procesos || []).filter(p => String(p.docNumber) === String(docNumber));
+  const badgesEl = document.getElementById('edit-st-badges');
+  const badgeStyle = 'border-radius:9999px;padding:.15rem .55rem;font-size:.68rem;font-weight:600;white-space:nowrap';
+  let badgeHtml = '';
+  procs.forEach(p => {
+    badgeHtml += `<span style="${badgeStyle};background:rgba(59,130,246,.15);color:var(--brand-light);border:1px solid rgba(59,130,246,.25)">${LIC[p.license] || p.license}</span>`;
+    const inst = p.instructorId && (STATE.instructors || []).find(i => String(i.id) === String(p.instructorId));
+    if (inst) {
+      const instName = inst.name ? inst.name.split(' ')[0] : p.instructorId;
+      badgeHtml += `<span style="${badgeStyle};background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.25)">👤 ${instName}</span>`;
+    }
+  });
+  badgesEl.innerHTML = badgeHtml || '<span style="font-size:.72rem;color:var(--text-muted);align-self:center">Sin procesos registrados</span>';
 
   // Close profile modal first
-
   document.getElementById('student-profile-modal').classList.remove('active');
-
   document.getElementById('edit-student-modal').classList.add('active');
 
 }
@@ -6683,9 +6719,11 @@ function openEditStudent(docNumber) {
 
 async function editStudentSubmit() {
 
-  const errEl = document.getElementById('edit-st-error');
+  const errEl      = document.getElementById('edit-st-error');
+  const phoneErrEl = document.getElementById('edit-st-phone-error');
 
   errEl.style.display = 'none';
+  phoneErrEl.style.display = 'none';
 
 
 
@@ -6701,11 +6739,13 @@ async function editStudentSubmit() {
 
   if (!name) { errEl.textContent = 'El nombre es obligatorio.'; errEl.style.display = 'block'; return; }
 
+  if (phone && !/^\d{10}$/.test(phone)) { phoneErrEl.textContent = 'Debe ser exactamente 10 dígitos numéricos.'; phoneErrEl.style.display = 'block'; return; }
 
 
-  const btn = document.querySelector('#edit-student-modal .btn-action-confirm');
 
-  btn.disabled = true; btn.textContent = 'Guardando...';
+  const btn = document.getElementById('edit-st-save-btn');
+
+  btn.disabled = true; btn.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:.4rem"></span>Guardando...';
 
 
 
@@ -6745,7 +6785,7 @@ async function editStudentSubmit() {
 
   } finally {
 
-    btn.disabled = false; btn.textContent = 'Guardar cambios';
+    btn.disabled = false; btn.innerHTML = 'Guardar cambios';
 
   }
 
