@@ -1633,19 +1633,27 @@
 
         <div class="instructor-stats-row">
 
-          <div class="inst-stat-card">
-
-            <div class="inst-stat-val v-active" id="inst-stat-active">0</div>
-
-            <div class="inst-stat-label">En prácticas</div>
-
-          </div>
-
           <div class="inst-stat-card" style="border-color:var(--warning)">
 
             <div class="inst-stat-val v-pending" id="inst-stat-pending">0</div>
 
             <div class="inst-stat-label">Sin contactar</div>
+
+          </div>
+
+          <div class="inst-stat-card" style="border-color:#7c6ef7">
+
+            <div class="inst-stat-val" id="inst-stat-conf-pending" style="color:#a78bfa">0</div>
+
+            <div class="inst-stat-label">Conf. pendiente</div>
+
+          </div>
+
+          <div class="inst-stat-card">
+
+            <div class="inst-stat-val v-active" id="inst-stat-active">0</div>
+
+            <div class="inst-stat-label">En prácticas</div>
 
           </div>
 
@@ -5921,9 +5929,11 @@ function renderInstructorPortal() {
 
 
 
-  document.getElementById('inst-stat-active').textContent  = enClases;
+  document.getElementById('inst-stat-active').textContent        = enClases;
 
-  document.getElementById('inst-stat-pending').textContent = sinContactar;
+  document.getElementById('inst-stat-pending').textContent       = sinContactar;
+
+  document.getElementById('inst-stat-conf-pending').textContent  = pendConfirmar;
 
 
 
