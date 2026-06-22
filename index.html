@@ -637,7 +637,9 @@
 
     .instructor-stats-row{display:flex;gap:1rem;align-items:center}
 
-    .inst-stat-card{background:rgba(0,0,0,.2);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.65rem 1.1rem;min-width:90px;text-align:center}
+    .inst-stat-card{background:rgba(0,0,0,.2);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.65rem 1.1rem;min-width:90px;text-align:center;cursor:pointer;transition:var(--t-fast)}
+    .inst-stat-card:hover{border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.06)}
+    .inst-stat-card.active-filter{outline:2px solid currentColor;background:rgba(255,255,255,.08)}
 
     .inst-stat-val{font-family:var(--font-title);font-size:1.5rem;font-weight:800}
 
@@ -1633,7 +1635,7 @@
 
         <div class="instructor-stats-row">
 
-          <div class="inst-stat-card">
+          <div class="inst-stat-card" id="inst-stat-card-active" onclick="instSetFilter('practice')">
 
             <div class="inst-stat-val v-active" id="inst-stat-active">0</div>
 
@@ -1641,7 +1643,15 @@
 
           </div>
 
-          <div class="inst-stat-card" style="border-color:var(--warning)">
+          <div class="inst-stat-card" id="inst-stat-card-conf" onclick="instSetFilter('contactados')">
+
+            <div class="inst-stat-val v-pending" id="inst-stat-conf-pending">0</div>
+
+            <div class="inst-stat-label">Conf. pendiente</div>
+
+          </div>
+
+          <div class="inst-stat-card" id="inst-stat-card-pending" onclick="instSetFilter('sincontact')">
 
             <div class="inst-stat-val v-pending" id="inst-stat-pending">0</div>
 
@@ -5891,6 +5901,11 @@ async function studentConfirmContact(confirmed, license) {
 
 // =============================================================================
 
+function instSetFilter(filter) {
+  window._instActiveFilter = (window._instActiveFilter === filter) ? null : filter;
+  renderInstructorPortal();
+}
+
 function renderInstructorPortal() {
 
   const inst = STATE.currentUser.data;
@@ -5917,9 +5932,29 @@ function renderInstructorPortal() {
 
 
 
-  document.getElementById('inst-stat-active').textContent  = enClases;
+  document.getElementById('inst-stat-active').textContent       = enClases;
+  document.getElementById('inst-stat-pending').textContent      = sinContactar;
+  document.getElementById('inst-stat-conf-pending').textContent = pendConfirmar;
 
-  document.getElementById('inst-stat-pending').textContent = sinContactar;
+  // Color dinámico card "Sin contactar" según urgencia
+  const sinContactarProcs = myProcesos.filter(p => p.state === 'instructor_assigned');
+  const maxDaysPending = sinContactarProcs.reduce((max, p) => {
+    const s = STATE.students.find(st => st.docNumber === p.docNumber);
+    return Math.max(max, daysWaiting(p, s));
+  }, 0);
+  const pendingCardEl = document.getElementById('inst-stat-card-pending');
+  if (pendingCardEl) {
+    if (maxDaysPending >= CONFIG.WAIT_DAYS_CRITICAL) {
+      pendingCardEl.style.borderColor = '#ef4444';
+      document.getElementById('inst-stat-pending').style.color = '#fca5a5';
+    } else if (maxDaysPending >= CONFIG.WAIT_DAYS_WARNING) {
+      pendingCardEl.style.borderColor = 'rgba(245,158,11,.6)';
+      document.getElementById('inst-stat-pending').style.color = '#fcd34d';
+    } else {
+      pendingCardEl.style.borderColor = 'var(--border-color)';
+      document.getElementById('inst-stat-pending').style.color = '';
+    }
+  }
 
 
 
@@ -5995,6 +6030,28 @@ function renderInstructorPortal() {
 
 
 
+  // Estado visual de cards de filtro
+  ['inst-stat-card-pending','inst-stat-card-conf','inst-stat-card-active'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active-filter');
+  });
+  const activeF = window._instActiveFilter;
+  const cardMap = { sincontact:'inst-stat-card-pending', contactados:'inst-stat-card-conf', practice:'inst-stat-card-active' };
+  if (activeF && cardMap[activeF]) {
+    const el = document.getElementById(cardMap[activeF]);
+    if (el) el.classList.add('active-filter');
+  }
+
+  // Aplicar filtro sobre sorted
+  let filtered = sorted;
+  if (activeF === 'sincontact') {
+    filtered = sorted.filter(p => p.state === 'instructor_assigned');
+  } else if (activeF === 'contactados') {
+    filtered = sorted.filter(p => ['contacted','contact_confirmed'].includes(p.state));
+  } else if (activeF === 'practice') {
+    filtered = sorted.filter(p => p.state === 'practice_started');
+  }
+
   const list = document.getElementById('instructor-students-list');
 
   list.innerHTML = '';
@@ -6007,9 +6064,12 @@ function renderInstructorPortal() {
 
   }
 
+  if (filtered.length === 0 && activeF != null) {
+    list.innerHTML = `<div class="glass-panel">${emptyStateHtml('🔍', 'Sin resultados', 'Sin alumnos en esta categoría.')}</div>`;
+    return;
+  }
 
-
-  sorted.forEach(proc => {
+  filtered.forEach(proc => {
 
     const student = STATE.students.find(s => s.docNumber === proc.docNumber);
 
@@ -9202,7 +9262,7 @@ function showInstProfile(instId, fromHome) {
           📱 WA <i class="ti ti-chevron-down" style="font-size:10px" aria-hidden="true"></i>
         </button>
         <div id="wa-dd-menu-${instId}" style="display:none;position:absolute;top:30px;right:0;background:#1e1c30;border:0.5px solid rgba(255,255,255,.12);border-radius:8px;padding:4px;min-width:200px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,.4)">
-          ${welcomeSent && welcomeDate ? `<div style="padding:6px 10px 8px;border-bottom:0.5px solid rgba(255,255,255,.08);margin-bottom:2px"><p style="font-size:10px;color:#64748b;margin:0">Bienvenida enviada el</p><p style="font-size:12px;font-weight:500;color:#4ade80;margin:2px 0 0">${welcomeDate}</p></div>` : ''}
+          ${welcomeSent && welcomeDate ? `<div style="padding:6px 10px 8px;border-bottom:0.5px solid rgba(255,255,255,.08);margin-bottom:2px"><p style="font-size:10px;color:#64748b;margin:0">Bienvenida enviada el</p><p style="font-size:12px;font-weight:500;color:#4ade80;margin:2px 0 0">${formatDate(welcomeDate, true)}</p></div>` : ''}
           <a href="${waUrlBienvenida}" target="_blank" onclick="markWelcomeSent('${instId}');document.getElementById('wa-dd-menu-${instId}').style.display='none'" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;text-decoration:none;color:${welcomeSent?'#cbd5e1':'#fbbf24'}">
             <i class="ti ti-send" style="font-size:14px;color:${welcomeSent?'#25d366':'#fbbf24'}" aria-hidden="true"></i>
             <span style="font-size:12px">${welcomeSent ? 'Reenviar bienvenida' : 'Enviar bienvenida'}</span>
