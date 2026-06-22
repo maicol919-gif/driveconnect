@@ -637,9 +637,7 @@
 
     .instructor-stats-row{display:flex;gap:1rem;align-items:center}
 
-    .inst-stat-card{background:rgba(0,0,0,.2);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.65rem 1.1rem;min-width:90px;text-align:center;cursor:pointer;transition:var(--t-fast)}
-    .inst-stat-card:hover{border-color:rgba(255,255,255,.25);background:rgba(255,255,255,.06)}
-    .inst-stat-card.active-filter{outline:2px solid currentColor;background:rgba(255,255,255,.08)}
+    .inst-stat-card{background:rgba(0,0,0,.2);border:1px solid var(--border-color);border-radius:var(--r-sm);padding:.65rem 1.1rem;min-width:90px;text-align:center}
 
     .inst-stat-val{font-family:var(--font-title);font-size:1.5rem;font-weight:800}
 
@@ -702,10 +700,6 @@
     .btn-card-action.blue{background:rgba(59,130,246,.1);color:var(--brand-light);border:1px solid rgba(59,130,246,.3)}
 
     .btn-card-action.blue:hover{background:var(--brand);color:white}
-
-    .btn-card-action.call{background:#1e3a5f;color:#85b7eb;border:0.5px solid #378add}
-
-    .btn-card-action.call:hover{filter:brightness(1.15)}
 
 
 
@@ -1443,7 +1437,7 @@
 
             </span>
 
-            <input type="password" id="instructor-pin" class="form-input" placeholder="••••" maxlength="4" autocomplete="new-password" inputmode="numeric" style="padding-right:2.5rem">
+            <input type="password" id="instructor-pin" class="form-input" placeholder="••••" maxlength="4" autocomplete="off" inputmode="numeric" style="padding-right:2.5rem">
 
             <button type="button" onclick="togglePwd('instructor-pin',this)" style="position:absolute;right:.65rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;padding:.2rem;line-height:1">
 
@@ -1639,27 +1633,19 @@
 
         <div class="instructor-stats-row">
 
-          <div class="inst-stat-card" id="inst-stat-card-pending" onclick="instSetFilter('sincontact')" style="border-color:var(--warning)">
-
-            <div class="inst-stat-val v-pending" id="inst-stat-pending">0</div>
-
-            <div class="inst-stat-label">Sin contactar</div>
-
-          </div>
-
-          <div class="inst-stat-card" id="inst-stat-card-conf" onclick="instSetFilter('contactados')" style="border-color:#7c6ef7">
-
-            <div class="inst-stat-val" id="inst-stat-conf-pending" style="color:#a78bfa">0</div>
-
-            <div class="inst-stat-label">Conf. pendiente</div>
-
-          </div>
-
-          <div class="inst-stat-card" id="inst-stat-card-active" onclick="instSetFilter('practice')">
+          <div class="inst-stat-card">
 
             <div class="inst-stat-val v-active" id="inst-stat-active">0</div>
 
             <div class="inst-stat-label">En prácticas</div>
+
+          </div>
+
+          <div class="inst-stat-card" style="border-color:var(--warning)">
+
+            <div class="inst-stat-val v-pending" id="inst-stat-pending">0</div>
+
+            <div class="inst-stat-label">Sin contactar</div>
 
           </div>
 
@@ -4111,9 +4097,6 @@ function switchTab(tab) {
 
   STATE.activeTab = tab;
 
-  if (tab === 'instructor') localStorage.setItem('dc_last_login_tab', 'instructor');
-  else if (tab === 'student') localStorage.removeItem('dc_last_login_tab');
-
   // Role cards
 
   document.getElementById('rc-student')?.classList.toggle('active', tab === 'student');
@@ -4365,13 +4348,8 @@ async function registerStudent() {
     if (!ok) throw new Error('No se pudo conectar. Intenta de nuevo.');
 
     const exists = STATE.students.find(s => s.docNumber === docNumber);
-    const isInstructor = STATE.instructors && STATE.instructors.find(i => String(i.id) === String(docNumber));
-    const isCoord = STATE.coordinators && STATE.coordinators.find(c => String(c.username) === String(docNumber));
-    const isDev = docNumber === '1130599688';
 
-    if (!isDev && isInstructor) throw new Error('Este documento corresponde a un instructor. Ingresa desde la pantalla principal seleccionando "Soy instructor".');
-    if (!isDev && isCoord) throw new Error('Este documento corresponde a un coordinador. Ingresa desde la pantalla principal en el acceso de coordinadores.');
-    if (!isDev && exists) throw new Error('Este documento ya está registrado como alumno. Si tienes problemas para ingresar, acércate a la academia.');
+    if (exists) throw new Error('Este documento ya está registrado. Si tienes problemas para ingresar, acércate a la academia.');
 
 
 
@@ -5909,11 +5887,6 @@ async function studentConfirmContact(confirmed, license) {
 
 // =============================================================================
 
-function instSetFilter(filter) {
-  window._instActiveFilter = (window._instActiveFilter === filter) ? null : filter;
-  renderInstructorPortal();
-}
-
 function renderInstructorPortal() {
 
   const inst = STATE.currentUser.data;
@@ -5940,33 +5913,11 @@ function renderInstructorPortal() {
 
 
 
-  document.getElementById('inst-stat-active').textContent        = enClases;
+  document.getElementById('inst-stat-active').textContent  = enClases;
 
-  document.getElementById('inst-stat-pending').textContent       = sinContactar;
-
-  document.getElementById('inst-stat-conf-pending').textContent  = pendConfirmar;
+  document.getElementById('inst-stat-pending').textContent = sinContactar;
 
 
-
-  // Color dinámico card "Sin contactar" según urgencia
-  const sinContactarProcs = myProcesos.filter(p => p.state === 'instructor_assigned');
-  const maxDaysPending = sinContactarProcs.reduce((max, p) => {
-    const s = STATE.students.find(st => st.docNumber === p.docNumber);
-    return Math.max(max, daysWaiting(p, s));
-  }, 0);
-  const pendingCardEl = document.getElementById('inst-stat-card-pending');
-  if (pendingCardEl) {
-    if (maxDaysPending >= CONFIG.WAIT_DAYS_CRITICAL) {
-      pendingCardEl.style.borderColor = '#ef4444';
-      document.getElementById('inst-stat-pending').style.color = '#fca5a5';
-    } else if (maxDaysPending >= CONFIG.WAIT_DAYS_WARNING) {
-      pendingCardEl.style.borderColor = 'rgba(245,158,11,.6)';
-      document.getElementById('inst-stat-pending').style.color = '#fcd34d';
-    } else {
-      pendingCardEl.style.borderColor = 'var(--border-color)';
-      document.getElementById('inst-stat-pending').style.color = '';
-    }
-  }
 
   // Banner urgente: alumnos sin contactar
 
@@ -6044,28 +5995,6 @@ function renderInstructorPortal() {
 
   list.innerHTML = '';
 
-  // Estado visual de cards de filtro
-  ['inst-stat-card-pending','inst-stat-card-conf','inst-stat-card-active'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.remove('active-filter');
-  });
-  const activeF = window._instActiveFilter;
-  const cardMap = { sincontact:'inst-stat-card-pending', contactados:'inst-stat-card-conf', practice:'inst-stat-card-active' };
-  if (activeF && cardMap[activeF]) {
-    const el = document.getElementById(cardMap[activeF]);
-    if (el) el.classList.add('active-filter');
-  }
-
-  // Aplicar filtro sobre sorted
-  let filtered = sorted;
-  if (activeF === 'sincontact') {
-    filtered = sorted.filter(p => p.state === 'instructor_assigned');
-  } else if (activeF === 'contactados') {
-    filtered = sorted.filter(p => ['contacted','contact_confirmed'].includes(p.state));
-  } else if (activeF === 'practice') {
-    filtered = sorted.filter(p => p.state === 'practice_started');
-  }
-
   if (sorted.length === 0) {
 
     list.innerHTML = `<div class="glass-panel">${emptyStateHtml('👥', 'Sin alumnos asignados', 'El coordinador aún no te ha asignado alumnos. Cuando lo haga aparecerán aquí.')}</div>`;
@@ -6074,17 +6003,9 @@ function renderInstructorPortal() {
 
   }
 
-  if (filtered.length === 0 && activeF != null) {
-
-    list.innerHTML = `<div class="glass-panel">${emptyStateHtml('🔍', 'Sin alumnos en esta categoría.', '')}</div>`;
-
-    return;
-
-  }
 
 
-
-  filtered.forEach(proc => {
+  sorted.forEach(proc => {
 
     const student = STATE.students.find(s => s.docNumber === proc.docNumber);
 
@@ -6186,7 +6107,7 @@ function renderInstructorPortal() {
 
         <button class="btn-primary" style="width:auto;padding:.4rem .85rem;font-size:.78rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);box-shadow:0 2px 8px rgba(109,40,217,.35)" onclick="instMarkContacted('${proc.docNumber}','${proc.license}')">
 
-          ✅ Marcar como contactado
+          📞 Marcar como contactado
 
         </button>`;
 
@@ -6275,14 +6196,6 @@ function renderInstructorPortal() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
 
           WhatsApp
-
-        </a>
-
-        <a href="tel:+57${student.phone.replace(/\D/g,'')}" class="btn-card-action call">
-
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.71 3.41 2 2 0 0 1 3.71 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.69a16 16 0 0 0 6 6l1.06-1.06a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-
-          Llamar
 
         </a>
 
@@ -9239,9 +9152,13 @@ function showInstProfile(instId, fromHome) {
 
   const specPills = specs.map(s => '<span style="background:' + (LIC_COLORS[s]||'rgba(255,255,255,.08)') + ';border-radius:9999px;padding:1px 6px;font-size:9px;color:' + (LIC_TEXT[s]||'#fff') + ';font-weight:600">' + s + '</span>').join('');
 
-  const waMsg = 'Hola ' + (inst.name||'') + ', soy de coordinación. Te escribo sobre el estado de tus alumnos asignados.';
-
-  const waUrl = inst.phone ? 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') + '?text=' + encodeURIComponent(waMsg) : null;
+  const waMsgAlumnos = 'Hola ' + (inst.name||'') + ', soy de coordinación. Te escribo sobre el estado de tus alumnos asignados.';
+  const waMsgBienvenida = 'Hola ' + (inst.name||'') + ', te registramos como instructor en DriveConnect.\n\nTus datos de acceso:\n  ID: ' + inst.id + '\n  PIN: ' + (inst.pin||'1234') + '\n\nIngresa en: https://maicol919-gif.github.io/driveconnect/\nPor seguridad cambia el PIN en tu primer ingreso.';
+  const waBase = inst.phone ? 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') : null;
+  const waUrl = waBase ? waBase + '?text=' + encodeURIComponent(waMsgAlumnos) : null;
+  const waUrlBienvenida = waBase ? waBase + '?text=' + encodeURIComponent(waMsgBienvenida) : null;
+  const welcomeSent = inst.welcomeSent === 'true' || inst.welcomeSent === true;
+  const welcomeDate = inst.welcomeSentDate ? inst.welcomeSentDate : null;
 
 
 
@@ -9275,7 +9192,23 @@ function showInstProfile(instId, fromHome) {
 
     + '<div style="display:flex;gap:3px;margin-top:3px;align-items:center">' + specPills + (inst.phone ? '<span style="font-size:9px;color:#334155">· ' + inst.phone + '</span>' : '') + '</div></div>'
 
-    + (waUrl ? '<a href="' + waUrl + '" target="_blank" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:6px;font-size:10px;color:#4ade80;text-decoration:none;flex-shrink:0">&#128241; WA</a>' : '')
+    + (inst.phone ? `
+      <div style="position:relative;flex-shrink:0" id="wa-dd-${instId}">
+        <button onclick="toggleWaDropdown('${instId}')" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:6px;font-size:10px;color:#4ade80;cursor:pointer;font-family:inherit">
+          📱 WA <i class="ti ti-chevron-down" style="font-size:10px" aria-hidden="true"></i>
+        </button>
+        <div id="wa-dd-menu-${instId}" style="display:none;position:absolute;top:30px;right:0;background:#1e1c30;border:0.5px solid rgba(255,255,255,.12);border-radius:8px;padding:4px;min-width:200px;z-index:100;box-shadow:0 4px 16px rgba(0,0,0,.4)">
+          ${welcomeSent && welcomeDate ? `<div style="padding:6px 10px 8px;border-bottom:0.5px solid rgba(255,255,255,.08);margin-bottom:2px"><p style="font-size:10px;color:#64748b;margin:0">Bienvenida enviada el</p><p style="font-size:12px;font-weight:500;color:#4ade80;margin:2px 0 0">${welcomeDate}</p></div>` : ''}
+          <a href="${waUrlBienvenida}" target="_blank" onclick="markWelcomeSent('${instId}');document.getElementById('wa-dd-menu-${instId}').style.display='none'" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;text-decoration:none;color:${welcomeSent?'#cbd5e1':'#fbbf24'}">
+            <i class="ti ti-send" style="font-size:14px;color:${welcomeSent?'#25d366':'#fbbf24'}" aria-hidden="true"></i>
+            <span style="font-size:12px">${welcomeSent ? 'Reenviar bienvenida' : 'Enviar bienvenida'}</span>
+          </a>
+          <a href="${waUrl}" target="_blank" onclick="document.getElementById('wa-dd-menu-${instId}').style.display='none'" style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:5px;text-decoration:none;color:#cbd5e1">
+            <i class="ti ti-users" style="font-size:14px;color:#25d366" aria-hidden="true"></i>
+            <span style="font-size:12px">Preguntar por alumnos</span>
+          </a>
+        </div>
+      </div>` : '')
 
     + '<button onclick="openInstructorModal(\'' + instId + '\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:10px;cursor:pointer;font-family:inherit">&#9998; Editar</button>'
     + '<button onclick="openResetPinModal(\'instructor\',\'' + instId + '\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:10px;cursor:pointer;font-family:inherit">🔑 PIN</button>'
@@ -10692,6 +10625,29 @@ async function saveInstructor(instId, openWa = false) {
 
   loadActivityLog();
 
+}
+
+function toggleWaDropdown(instId) {
+  const menu = document.getElementById('wa-dd-menu-' + instId);
+  if (!menu) return;
+  const isOpen = menu.style.display !== 'none';
+  document.querySelectorAll('[id^="wa-dd-menu-"]').forEach(m => m.style.display = 'none');
+  if (!isOpen) {
+    menu.style.display = 'block';
+    setTimeout(() => document.addEventListener('click', function closeWa(e) {
+      if (!document.getElementById('wa-dd-' + instId)?.contains(e.target)) {
+        menu.style.display = 'none';
+        document.removeEventListener('click', closeWa);
+      }
+    }), 0);
+  }
+}
+
+async function markWelcomeSent(instId) {
+  const today = new Date().toISOString().slice(0, 10);
+  await apiCall({ action: 'updateInstructor', id: instId, welcomeSent: 'true', welcomeSentDate: today });
+  const inst = STATE.instructors.find(i => i.id === instId);
+  if (inst) { inst.welcomeSent = 'true'; inst.welcomeSentDate = today; }
 }
 
 function sendInstWa(instId) {
@@ -13694,9 +13650,6 @@ function maybeShowInstallBanner() {
 document.addEventListener('DOMContentLoaded', async () => {
 
   setTimeout(maybeShowInstallBanner, 1500);
-
-  // Restaurar tab de login si el último usuario fue instructor
-  if (localStorage.getItem('dc_last_login_tab') === 'instructor') switchTab('instructor');
 
   // Set default admin password on first run only
 
