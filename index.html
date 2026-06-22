@@ -10663,7 +10663,7 @@ function showWaConfirmModal(waMsg, waPhone, onConfirm) {
   if (existing) existing.remove();
   const modal = document.createElement('div');
   modal.id = 'wa-confirm-modal';
-  modal.className = 'modal-overlay';
+  modal.className = 'modal-overlay active';
   const escaped = waMsg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   modal.innerHTML = `
     <div class="modal-box" style="max-width:420px">
