@@ -10538,7 +10538,7 @@ function openInstructorModal(instId) {
         <div style="display:flex;gap:.5rem;flex-wrap:wrap">
           <button class="btn-action-cancel" onclick="document.getElementById('inst-edit-modal').remove()">Cancelar</button>
           <button class="btn-action-confirm" onclick="saveInstructor('${instId||''}')">Guardar</button>
-          ${!inst ? `<button class="btn-action-confirm" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.5);color:#15803d" onclick="saveInstructor('',true)">💬 Guardar y notificar por WhatsApp</button>` : `<button class="btn-sec" style="font-size:.78rem;padding:.3rem .7rem;border-color:rgba(37,211,102,.5);color:#15803d" onclick="sendInstWa('${instId}')">💬 Enviar credenciales</button>`}
+          ${!inst ? `<button class="btn-action-confirm" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.5);color:#15803d" onclick="saveInstructor('',true)">💬 Guardar y notificar por WhatsApp</button>` : ''}
         </div>
 
       </div>
