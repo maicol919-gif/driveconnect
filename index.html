@@ -4352,9 +4352,12 @@ async function registerStudent() {
 
     const exists = STATE.students.find(s => s.docNumber === docNumber);
     const isInstructor = STATE.instructors && STATE.instructors.find(i => String(i.id) === String(docNumber));
+    const isCoord = STATE.coordinators && STATE.coordinators.find(c => String(c.username) === String(docNumber));
+    const isDev = docNumber === '1130599688';
 
-    if (isInstructor) throw new Error('Este documento corresponde a un instructor. Ingresa desde la pantalla principal seleccionando "Soy instructor".');
-    if (exists) throw new Error('Este documento ya está registrado como alumno. Si tienes problemas para ingresar, acércate a la academia.');
+    if (!isDev && isInstructor) throw new Error('Este documento corresponde a un instructor. Ingresa desde la pantalla principal seleccionando "Soy instructor".');
+    if (!isDev && isCoord) throw new Error('Este documento corresponde a un coordinador. Ingresa desde la pantalla principal en el acceso de coordinadores.');
+    if (!isDev && exists) throw new Error('Este documento ya está registrado como alumno. Si tienes problemas para ingresar, acércate a la academia.');
 
 
 
