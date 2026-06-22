@@ -4351,8 +4351,10 @@ async function registerStudent() {
     if (!ok) throw new Error('No se pudo conectar. Intenta de nuevo.');
 
     const exists = STATE.students.find(s => s.docNumber === docNumber);
+    const isInstructor = STATE.instructors && STATE.instructors.find(i => String(i.id) === String(docNumber));
 
-    if (exists) throw new Error('Este documento ya está registrado. Si tienes problemas para ingresar, acércate a la academia.');
+    if (isInstructor) throw new Error('Este documento corresponde a un instructor. Ingresa desde la pantalla principal seleccionando "Soy instructor".');
+    if (exists) throw new Error('Este documento ya está registrado como alumno. Si tienes problemas para ingresar, acércate a la academia.');
 
 
 
