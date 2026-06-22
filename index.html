@@ -3366,6 +3366,10 @@ function normalizeInstructor(obj) {
 
     active: (() => { const v = k('active'); return (v === false || String(v).toLowerCase() === 'false') ? 'false' : 'true'; })(),
 
+    welcomeSent:     String(k('welcomeSent') || '').trim(),
+
+    welcomeSentDate: String(k('welcomeSentDate') || '').trim(),
+
   };
 
 }
@@ -9132,9 +9136,6 @@ function showInstProfile(instId, fromHome) {
 
   const specPills = specs.map(s => '<span style="background:' + (LIC_COLORS[s]||'rgba(255,255,255,.08)') + ';border-radius:9999px;padding:1px 6px;font-size:9px;color:' + (LIC_TEXT[s]||'#fff') + ';font-weight:600">' + s + '</span>').join('');
 
-  const waMsg = 'Hola ' + (inst.name||'') + ', soy de coordinación. Te escribo sobre el estado de tus alumnos asignados.';
-
-  const waUrl = inst.phone ? 'https://wa.me/57' + inst.phone.replace(/\D/g,'').replace(/^57/,'') + '?text=' + encodeURIComponent(waMsg) : null;
 
 
 
@@ -9168,7 +9169,7 @@ function showInstProfile(instId, fromHome) {
 
     + '<div style="display:flex;gap:3px;margin-top:3px;align-items:center">' + specPills + (inst.phone ? '<span style="font-size:9px;color:#334155">· ' + inst.phone + '</span>' : '') + '</div></div>'
 
-    + (waUrl ? '<a href="' + waUrl + '" target="_blank" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:6px;font-size:10px;color:#4ade80;text-decoration:none;flex-shrink:0">&#128241; WA</a>' : '')
+    + (inst.phone ? '<div style="position:relative;flex-shrink:0"><button onclick="_instWaMenu(\'' + instId + '\',this)" style="display:flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.2);border-radius:6px;font-size:10px;color:#4ade80;cursor:pointer;font-family:inherit">&#128241; WA ▾</button></div>' : '')
 
     + '<button onclick="openInstructorModal(\'' + instId + '\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:10px;cursor:pointer;font-family:inherit">&#9998; Editar</button>'
     + '<button onclick="openResetPinModal(\'instructor\',\'' + instId + '\')" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.08);background:transparent;color:#475569;font-size:10px;cursor:pointer;font-family:inherit">🔑 PIN</button>'
@@ -9199,6 +9200,59 @@ function showInstProfile(instId, fromHome) {
 
     + '</div>';
 
+}
+
+function _instWaMenu(instId, btn) {
+  const existing = document.getElementById('inst-wa-dropdown');
+  if (existing) { existing.remove(); return; }
+
+  const inst = STATE.instructors.find(i => i.id === instId);
+  if (!inst || !inst.phone) return;
+
+  const waPhone = inst.phone.replace(/\D/g,'').replace(/^57/,'');
+
+  const welcomeLabel = inst.welcomeSent === 'true'
+    ? '🔁 Reenviar bienvenida' + (inst.welcomeSentDate ? ' (' + inst.welcomeSentDate + ')' : '')
+    : '👋 Enviar bienvenida';
+
+  const welcomeMsg = `Hola ${inst.name}, te registramos como instructor en DriveConnect.\n\nTus datos de acceso:\n  ID: ${inst.id}\n  PIN: ${inst.pin}\n\nIngresa en: https://maicol919-gif.github.io/driveconnect/\nPor seguridad cambia el PIN en tu primer ingreso.`;
+
+  const coordMsg = 'Hola ' + inst.name + ', soy de coordinación. Te escribo sobre el estado de tus alumnos asignados.';
+
+  const menu = document.createElement('div');
+  menu.id = 'inst-wa-dropdown';
+  menu.style.cssText = 'position:absolute;z-index:9999;background:#1e293b;border:1px solid rgba(255,255,255,.12);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:220px;overflow:hidden;top:calc(100% + 4px);right:0';
+
+  const mkItem = (label, onClick) => {
+    const el = document.createElement('button');
+    el.textContent = label;
+    el.style.cssText = 'display:block;width:100%;text-align:left;padding:.55rem .85rem;font-size:.8rem;color:#e2e8f0;background:none;border:none;cursor:pointer;font-family:inherit;transition:background .12s';
+    el.onmouseenter = () => el.style.background = 'rgba(255,255,255,.07)';
+    el.onmouseleave = () => el.style.background = 'none';
+    el.onclick = () => { menu.remove(); onClick(); };
+    return el;
+  };
+
+  menu.appendChild(mkItem(welcomeLabel, () => {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2,'0');
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const yyyy = today.getFullYear();
+    const todayStr = dd + '/' + mm + '/' + yyyy;
+    showWaConfirmModal(welcomeMsg, '57' + waPhone, async () => {
+      await apiCall({ action: 'updateInstructor', id: instId, welcomeSent: 'true', welcomeSentDate: todayStr });
+      showInstProfile(instId);
+    });
+  }));
+
+  menu.appendChild(mkItem('💬 Contactar sobre alumnos', () => {
+    showWaConfirmModal(coordMsg, '57' + waPhone);
+  }));
+
+  btn.parentElement.appendChild(menu);
+
+  const close = (e) => { if (!menu.contains(e.target) && e.target !== btn) { menu.remove(); document.removeEventListener('click', close); } };
+  setTimeout(() => document.addEventListener('click', close), 0);
 }
 
 
@@ -10443,14 +10497,10 @@ function openInstructorModal(instId) {
         <div class="form-group" style="margin-bottom:.75rem">
           <label class="config-label">PIN inicial</label>
           <div style="display:flex;gap:.5rem;align-items:center">
-            <input id="ie-pin" class="config-input" style="margin-bottom:0;width:90px;font-family:monospace;letter-spacing:2px" maxlength="6" value="1234" oninput="updateWaPreview()">
-            <button class="btn-sec" style="padding:.4rem .6rem;font-size:.75rem" onclick="document.getElementById('ie-pin').value=Math.floor(1000+Math.random()*9000).toString();updateWaPreview()">🎲 Generar</button>
+            <input id="ie-pin" class="config-input" style="margin-bottom:0;width:90px;font-family:monospace;letter-spacing:2px" maxlength="6" value="">
+            <button class="btn-sec" style="padding:.4rem .6rem;font-size:.75rem" onclick="document.getElementById('ie-pin').value=Math.floor(1000+Math.random()*9000).toString()">🎲 Generar</button>
             <span style="font-size:.72rem;color:var(--text-muted)">Debe cambiarlo al ingresar</span>
           </div>
-        </div>
-        <div class="form-group" style="margin-bottom:.5rem">
-          <label class="config-label">Vista previa WhatsApp</label>
-          <div id="ie-wa-preview" style="font-size:.78rem;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.3);border-radius:var(--r-sm);padding:.6rem .75rem;white-space:pre-wrap;line-height:1.5;font-family:monospace;color:var(--text-primary)"></div>
         </div>` : ''}
 
         <div id="ie-msg" style="font-size:.78rem;min-height:1rem;color:var(--danger);margin-top:.5rem"></div>
@@ -10475,7 +10525,13 @@ function openInstructorModal(instId) {
 
   document.body.appendChild(modal);
 
-  setTimeout(() => { document.getElementById(inst ? 'ie-name' : 'ie-id')?.focus(); if (!inst) updateWaPreview(); }, 100);
+  setTimeout(() => {
+    document.getElementById(inst ? 'ie-name' : 'ie-id')?.focus();
+    if (!inst) {
+      const pinEl = document.getElementById('ie-pin');
+      if (pinEl) pinEl.value = Math.floor(1000 + Math.random() * 9000).toString();
+    }
+  }, 100);
 
 }
 
@@ -10551,12 +10607,6 @@ async function saveInstructor(instId, openWa = false) {
 
   await writeLog(instId ? 'instructor_editado' : 'instructor_agregado', name, id);
 
-  if (openWa && !instId) {
-    const waMsg = document.getElementById('ie-wa-preview')?.textContent || '';
-    const waPhone = phone.replace(/\D/g, '');
-    if (waPhone) window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(waMsg), '_blank');
-  }
-
   document.getElementById('inst-edit-modal').remove();
 
   toast(`✅ Instructor ${instId ? 'actualizado' : 'agregado'}`, 'success');
@@ -10569,15 +10619,41 @@ async function saveInstructor(instId, openWa = false) {
 
   loadActivityLog();
 
+  if (openWa && !instId) {
+    const waMsg = `Hola ${name}, te registramos como instructor en DriveConnect.\n\nTus datos de acceso:\n  ID: ${id}\n  PIN: ${pinVal}\n\nIngresa en: https://maicol919-gif.github.io/driveconnect/\nPor seguridad cambia el PIN en tu primer ingreso.`;
+    showWaConfirmModal(waMsg, phone.replace(/\D/g, ''));
+  }
+
 }
 
-function updateWaPreview() {
-  const nombre = document.getElementById('ie-name')?.value || '[nombre]';
-  const doc    = document.getElementById('ie-id')?.value  || '[cédula]';
-  const pin    = document.getElementById('ie-pin')?.value || '1234';
-  const el     = document.getElementById('ie-wa-preview');
-  if (!el) return;
-  el.textContent = `Hola ${nombre}, te registramos como instructor en DriveConnect.\n\nTus datos de acceso:\n  ID: ${doc}\n  PIN: ${pin}\n\nIngresa en: https://maicol919-gif.github.io/driveconnect/\nPor seguridad cambia el PIN en tu primer ingreso.`;
+function showWaConfirmModal(waMsg, waPhone, onConfirm) {
+  const existing = document.getElementById('wa-confirm-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'wa-confirm-modal';
+  modal.className = 'modal-overlay';
+  const escaped = waMsg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width:420px">
+      <div class="modal-header">
+        <span style="font-size:1rem;font-weight:600">Vista previa del mensaje</span>
+        <button class="modal-close" onclick="document.getElementById('wa-confirm-modal').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:.6rem">Revisa el mensaje antes de enviarlo por WhatsApp:</p>
+        <div style="font-size:.82rem;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.3);border-radius:var(--r-sm);padding:.75rem;white-space:pre-wrap;line-height:1.6;font-family:monospace;color:var(--text-primary)">${escaped}</div>
+      </div>
+      <div class="modal-footer" style="gap:.5rem;justify-content:flex-end">
+        <button class="btn-action-cancel" onclick="document.getElementById('wa-confirm-modal').remove()">Cancelar</button>
+        <button class="btn-action-confirm" style="background:rgba(37,211,102,.15);border-color:rgba(37,211,102,.5);color:#15803d" id="wa-confirm-btn">💬 Abrir WhatsApp</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  document.getElementById('wa-confirm-btn').addEventListener('click', async () => {
+    modal.remove();
+    if (onConfirm) await onConfirm();
+    if (waPhone) window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(waMsg), '_blank');
+  });
 }
 
 
