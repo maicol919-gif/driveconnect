@@ -4097,6 +4097,9 @@ function switchTab(tab) {
 
   STATE.activeTab = tab;
 
+  if (tab === 'instructor') localStorage.setItem('dc_last_login_tab', 'instructor');
+  else if (tab === 'student') localStorage.removeItem('dc_last_login_tab');
+
   // Role cards
 
   document.getElementById('rc-student')?.classList.toggle('active', tab === 'student');
@@ -13607,6 +13610,9 @@ function maybeShowInstallBanner() {
 document.addEventListener('DOMContentLoaded', async () => {
 
   setTimeout(maybeShowInstallBanner, 1500);
+
+  // Restaurar tab de login si el último usuario fue instructor
+  if (localStorage.getItem('dc_last_login_tab') === 'instructor') switchTab('instructor');
 
   // Set default admin password on first run only
 
