@@ -2802,7 +2802,7 @@
 
           <button type="button" class="reg-pill" data-val="weekend" onclick="togglePill(this,'reg-schedule-pills')">📅 Fines de semana</button>
 
-          <button type="button" class="reg-pill" data-val="flexible" onclick="togglePill(this,'reg-schedule-pills')">🔄 Flexible</button>
+          <button type="button" class="reg-pill" data-val="flexible" onclick="togglePill(this,'reg-schedule-pills')">🔄 Rotativo</button>
 
         </div>
 
@@ -6928,7 +6928,7 @@ const SCHEDULE_SLOTS = [
 
   { key: 'weekend',   label: 'Fines de semana', css: 'pill-weekend', icon: '📅' },
 
-  { key: 'flexible',  label: 'Flexible',  css: 'pill-flexible',  icon: '🔄' },
+  { key: 'flexible',  label: 'Rotativo',  css: 'pill-flexible',  icon: '🔄' },
 
 ];
 
@@ -6970,7 +6970,7 @@ function scheduleMatch(instrSlots, studentSlots) {
 
 function renderSchedulePills(slots, container) {
 
-  if (!slots.length) { container.innerHTML = '<span class="pill pill-any">Horario flexible</span>'; return; }
+  if (!slots.length) { container.innerHTML = '<span class="pill pill-any">Horario rotativo</span>'; return; }
 
   container.innerHTML = slots.map(s => {
 
@@ -10553,7 +10553,7 @@ function openInstructorModal(instId) {
 
             <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-weekend"   ${parseSchedule(inst?.availability||'').includes('weekend')?'checked':''}> 📅 Fines de semana</label>
 
-            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-flexible"  ${parseSchedule(inst?.availability||'').includes('flexible')?'checked':''}> 🔄 Flexible</label>
+            <label class="ie-pill ie-pill-avail"><input type="checkbox" id="ie-flexible"  ${parseSchedule(inst?.availability||'').includes('flexible')?'checked':''}> 🔄 Rotativo</label>
 
           </div>
 
@@ -11895,7 +11895,7 @@ function openModal(docNumber, license) {
 
       ? inst.iSlots.map(sl => { const d = SCHEDULE_SLOTS.find(x=>x.key===sl); return d ? `<span class="pill ${d.css}" style="font-size:.6rem">${d.icon} ${d.label}</span>` : ''; }).join('')
 
-      : '<span style="font-size:.68rem;color:var(--text-muted)">Horario flexible</span>';
+      : '<span style="font-size:.68rem;color:var(--text-muted)">Horario rotativo</span>';
 
 
 
@@ -12259,7 +12259,7 @@ async function confirmAssign() {
 
 const LICENSE_LABELS = { B1:'B1 — Automóvil', A2:'A2 — Moto +125cc', C1:'C1 — Camión', C2:'C2 — Tractocamión', RB1:'RB1 — Recategorización' };
 
-const SCHEDULE_LABELS = { morning:'Mañanas', afternoon:'Tardes', evening:'Noches', weekend:'Fines de semana', flexible:'Flexible' };
+const SCHEDULE_LABELS = { morning:'Mañanas', afternoon:'Tardes', evening:'Noches', weekend:'Fines de semana', flexible:'Rotativo' };
 
 
 
@@ -12433,7 +12433,7 @@ async function approveStudent(docNumber) {
 
         <div id="appr-schedule-pills" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.2rem">
 
-          ${Object.entries({morning:'Mañana',afternoon:'Tarde',evening:'Noche',weekend:'Finde',flexible:'Flexible'}).map(([k,lbl]) => `<button type="button" class="reg-pill ${(s?.preferredSchedule||'').split(',').includes(k)?'selected':''}" data-val="${k}" onclick="togglePill(this,'appr-schedule-pills')" style="padding:.3rem .6rem;font-size:.75rem">${lbl}</button>`).join('')}
+          ${Object.entries({morning:'Mañana',afternoon:'Tarde',evening:'Noche',weekend:'Finde',flexible:'Rotativo'}).map(([k,lbl]) => `<button type="button" class="reg-pill ${(s?.preferredSchedule||'').split(',').includes(k)?'selected':''}" data-val="${k}" onclick="togglePill(this,'appr-schedule-pills')" style="padding:.3rem .6rem;font-size:.75rem">${lbl}</button>`).join('')}
 
         </div>
 
