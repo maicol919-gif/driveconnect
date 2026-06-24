@@ -683,6 +683,7 @@
 
     .p-low .prio-pill{background:rgba(16,185,129,.15);color:var(--success)}
 
+    .det-sched{grid-column:1/-1;}.sched-pills-inst{display:flex;flex-wrap:wrap;gap:4px;margin-top:.3rem;}.sched-pill-inst{font-size:.62rem;font-weight:700;padding:.18rem .5rem;border-radius:9999px;white-space:nowrap;}.sched-pill-inst.m{background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.2);}.sched-pill-inst.t{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.2);}.sched-pill-inst.n{background:rgba(167,139,250,.12);color:#a78bfa;border:1px solid rgba(167,139,250,.2);}.sched-pill-inst.wk{background:rgba(244,114,182,.12);color:#f9a8d4;border:1px solid rgba(244,114,182,.2);}.sched-pill-inst.rot{background:rgba(16,185,129,.12);color:#6ee7b7;border:1px solid rgba(16,185,129,.2);}
     .student-card-details{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;font-size:.78rem;color:var(--text-secondary);margin-bottom:1.1rem;background:rgba(0,0,0,.1);padding:.65rem;border-radius:var(--r-sm);border:1px solid rgba(255,255,255,.02)}
 
     .student-det-item span{display:block;font-size:.68rem;color:var(--text-muted)}
@@ -3937,6 +3938,41 @@ function formatDate(dateStr, long = false) {
 
 }
 
+function formatScheduleForInstructor(raw) {
+  if (!raw) return null;
+  const r = raw.trim();
+  const parts = r.split(',').map(p => p.trim()).filter(Boolean);
+  const hours = parts.filter(p => !isNaN(parseInt(p))).map(Number).sort((a,b)=>a-b);
+  const spcs = parts.filter(p => isNaN(parseInt(p)));
+  const pills = [];
+  if (hours.length) {
+    const fmtH = h => h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h-12}pm`;
+    const FRANJA = { m:[6,11], t:[12,17], n:[18,22] };
+    const FRANJA_CSS = { m:'m', t:'t', n:'n' };
+    Object.entries(FRANJA).forEach(([fk, [start, end]]) => {
+      const fHours = hours.filter(h => h >= start && h <= end);
+      if (!fHours.length) return;
+      let ranges=[], s=fHours[0], p=fHours[0];
+      for (let i=1; i<fHours.length; i++) {
+        if (fHours[i]===p+1){p=fHours[i];}
+        else{ranges.push([s,p]);s=fHours[i];p=fHours[i];}
+      }
+      ranges.push([s,p]);
+      ranges.forEach(([a,b]) => {
+        const label = a===b ? fmtH(a) : `${fmtH(a)}–${fmtH(b+1)}`;
+        pills.push({ label, css: FRANJA_CSS[fk] });
+      });
+    });
+  } else {
+    if (r.includes('morning') || r.includes('mañana')) pills.push({ label:'🌅 Mañanas', css:'m' });
+    if (r.includes('afternoon') || r.includes('tarde')) pills.push({ label:'☀️ Tardes', css:'t' });
+    if (r.includes('evening') || r.includes('noche')) pills.push({ label:'🌙 Noches', css:'n' });
+  }
+  if (spcs.includes('weekend') || r.includes('weekend') || r.includes('finde')) pills.push({ label:'📅 Fin de semana', css:'wk' });
+  if (spcs.includes('rotativo') || r.includes('flexible') || r.includes('rotativo')) pills.push({ label:'🔄 Rotativo', css:'rot' });
+  return pills.length ? pills : null;
+}
+
   
 
 function translateState(state) {
@@ -6285,6 +6321,13 @@ function renderInstructorPortal() {
       <div class="student-card-details">
 
         <div class="student-det-item"><span>Teórico</span><strong>${formatDate(student.theoryPassedDate, true)}</strong></div>
+
+        ${(() => {
+          const pills = formatScheduleForInstructor(student.preferredSchedule);
+          if (!pills) return '';
+          const pillsHtml = pills.map(p => `<span class="sched-pill-inst ${p.css}">${p.label}</span>`).join('');
+          return `<div class="student-det-item det-sched"><span>Disponibilidad</span><div class="sched-pills-inst">${pillsHtml}</div></div>`;
+        })()}
 
         ${proc.state === 'instructor_assigned' ? `<div class="student-det-item"><span>Días hábiles</span><strong style="color:${days >= CONFIG.WAIT_DAYS_CRITICAL ? 'var(--danger)' : days >= CONFIG.WAIT_DAYS_WARNING ? 'var(--warning)' : 'var(--success)'}">${days}d</strong></div>` : ''}
 
