@@ -6978,19 +6978,36 @@ function initRegSched() {
     head.addEventListener('click', () => regToggleCol(col));
     head.addEventListener('touchend', e => { e.preventDefault(); regToggleCol(col); });
     wrap.appendChild(head);
-    const hint = document.createElement('div');
-    hint.className = 'dc-drag-hint';
-    hint.id = 'reg-hint-' + col.key;
-    hint.textContent = '↕ ajustar';
-    wrap.appendChild(hint);
     col.hours.forEach(({h, l}) => {
       const cell = document.createElement('div');
       cell.className = 'dc-sched-cell';
       cell.dataset.h = h; cell.dataset.col = col.key;
       cell.innerHTML = `<span>${l}</span>`;
-      cell.addEventListener('mousedown', e => { regSchedDragMode=regSchedSel.has(h)?'remove':'add'; regSchedDragging=true; regSetH(h,regSchedDragMode,col.key); e.preventDefault(); });
-      cell.addEventListener('mouseenter', () => { if(regSchedDragging) regSetH(h,regSchedDragMode,col.key); });
-      cell.addEventListener('touchstart', () => { regSchedDragMode=regSchedSel.has(h)?'remove':'add'; regSchedDragging=true; regSetH(h,regSchedDragMode,col.key); },{passive:true});
+      let tapped = false;
+      cell.addEventListener('mousedown', e => {
+        regSchedDragMode = regSchedSel.has(h) ? 'remove' : 'add';
+        regSchedDragging = true;
+        tapped = true;
+        e.preventDefault();
+      });
+      cell.addEventListener('mouseenter', () => {
+        if(regSchedDragging) { tapped = false; regSetH(h, regSchedDragMode, col.key); }
+      });
+      cell.addEventListener('mouseup', () => {
+        if(tapped) { regSetH(h, regSchedDragMode, col.key); }
+        tapped = false;
+      });
+      cell.addEventListener('touchstart', e => {
+        regSchedDragMode = regSchedSel.has(h) ? 'remove' : 'add';
+        regSchedDragging = true;
+        tapped = true;
+      }, {passive:true});
+      cell.addEventListener('touchend', () => {
+        if(tapped) { regSetH(h, regSchedDragMode, col.key); }
+        tapped = false;
+        regSchedDragging = false;
+        regSchedDragMode = null;
+      });
       wrap.appendChild(cell);
     });
     if(isNoche) {
@@ -7018,8 +7035,6 @@ function initRegSched() {
 
 function regSetH(h, mode, colKey) {
   if(mode==='add') regSchedSel.add(h); else regSchedSel.delete(h);
-  const hint = document.getElementById('reg-hint-'+colKey);
-  if(hint) hint.style.display='none';
   regRenderCells(); regCheckHeadState();
 }
 function regToggleCol(col) {
