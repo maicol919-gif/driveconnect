@@ -2635,19 +2635,33 @@
 
       <div style="margin-bottom:.75rem">
 
-        <label class="config-label">Disponibilidad horaria</label>
+        <label class="config-label">Disponibilidad horaria <span style="color:var(--text-muted);font-weight:400;font-size:.72rem">Toca una franja o ajusta hora por hora</span></label>
 
-        <div id="mr-schedule-pills" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.3rem">
+        <div class="sched-cols" id="mr-sched-cols"></div>
 
-          <button type="button" class="reg-pill" data-val="morning"   onclick="togglePill(this,'mr-schedule-pills')">🌅 Mañana</button>
+        <div class="sched-other-label"><span>otras opciones</span></div>
 
-          <button type="button" class="reg-pill" data-val="afternoon" onclick="togglePill(this,'mr-schedule-pills')">☀️ Tarde</button>
+        <div class="sched-spc-row">
 
-          <button type="button" class="reg-pill" data-val="evening"   onclick="togglePill(this,'mr-schedule-pills')">🌙 Noche</button>
+          <div class="sched-cell-spc" id="mr-spc-weekend" onclick="toggleMrSchedSpc('weekend')">
 
-          <button type="button" class="reg-pill" data-val="weekend"   onclick="togglePill(this,'mr-schedule-pills')">📅 Fines de semana</button>
+            <span class="sched-spc-ico">📅</span>
 
-          <button type="button" class="reg-pill" data-val="flexible"  onclick="togglePill(this,'mr-schedule-pills')">🔄 Rotativo</button>
+            <span class="sched-spc-lbl">Fin de semana</span>
+
+            <span class="sched-spc-sub">Sáb y/o Dom</span>
+
+          </div>
+
+          <div class="sched-cell-spc" id="mr-spc-rotativo" onclick="toggleMrSchedSpc('rotativo')">
+
+            <span class="sched-spc-ico">🔄</span>
+
+            <span class="sched-spc-lbl">Turno rotativo</span>
+
+            <span class="sched-spc-sub">Varía cada semana</span>
+
+          </div>
 
         </div>
 
@@ -7130,9 +7144,133 @@ function getRegScheduleValue() {
   const spcs = [...regSchedSpc].join(',');
   return [hours, spcs].filter(Boolean).join(',');
 }
-function getApprScheduleValue() {
-  return getPillValues('mr-schedule-pills');
+
+const apprSchedSel = new Set();
+const apprSchedSpc = new Set();
+let apprSchedDragging = false, apprSchedDragMode = null;
+
+function initApprSched(existingValue) {
+  apprSchedSel.clear(); apprSchedSpc.clear();
+  if (existingValue) {
+    existingValue.split(',').forEach(p => {
+      const n = parseInt(p);
+      if (!isNaN(n)) apprSchedSel.add(n);
+      else if (p === 'weekend') apprSchedSpc.add('weekend');
+      else if (p === 'rotativo' || p === 'flexible') apprSchedSpc.add('rotativo');
+    });
+  }
+  const colsEl = document.getElementById('appr-sched-cols');
+  if (!colsEl) return;
+  colsEl.innerHTML = '';
+  REG_SCHED_COLS.forEach(col => {
+    const isNoche = col.key === 'n';
+    const wrap = document.createElement('div');
+    wrap.className = 'dc-col-wrap ' + col.cls;
+    wrap.id = 'appr-wrap-' + col.key;
+    const head = document.createElement('div');
+    head.className = 'dc-col-head';
+    head.innerHTML = `<span class="dc-col-head-check">✓</span><span class="dc-col-head-ico">${col.ico}</span><span class="dc-col-head-lbl">${col.lbl}</span><span class="dc-col-head-sub">${col.sub}</span>`;
+    head.addEventListener('click', () => apprToggleCol(col));
+    head.addEventListener('touchend', e => { e.preventDefault(); apprToggleCol(col); });
+    wrap.appendChild(head);
+    col.hours.forEach(({h, l}) => {
+      const cell = document.createElement('div');
+      cell.className = 'dc-sched-cell' + (apprSchedSel.has(h) ? ' sel' : '');
+      cell.dataset.h = h; cell.dataset.col = col.key;
+      cell.innerHTML = `<span>${l}</span>`;
+      let tapped = false;
+      cell.addEventListener('mousedown', e => { apprSchedDragMode = apprSchedSel.has(h) ? 'remove' : 'add'; apprSchedDragging = true; tapped = true; e.preventDefault(); });
+      cell.addEventListener('mouseenter', () => { if(apprSchedDragging) { tapped = false; apprSetH(h, apprSchedDragMode); } });
+      cell.addEventListener('mouseup', () => { if(tapped) apprSetH(h, apprSchedDragMode); tapped = false; });
+      cell.addEventListener('touchstart', () => { apprSchedDragMode = apprSchedSel.has(h) ? 'remove' : 'add'; apprSchedDragging = true; tapped = true; }, {passive:true});
+      cell.addEventListener('touchend', () => { if(tapped) apprSetH(h, apprSchedDragMode); tapped = false; apprSchedDragging = false; apprSchedDragMode = null; });
+      wrap.appendChild(cell);
+    });
+    if(isNoche) {
+      const blocked = document.createElement('div');
+      blocked.className = 'dc-sched-cell dc-sched-cell-blocked';
+      wrap.appendChild(blocked);
+      const outer = document.createElement('div');
+      outer.style.cssText = 'display:flex;flex-direction:column;';
+      outer.appendChild(wrap); outer.appendChild(document.createElement('div'));
+      colsEl.appendChild(outer);
+    } else { colsEl.appendChild(wrap); }
+  });
+  ['weekend','rotativo'].forEach(key => {
+    const el = document.getElementById('appr-spc-' + key);
+    if (!el) return;
+    el.className = 'sched-cell-spc';
+    if (apprSchedSpc.has(key)) el.classList.add(key === 'weekend' ? 'sel-wk' : 'sel-rot');
+  });
+  apprCheckHeadState();
+  document.addEventListener('touchend', () => { apprSchedDragging=false; apprSchedDragMode=null; });
+  document.addEventListener('mouseup', () => { apprSchedDragging=false; apprSchedDragMode=null; });
 }
+function apprSetH(h, mode) { if(mode==='add') apprSchedSel.add(h); else apprSchedSel.delete(h); apprRenderCells(); apprCheckHeadState(); }
+function apprToggleCol(col) { const hours = col.hours.map(x=>x.h); const allOn = hours.every(h=>apprSchedSel.has(h)); hours.forEach(h => allOn ? apprSchedSel.delete(h) : apprSchedSel.add(h)); apprRenderCells(); apprCheckHeadState(); }
+function apprCheckHeadState() { REG_SCHED_COLS.forEach(col => { const wrap = document.getElementById('appr-wrap-' + col.key); if(wrap) wrap.classList.toggle('dc-head-on', col.hours.every(({h})=>apprSchedSel.has(h))); }); }
+function apprRenderCells() { const colsEl = document.getElementById('appr-sched-cols'); if (!colsEl) return; colsEl.querySelectorAll('.dc-sched-cell').forEach(c => { if(!c.dataset.h) return; c.classList.toggle('sel', apprSchedSel.has(+c.dataset.h)); }); }
+function toggleApprSchedSpc(key) { const el = document.getElementById('appr-spc-' + key); if (!el) return; if(apprSchedSpc.has(key)){ apprSchedSpc.delete(key); el.className='sched-cell-spc'; } else { apprSchedSpc.add(key); el.classList.add(key==='weekend'?'sel-wk':'sel-rot'); } }
+function getApprScheduleValue() { const hours = [...apprSchedSel].sort((a,b)=>a-b).join(','); const spcs = [...apprSchedSpc].join(','); return [hours, spcs].filter(Boolean).join(','); }
+
+const mrSchedSel = new Set();
+const mrSchedSpc = new Set();
+let mrSchedDragging = false, mrSchedDragMode = null;
+
+function initMrSched() {
+  mrSchedSel.clear(); mrSchedSpc.clear();
+  const colsEl = document.getElementById('mr-sched-cols');
+  if (!colsEl) return;
+  colsEl.innerHTML = '';
+  REG_SCHED_COLS.forEach(col => {
+    const isNoche = col.key === 'n';
+    const wrap = document.createElement('div');
+    wrap.className = 'dc-col-wrap ' + col.cls;
+    wrap.id = 'mr-wrap-' + col.key;
+    const head = document.createElement('div');
+    head.className = 'dc-col-head';
+    head.innerHTML = `<span class="dc-col-head-check">✓</span><span class="dc-col-head-ico">${col.ico}</span><span class="dc-col-head-lbl">${col.lbl}</span><span class="dc-col-head-sub">${col.sub}</span>`;
+    head.addEventListener('click', () => mrToggleCol(col));
+    head.addEventListener('touchend', e => { e.preventDefault(); mrToggleCol(col); });
+    wrap.appendChild(head);
+    col.hours.forEach(({h, l}) => {
+      const cell = document.createElement('div');
+      cell.className = 'dc-sched-cell';
+      cell.dataset.h = h; cell.dataset.col = col.key;
+      cell.innerHTML = `<span>${l}</span>`;
+      let tapped = false;
+      cell.addEventListener('mousedown', e => { mrSchedDragMode = mrSchedSel.has(h) ? 'remove' : 'add'; mrSchedDragging = true; tapped = true; e.preventDefault(); });
+      cell.addEventListener('mouseenter', () => { if(mrSchedDragging) { tapped = false; mrSetH(h, mrSchedDragMode); } });
+      cell.addEventListener('mouseup', () => { if(tapped) mrSetH(h, mrSchedDragMode); tapped = false; });
+      cell.addEventListener('touchstart', () => { mrSchedDragMode = mrSchedSel.has(h) ? 'remove' : 'add'; mrSchedDragging = true; tapped = true; }, {passive:true});
+      cell.addEventListener('touchend', () => { if(tapped) mrSetH(h, mrSchedDragMode); tapped = false; mrSchedDragging = false; mrSchedDragMode = null; });
+      wrap.appendChild(cell);
+    });
+    if(isNoche) {
+      const blocked = document.createElement('div');
+      blocked.className = 'dc-sched-cell dc-sched-cell-blocked';
+      wrap.appendChild(blocked);
+      const outer = document.createElement('div');
+      outer.style.cssText = 'display:flex;flex-direction:column;';
+      outer.appendChild(wrap); outer.appendChild(document.createElement('div'));
+      colsEl.appendChild(outer);
+    } else { colsEl.appendChild(wrap); }
+  });
+  ['weekend','rotativo'].forEach(key => {
+    const el = document.getElementById('mr-spc-' + key);
+    if (!el) return;
+    el.className = 'sched-cell-spc';
+  });
+  mrCheckHeadState();
+  document.addEventListener('touchend', () => { mrSchedDragging=false; mrSchedDragMode=null; });
+  document.addEventListener('mouseup', () => { mrSchedDragging=false; mrSchedDragMode=null; });
+}
+function mrSetH(h, mode) { if(mode==='add') mrSchedSel.add(h); else mrSchedSel.delete(h); mrRenderCells(); mrCheckHeadState(); }
+function mrToggleCol(col) { const hours = col.hours.map(x=>x.h); const allOn = hours.every(h=>mrSchedSel.has(h)); hours.forEach(h => allOn ? mrSchedSel.delete(h) : mrSchedSel.add(h)); mrRenderCells(); mrCheckHeadState(); }
+function mrCheckHeadState() { REG_SCHED_COLS.forEach(col => { const wrap = document.getElementById('mr-wrap-' + col.key); if(wrap) wrap.classList.toggle('dc-head-on', col.hours.every(({h})=>mrSchedSel.has(h))); }); }
+function mrRenderCells() { const colsEl = document.getElementById('mr-sched-cols'); if (!colsEl) return; colsEl.querySelectorAll('.dc-sched-cell').forEach(c => { if(!c.dataset.h) return; c.classList.toggle('sel', mrSchedSel.has(+c.dataset.h)); }); }
+function toggleMrSchedSpc(key) { const el = document.getElementById('mr-spc-' + key); if (!el) return; if(mrSchedSpc.has(key)){ mrSchedSpc.delete(key); el.className='sched-cell-spc'; } else { mrSchedSpc.add(key); el.classList.add(key==='weekend'?'sel-wk':'sel-rot'); } }
+function getMrScheduleValue() { const hours = [...mrSchedSel].sort((a,b)=>a-b).join(','); const spcs = [...mrSchedSpc].join(','); return [hours, spcs].filter(Boolean).join(','); }
 
 // =============================================================================
 
@@ -12663,11 +12801,33 @@ async function approveStudent(docNumber) {
 
       <div class="form-group" style="margin-bottom:.75rem">
 
-        <label class="config-label">Horario</label>
+        <label class="config-label">Horario <span style="color:var(--text-muted);font-weight:400;font-size:.68rem">Toca una franja o ajusta hora por hora</span></label>
 
-        <div id="appr-schedule-pills" style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.2rem">
+        <div class="sched-cols" id="appr-sched-cols"></div>
 
-          ${Object.entries({morning:'Mañana',afternoon:'Tarde',evening:'Noche',weekend:'Finde',flexible:'Rotativo'}).map(([k,lbl]) => `<button type="button" class="reg-pill ${(s?.preferredSchedule||'').split(',').includes(k)?'selected':''}" data-val="${k}" onclick="togglePill(this,'appr-schedule-pills')" style="padding:.3rem .6rem;font-size:.75rem">${lbl}</button>`).join('')}
+        <div class="sched-other-label"><span>otras opciones</span></div>
+
+        <div class="sched-spc-row">
+
+          <div class="sched-cell-spc" id="appr-spc-weekend" onclick="toggleApprSchedSpc('weekend')">
+
+            <span class="sched-spc-ico">📅</span>
+
+            <span class="sched-spc-lbl">Fin de semana</span>
+
+            <span class="sched-spc-sub">Sáb y/o Dom</span>
+
+          </div>
+
+          <div class="sched-cell-spc" id="appr-spc-rotativo" onclick="toggleApprSchedSpc('rotativo')">
+
+            <span class="sched-spc-ico">🔄</span>
+
+            <span class="sched-spc-lbl">Turno rotativo</span>
+
+            <span class="sched-spc-sub">Varía cada semana</span>
+
+          </div>
 
         </div>
 
@@ -12686,6 +12846,8 @@ async function approveStudent(docNumber) {
     </div>`;
 
   document.body.appendChild(modal);
+
+  initApprSched(s?.preferredSchedule || '');
 
 }
 
@@ -12709,7 +12871,7 @@ async function approveStudentExec(docNumber) {
 
   const newLics  = licContainer ? [...licContainer.querySelectorAll('.reg-pill.selected')].map(b => b.dataset.val) : [];
 
-  const schedule = getPillValues('appr-schedule-pills');
+  const schedule = getApprScheduleValue();
 
   if (licContainer && newLics.length === 0) { errEl.textContent = 'Selecciona al menos una licencia.'; errEl.style.display = 'block'; return; }
 
@@ -13140,9 +13302,10 @@ function coordRegisterManual() {
   document.getElementById('mr-error').style.display = 'none';
 
   document.querySelectorAll('#mr-license-pills .reg-pill').forEach(p => p.classList.remove('selected'));
-  document.querySelectorAll('#mr-schedule-pills .reg-pill').forEach(p => p.classList.remove('selected'));
 
   document.getElementById('manual-register-modal').classList.add('active');
+
+  initMrSched();
 
 }
 
@@ -13284,7 +13447,7 @@ async function coordRegisterSubmit() {
 
       license2: licVals[1] || '',
 
-      preferredSchedule: getApprScheduleValue(),
+      preferredSchedule: getMrScheduleValue(),
 
       pin,
 
