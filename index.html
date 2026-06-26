@@ -2633,6 +2633,26 @@
 
       </div>
 
+      <div style="margin-bottom:.75rem">
+
+        <label class="config-label">Disponibilidad horaria</label>
+
+        <div id="mr-schedule-pills" style="display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.3rem">
+
+          <button type="button" class="reg-pill" data-val="morning"   onclick="togglePill(this,'mr-schedule-pills')">🌅 Mañana</button>
+
+          <button type="button" class="reg-pill" data-val="afternoon" onclick="togglePill(this,'mr-schedule-pills')">☀️ Tarde</button>
+
+          <button type="button" class="reg-pill" data-val="evening"   onclick="togglePill(this,'mr-schedule-pills')">🌙 Noche</button>
+
+          <button type="button" class="reg-pill" data-val="weekend"   onclick="togglePill(this,'mr-schedule-pills')">📅 Fines de semana</button>
+
+          <button type="button" class="reg-pill" data-val="flexible"  onclick="togglePill(this,'mr-schedule-pills')">🔄 Rotativo</button>
+
+        </div>
+
+      </div>
+
       <div id="mr-error" class="error-msg" style="display:none"></div>
 
     </div>
@@ -7109,6 +7129,9 @@ function getRegScheduleValue() {
   const hours = [...regSchedSel].sort((a,b)=>a-b).join(',');
   const spcs = [...regSchedSpc].join(',');
   return [hours, spcs].filter(Boolean).join(',');
+}
+function getApprScheduleValue() {
+  return getPillValues('mr-schedule-pills');
 }
 
 // =============================================================================
@@ -13117,6 +13140,7 @@ function coordRegisterManual() {
   document.getElementById('mr-error').style.display = 'none';
 
   document.querySelectorAll('#mr-license-pills .reg-pill').forEach(p => p.classList.remove('selected'));
+  document.querySelectorAll('#mr-schedule-pills .reg-pill').forEach(p => p.classList.remove('selected'));
 
   document.getElementById('manual-register-modal').classList.add('active');
 
