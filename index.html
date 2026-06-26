@@ -8724,6 +8724,8 @@ function renderCoordGroups(_expandKey) {
 
     </div>
 
+    <div id="coord-month-pills" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem"></div>
+
     <div id="coord-stu-split" style="display:flex;gap:0;align-items:flex-start">
 
       <div id="coord-stu-list-wrap" style="flex:1;min-width:0">
@@ -8751,6 +8753,8 @@ function renderCoordGroups(_expandKey) {
 window._coordStuFilter = window._coordStuFilter || 'all';
 
 function _coordSetFilter(f) {
+
+  if (window._coordMonthSel) window._coordMonthSel[f] = null;
 
   window._coordStuFilter = f;
 
@@ -8837,6 +8841,62 @@ function _renderCoordCards() {
   else if (af === 'practice')      entries = entries.filter(e => e.procs.some(p => ['contact_confirmed','practice_started'].includes(p.state)));
   else if (af === 'pdte_contacto') entries = entries.filter(e => e.procs.some(p => p.state === 'instructor_assigned'));
   else if (af === 'contactado')    entries = entries.filter(e => e.procs.some(p => p.state === 'contacted'));
+
+  // ── MONTH PILLS ────────────────────────────────────────────────────────────
+  const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const TAB_COLORS = {
+    all:       { active:'#3b82f6', bg:'rgba(59,130,246,.18)',  border:'rgba(59,130,246,.5)'  },
+    critical:  { active:'#f43f5e', bg:'rgba(244,63,94,.15)',   border:'rgba(244,63,94,.5)'   },
+    unassigned:{ active:'#f59e0b', bg:'rgba(245,158,11,.15)',  border:'rgba(245,158,11,.5)'  },
+    practice:  { active:'#10b981', bg:'rgba(16,185,129,.15)',  border:'rgba(16,185,129,.5)'  },
+  };
+  const tc = TAB_COLORS[af] || TAB_COLORS.all;
+
+  // Build month map: key = "YYYY-MM", value = count
+  const monthMap = new Map();
+  entries.forEach(e => {
+    const raw = e.st?.theoryPassedDate || '';
+    const ym  = raw ? raw.substring(0,7) : null;
+    if (!ym) return;
+    monthMap.set(ym, (monthMap.get(ym) || 0) + 1);
+  });
+  const sortedMonths = Array.from(monthMap.keys()).sort();
+
+  // Init month selection store
+  if (!window._coordMonthSel) window._coordMonthSel = {};
+  // Default: oldest month
+  if (!window._coordMonthSel[af] && sortedMonths.length) window._coordMonthSel[af] = sortedMonths[0];
+  // If stored month no longer exists in this filter, reset to oldest
+  if (window._coordMonthSel[af] && !monthMap.has(window._coordMonthSel[af])) window._coordMonthSel[af] = sortedMonths[0] || null;
+
+  const selMonth = window._coordMonthSel[af] || null;
+
+  // Render pills
+  const pillsEl = document.getElementById('coord-month-pills');
+  if (pillsEl) {
+    if (sortedMonths.length) {
+      pillsEl.innerHTML = sortedMonths.map(ym => {
+        const [y, m] = ym.split('-');
+        const label = MONTH_NAMES[parseInt(m,10)-1] + ' ' + y + ' · ' + monthMap.get(ym);
+        const isAct = ym === selMonth;
+        return `<button onclick="window._coordMonthSel['${af}']='${ym}';_renderCoordCards()"
+          style="padding:5px 13px;border-radius:20px;font-size:11.5px;cursor:pointer;font-family:inherit;font-weight:${isAct?'600':'400'};transition:background .12s;
+          border:1px solid ${isAct ? tc.border : 'rgba(255,255,255,.1)'};
+          background:${isAct ? tc.bg : 'rgba(255,255,255,.04)'};
+          color:${isAct ? tc.active : '#64748b'}">${label}</button>`;
+      }).join('');
+    } else {
+      pillsEl.innerHTML = '';
+    }
+  }
+
+  // Filter entries to selected month
+  if (selMonth && sortedMonths.length) {
+    entries = entries.filter(e => (e.st?.theoryPassedDate || '').startsWith(selMonth));
+    // Sort by theoryPassedDate ascending
+    entries.sort((a,b) => (a.st?.theoryPassedDate||'').localeCompare(b.st?.theoryPassedDate||''));
+  }
+  // ── END MONTH PILLS ─────────────────────────────────────────────────────────
 
 
 
