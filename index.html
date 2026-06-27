@@ -1938,6 +1938,13 @@
 
 
 
+  <!-- ===== PANEL GERENCIA ===== -->
+  <section id="view-gerencia" class="view-section" style="padding:1.25rem;max-width:900px;margin:0 auto">
+    <div id="gerencia-body">
+      <div style="text-align:center;padding:3rem;color:var(--text-muted)">Cargando panel...</div>
+    </div>
+  </section>
+
   <!-- ===== PANEL SUPERADMIN ===== -->
 
   <section id="view-admin" class="view-section">
@@ -4113,7 +4120,11 @@ function goHome() {
 
   else if (role === 'instructor') { showView('view-instructor'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
-  else if (role === 'coordinator') { showView('view-coordinator'); switchCoordTab('main'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  else if (role === 'coordinator') {
+    const cRole = STATE.currentUser.data?.coordRole || '';
+    if (cRole === 'gerencia') { renderGerenciaPortal(); showView('view-gerencia'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    else { showView('view-coordinator'); switchCoordTab('main'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  }
 
   else if (role === 'admin') { showView('view-admin'); switchAdminTab('system'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
@@ -4171,6 +4182,309 @@ function setDocType(btn, type) {
 
 }
 
+
+
+async function renderGerenciaPortal() {
+  const body = document.getElementById('gerencia-body');
+  if (!body) return;
+  body.innerHTML = '<div style="text-align:center;padding:3rem;color:var(--text-muted)">Cargando datos...</div>';
+
+  let raw;
+  try {
+    raw = await fetchData();
+  } catch(e) {
+    body.innerHTML = `<div style="text-align:center;padding:3rem">
+      <p style="color:var(--bg-danger);margin-bottom:1rem">Error cargando datos: ${e.message}</p>
+      <button class="btn btn-primary" onclick="renderGerenciaPortal()">Reintentar</button>
+    </div>`;
+    return;
+  }
+  if (!raw) {
+    body.innerHTML = `<div style="text-align:center;padding:3rem">
+      <p style="color:var(--bg-danger);margin-bottom:1rem">No se pudo obtener datos del servidor.</p>
+      <button class="btn btn-primary" onclick="renderGerenciaPortal()">Reintentar</button>
+    </div>`;
+    return;
+  }
+
+  const students = (raw.students || []).map(normalizeStudent).filter(s => s.docNumber);
+  const instructors = (raw.instructors || []).map(normalizeInstructor).filter(i => i.id);
+  const procesos = (raw.procesos || []).filter(p => String(p.active) !== 'false');
+  const userName = STATE.currentUser?.data?.name || STATE.currentUser?.data?.username || 'Gerencia';
+
+  // ── Días hábiles (excl. sábado/domingo) ────────────────────────────────────
+  function workingDaysSince(dateStr) {
+    if (!dateStr) return 0;
+    const start = new Date(dateStr + 'T00:00:00');
+    const end = new Date();
+    if (isNaN(start)) return 0;
+    let count = 0;
+    const cur = new Date(start);
+    while (cur <= end) {
+      const d = cur.getDay();
+      if (d !== 0 && d !== 6) count++;
+      cur.setDate(cur.getDate() + 1);
+    }
+    return Math.max(0, count - 1);
+  }
+
+  function workingDaysBetween(a, b) {
+    if (!a || !b) return 0;
+    const start = new Date(a + 'T00:00:00');
+    const end = new Date(b + 'T00:00:00');
+    if (isNaN(start) || isNaN(end) || end <= start) return 0;
+    let count = 0;
+    const cur = new Date(start);
+    while (cur < end) {
+      const d = cur.getDay();
+      if (d !== 0 && d !== 6) count++;
+      cur.setDate(cur.getDate() + 1);
+    }
+    return count;
+  }
+
+  function monthKey(dateStr) {
+    if (!dateStr) return null;
+    return dateStr.slice(0, 7); // "YYYY-MM"
+  }
+
+  const now = new Date();
+  const thisMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  // ── Métricas generales ───────────────────────────────────────────────────────
+  const total = procesos.length;
+  const sinInstructor = procesos.filter(p => p.state === 'theory_passed').length;
+  const esperandoContacto = procesos.filter(p => p.state === 'instructor_assigned').length;
+  const completadosMes = procesos.filter(p => {
+    if (p.state !== 'completed') return false;
+    const d = p.completedDate || p.contactDate || '';
+    return monthKey(d) === thisMonth;
+  }).length;
+  const pctBloqueados = total ? Math.round((sinInstructor + esperandoContacto) / total * 100) : 0;
+
+  // ── Alertas ──────────────────────────────────────────────────────────────────
+  const criticos = procesos.filter(p =>
+    p.state === 'instructor_assigned' &&
+    workingDaysSince(p.theoryPassedDate) > 20
+  );
+  const urgenteSinInst = procesos.filter(p =>
+    p.state === 'theory_passed' &&
+    workingDaysSince(p.theoryPassedDate) > 5
+  );
+
+  function instName(id) {
+    const i = instructors.find(x => x.id === id);
+    return i ? (i.name || id) : id;
+  }
+
+  function stuName(p) {
+    const s = students.find(x => x.docNumber === p.docNumber);
+    return s ? (s.name || p.docNumber) : p.docNumber;
+  }
+
+  // ── Por instructor ─────────────────────────────────────────────────────────
+  const instMap = {};
+  procesos.forEach(p => {
+    const id = p.instructorId;
+    if (!id) return;
+    if (!instMap[id]) instMap[id] = { id, name: instName(id), total: 0, criticos: 0, dias: [] };
+    instMap[id].total++;
+    const dias = workingDaysSince(p.theoryPassedDate);
+    if (p.state === 'instructor_assigned' && dias > 20) instMap[id].criticos++;
+    if (p.state !== 'theory_passed') instMap[id].dias.push(dias);
+  });
+
+  const instStats = Object.values(instMap).map(i => ({
+    ...i,
+    avg: i.dias.length ? Math.round(i.dias.reduce((a,b)=>a+b,0)/i.dias.length) : 0
+  })).sort((a,b) => a.avg - b.avg);
+
+  // ── Tendencia últimos 5 meses ────────────────────────────────────────────────
+  const trendMonths = [];
+  for (let i = 4; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    trendMonths.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  const MONTH_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const trendData = trendMonths.map(mk => {
+    const count = procesos.filter(p => {
+      if (p.state !== 'completed') return false;
+      return monthKey(p.completedDate || p.contactDate) === mk;
+    }).length;
+    const [y, m] = mk.split('-');
+    return { label: MONTH_ES[parseInt(m)-1], count };
+  });
+  const maxTrend = Math.max(...trendData.map(d=>d.count), 1);
+
+  // ── Por licencia ─────────────────────────────────────────────────────────────
+  const LICENSES = ['A2','B1','C1','C2'];
+  const licData = LICENSES.map(lic => {
+    const all = procesos.filter(p => p.license === lic);
+    const bloq = all.filter(p => p.state === 'theory_passed' || p.state === 'instructor_assigned').length;
+    return { lic, total: all.length, bloq, pct: all.length ? Math.round(bloq/all.length*100) : 0 };
+  }).filter(d => d.total > 0);
+  const maxLicPct = Math.max(...licData.map(d=>d.pct), 1);
+
+  // ── Tiempo por etapa ─────────────────────────────────────────────────────────
+  const etapaAsig = procesos.filter(p => p.instructorId && p.theoryPassedDate);
+  const etapaContacto = procesos.filter(p => p.contactDate && p.theoryPassedDate);
+  const avgAsig = etapaAsig.length
+    ? Math.round(etapaAsig.reduce((s,p)=>s+workingDaysSince(p.theoryPassedDate),0)/etapaAsig.length) : 0;
+  const avgContacto2 = etapaContacto.length
+    ? Math.round(etapaContacto.reduce((s,p)=>s+workingDaysBetween(p.theoryPassedDate, p.contactDate),0)/etapaContacto.length) : 0;
+  const cuello = avgAsig >= avgContacto2 ? 'Asignación de instructor' : 'Contacto con alumno';
+  const maxEtapa = Math.max(avgAsig, avgContacto2, 1);
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+  function semaforo(avg) {
+    if (avg <= 5) return { color:'#22c55e', label:'Bueno' };
+    if (avg <= 10) return { color:'#f59e0b', label:'Regular' };
+    return { color:'#ef4444', label:'Crítico' };
+  }
+
+  function barH(pct, color, label, right='') {
+    return `<div style="margin-bottom:.5rem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:2px;font-size:.78rem">
+        <span>${label}</span><span style="color:var(--text-muted)">${right}</span>
+      </div>
+      <div style="background:var(--bg-secondary);border-radius:4px;height:10px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(pct,100)}%;background:${color};border-radius:4px;transition:width .4s"></div>
+      </div>
+    </div>`;
+  }
+
+  let alertasHTML = '';
+  if (criticos.length) {
+    const list = criticos.slice(0,5).map(p => {
+      const inst = instName(p.instructorId);
+      return `<li style="margin-bottom:.25rem">• <b>${stuName(p)}</b> (${p.license}) — <b>${inst}</b>, ${workingDaysSince(p.theoryPassedDate)}d hábiles sin contacto</li>`;
+    }).join('');
+    alertasHTML += `<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:.75rem 1rem;margin-bottom:.75rem">
+      <div style="font-weight:700;color:#ef4444;margin-bottom:.4rem">🔴 ${criticos.length} proceso${criticos.length>1?'s':''} crítico${criticos.length>1?'s':''} (&gt;20 días sin contacto)</div>
+      <ul style="margin:0;padding:0;list-style:none;font-size:.85rem">${list}</ul>
+    </div>`;
+  }
+  if (urgenteSinInst.length) {
+    alertasHTML += `<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:.75rem 1rem;margin-bottom:.75rem">
+      <div style="font-weight:700;color:#f59e0b;margin-bottom:.4rem">🟡 ${urgenteSinInst.length} proceso${urgenteSinInst.length>1?'s':''} urgente${urgenteSinInst.length>1?'s':''} sin instructor (&gt;5 días)</div>
+      <div style="font-size:.85rem">${urgenteSinInst.slice(0,3).map(p=>`${stuName(p)} (${p.license})`).join(', ')}${urgenteSinInst.length>3?` y ${urgenteSinInst.length-3} más`:''}</div>
+    </div>`;
+  }
+  if (!alertasHTML) {
+    alertasHTML = `<div style="background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:.75rem 1rem;color:#22c55e;font-weight:600">✅ Sin alertas activas — todo dentro de parámetros normales</div>`;
+  }
+
+  const instTableRows = instStats.map(i => {
+    const sem = semaforo(i.avg);
+    const barW = Math.min(Math.round(i.avg / 25 * 100), 100);
+    return `<tr>
+      <td style="padding:.5rem .75rem;font-weight:500">${i.name}</td>
+      <td style="padding:.5rem .75rem">
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <div style="flex:1;background:var(--bg-secondary);border-radius:4px;height:8px;overflow:hidden;min-width:60px">
+            <div style="height:100%;width:${barW}%;background:${sem.color};border-radius:4px"></div>
+          </div>
+          <span style="font-size:.85rem;color:${sem.color};font-weight:600">${i.avg}d</span>
+        </div>
+      </td>
+      <td style="padding:.5rem .75rem;text-align:center">${i.total}</td>
+      <td style="padding:.5rem .75rem;text-align:center;color:${i.criticos>0?'#ef4444':'var(--text-muted)'};font-weight:${i.criticos>0?'700':'400'}">${i.criticos}</td>
+      <td style="padding:.5rem .75rem;text-align:center"><span style="background:${sem.color}22;color:${sem.color};font-size:.75rem;padding:.2rem .5rem;border-radius:12px;font-weight:600">${sem.label}</span></td>
+    </tr>`;
+  }).join('');
+
+  const trendBars = trendData.map(d => {
+    const h = Math.round(d.count / maxTrend * 80);
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:.25rem;flex:1">
+      <span style="font-size:.75rem;color:var(--text-muted)">${d.count}</span>
+      <div style="width:100%;background:var(--bg-secondary);border-radius:4px 4px 0 0;height:80px;display:flex;align-items:flex-end">
+        <div style="width:100%;height:${h}px;background:#3b82f6;border-radius:4px 4px 0 0;transition:height .4s"></div>
+      </div>
+      <span style="font-size:.75rem;color:var(--text-muted)">${d.label}</span>
+    </div>`;
+  }).join('');
+
+  const licBars = licData.map(d => {
+    const col = d.pct > 50 ? '#ef4444' : d.pct > 25 ? '#f59e0b' : '#22c55e';
+    return barH(Math.round(d.pct/maxLicPct*100), col, d.lic, `${d.pct}% (${d.bloq}/${d.total})`);
+  }).join('');
+
+  const etapaBars = [
+    barH(Math.round(avgAsig/maxEtapa*100), cuello==='Asignación de instructor'?'#ef4444':'#3b82f6', 'Asignación', `${avgAsig}d promedio`),
+    barH(Math.round(avgContacto2/maxEtapa*100), cuello==='Contacto con alumno'?'#ef4444':'#3b82f6', 'Contacto', `${avgContacto2}d promedio`)
+  ].join('');
+
+  body.innerHTML = `
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:.75rem">
+      <div>
+        <h1 style="font-size:1.4rem;font-weight:700;margin:0">📊 Panel de Gerencia</h1>
+        <p style="color:var(--text-muted);margin:.25rem 0 0;font-size:.9rem">Bienvenido, ${userName}. Vista de solo lectura.</p>
+      </div>
+      <button class="btn" style="background:var(--bg-secondary);color:var(--text-secondary)" onclick="logout()">Cerrar sesión</button>
+    </div>
+
+    <!-- Alertas -->
+    <div style="background:var(--bg-card);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <h2 style="font-size:1rem;font-weight:700;margin:0 0 .75rem">🚨 Requiere su atención hoy</h2>
+      ${alertasHTML}
+    </div>
+
+    <!-- Métricas generales -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;margin-bottom:1rem">
+      <div style="background:var(--bg-card);border-radius:12px;padding:1rem 1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.06);text-align:center">
+        <div style="font-size:2rem;font-weight:800;color:#3b82f6">${total}</div>
+        <div style="font-size:.85rem;color:var(--text-muted)">Procesos activos</div>
+      </div>
+      <div style="background:var(--bg-card);border-radius:12px;padding:1rem 1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.06);text-align:center">
+        <div style="font-size:2rem;font-weight:800;color:#22c55e">${completadosMes}</div>
+        <div style="font-size:.85rem;color:var(--text-muted)">Completados este mes</div>
+      </div>
+      <div style="background:var(--bg-card);border-radius:12px;padding:1rem 1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.06);text-align:center">
+        <div style="font-size:2rem;font-weight:800;color:${pctBloqueados>40?'#ef4444':pctBloqueados>20?'#f59e0b':'#22c55e'}">${pctBloqueados}%</div>
+        <div style="font-size:.85rem;color:var(--text-muted)">% bloqueados</div>
+      </div>
+    </div>
+
+    <!-- Tabla instructores -->
+    <div style="background:var(--bg-card);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <h2 style="font-size:1rem;font-weight:700;margin:0 0 .75rem">👥 ¿Quién contacta rápido?</h2>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.87rem">
+          <thead>
+            <tr style="color:var(--text-muted);font-size:.78rem">
+              <th style="padding:.4rem .75rem;text-align:left;font-weight:600">Instructor</th>
+              <th style="padding:.4rem .75rem;text-align:left;font-weight:600">Días hasta contactar</th>
+              <th style="padding:.4rem .75rem;text-align:center;font-weight:600">Alumnos</th>
+              <th style="padding:.4rem .75rem;text-align:center;font-weight:600">Críticos</th>
+              <th style="padding:.4rem .75rem;text-align:center;font-weight:600">Estado</th>
+            </tr>
+          </thead>
+          <tbody>${instTableRows || '<tr><td colspan="5" style="text-align:center;padding:1rem;color:var(--text-muted)">Sin datos de instructores</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 3 cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem">
+      <div style="background:var(--bg-card);border-radius:12px;padding:1rem 1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <h3 style="font-size:.9rem;font-weight:700;margin:0 0 .75rem">📈 Completados (últimos 5 meses)</h3>
+        <div style="display:flex;align-items:flex-end;gap:.4rem;height:110px">${trendBars}</div>
+      </div>
+      <div style="background:var(--bg-card);border-radius:12px;padding:1rem 1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <h3 style="font-size:.9rem;font-weight:700;margin:0 0 .75rem">🏷️ Bloqueados por licencia</h3>
+        ${licBars || '<p style="color:var(--text-muted);font-size:.85rem">Sin datos suficientes</p>'}
+      </div>
+      <div style="background:var(--bg-card);border-radius:12px;padding:1rem 1.25rem;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+        <h3 style="font-size:.9rem;font-weight:700;margin:0 0 .75rem">⏱️ Tiempo por etapa</h3>
+        ${etapaBars}
+        <div style="margin-top:.75rem;font-size:.8rem;background:rgba(239,68,68,.08);border-radius:6px;padding:.4rem .6rem;color:#ef4444">
+          🔴 Cuello de botella: <b>${cuello}</b>
+        </div>
+      </div>
+    </div>
+  `;
+}
 
 
 function logout() {
@@ -4920,11 +5234,14 @@ async function loginCoordinator() {
     document.querySelector('.logo-container').classList.add('no-click');
 
 
-    renderCoordinatorPortal();
-
-    showView('view-coordinator');
-
-    startPolling();
+    if ((STATE.currentUser.data?.coordRole || '') === 'gerencia') {
+      renderGerenciaPortal();
+      showView('view-gerencia');
+    } else {
+      renderCoordinatorPortal();
+      showView('view-coordinator');
+      startPolling();
+    }
 
   } catch(e) {
 
@@ -8724,8 +9041,6 @@ function renderCoordGroups(_expandKey) {
 
     </div>
 
-    <div id="coord-month-pills" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem"></div>
-
     <div id="coord-stu-split" style="display:flex;gap:0;align-items:flex-start">
 
       <div id="coord-stu-list-wrap" style="flex:1;min-width:0">
@@ -8753,8 +9068,6 @@ function renderCoordGroups(_expandKey) {
 window._coordStuFilter = window._coordStuFilter || 'all';
 
 function _coordSetFilter(f) {
-
-  if (window._coordMonthSel) window._coordMonthSel[f] = null;
 
   window._coordStuFilter = f;
 
@@ -8841,62 +9154,6 @@ function _renderCoordCards() {
   else if (af === 'practice')      entries = entries.filter(e => e.procs.some(p => ['contact_confirmed','practice_started'].includes(p.state)));
   else if (af === 'pdte_contacto') entries = entries.filter(e => e.procs.some(p => p.state === 'instructor_assigned'));
   else if (af === 'contactado')    entries = entries.filter(e => e.procs.some(p => p.state === 'contacted'));
-
-  // ── MONTH PILLS ────────────────────────────────────────────────────────────
-  const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const TAB_COLORS = {
-    all:       { active:'#3b82f6', bg:'rgba(59,130,246,.18)',  border:'rgba(59,130,246,.5)'  },
-    critical:  { active:'#f43f5e', bg:'rgba(244,63,94,.15)',   border:'rgba(244,63,94,.5)'   },
-    unassigned:{ active:'#f59e0b', bg:'rgba(245,158,11,.15)',  border:'rgba(245,158,11,.5)'  },
-    practice:  { active:'#10b981', bg:'rgba(16,185,129,.15)',  border:'rgba(16,185,129,.5)'  },
-  };
-  const tc = TAB_COLORS[af] || TAB_COLORS.all;
-
-  // Build month map: key = "YYYY-MM", value = count
-  const monthMap = new Map();
-  entries.forEach(e => {
-    const raw = e.st?.theoryPassedDate || '';
-    const ym  = raw ? raw.substring(0,7) : null;
-    if (!ym) return;
-    monthMap.set(ym, (monthMap.get(ym) || 0) + 1);
-  });
-  const sortedMonths = Array.from(monthMap.keys()).sort();
-
-  // Init month selection store
-  if (!window._coordMonthSel) window._coordMonthSel = {};
-  // Default: oldest month
-  if (!window._coordMonthSel[af] && sortedMonths.length) window._coordMonthSel[af] = sortedMonths[0];
-  // If stored month no longer exists in this filter, reset to oldest
-  if (window._coordMonthSel[af] && !monthMap.has(window._coordMonthSel[af])) window._coordMonthSel[af] = sortedMonths[0] || null;
-
-  const selMonth = window._coordMonthSel[af] || null;
-
-  // Render pills
-  const pillsEl = document.getElementById('coord-month-pills');
-  if (pillsEl) {
-    if (sortedMonths.length) {
-      pillsEl.innerHTML = sortedMonths.map(ym => {
-        const [y, m] = ym.split('-');
-        const label = MONTH_NAMES[parseInt(m,10)-1] + ' ' + y + ' · ' + monthMap.get(ym);
-        const isAct = ym === selMonth;
-        return `<button onclick="window._coordMonthSel['${af}']='${ym}';_renderCoordCards()"
-          style="padding:5px 13px;border-radius:20px;font-size:11.5px;cursor:pointer;font-family:inherit;font-weight:${isAct?'600':'400'};transition:background .12s;
-          border:1px solid ${isAct ? tc.border : 'rgba(255,255,255,.1)'};
-          background:${isAct ? tc.bg : 'rgba(255,255,255,.04)'};
-          color:${isAct ? tc.active : '#64748b'}">${label}</button>`;
-      }).join('');
-    } else {
-      pillsEl.innerHTML = '';
-    }
-  }
-
-  // Filter entries to selected month
-  if (selMonth && sortedMonths.length) {
-    entries = entries.filter(e => (e.st?.theoryPassedDate || '').startsWith(selMonth));
-    // Sort by theoryPassedDate ascending
-    entries.sort((a,b) => (a.st?.theoryPassedDate||'').localeCompare(b.st?.theoryPassedDate||''));
-  }
-  // ── END MONTH PILLS ─────────────────────────────────────────────────────────
 
 
 
