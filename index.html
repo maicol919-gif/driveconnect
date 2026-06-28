@@ -4388,12 +4388,13 @@ async function renderGerenciaPortal() {
   const dateStr = now.toLocaleDateString('es-CO', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
 
   // Proc row helper
+  // Simple row helper used by s1-crit / s1-warn / s1-sinst drill-downs
   function gProcRow(p, showDays=true) {
     const st = students.find(s => s.docNumber === p.docNumber);
     const nm = st ? (st.name || p.docNumber) : p.docNumber;
     const d = daysWaitingProceso(p, st);
     const iname = p.instructorId ? instName(p.instructorId) : '—';
-    const col = d >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : d >= 10 ? '#f59e0b' : '#94a3b8';
+    const col = d >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : d >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : '#94a3b8';
     return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.55rem .85rem;border-bottom:1px solid rgba(255,255,255,.07);gap:.5rem">
       <div style="min-width:0">
         <div style="font-size:.82rem;font-weight:600;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</div>
@@ -4403,9 +4404,78 @@ async function renderGerenciaPortal() {
     </div>`;
   }
 
-  // Pre-render instructor proc rows
+  // 4-column table row for s2-inst (instructor detail view)
+  // p.assignedDate = date instructor was assigned (field exists in normalizeProc line ~3354).
+  // Fallback to theoryPassedDate if assignedDate absent (older records may lack it).
+  function gInstProcRow(p) {
+    const st = students.find(s => s.docNumber === p.docNumber);
+    const nm = st ? (st.name || p.docNumber) : p.docNumber;
+
+    // Col 1: alumno + licencia + estado badge
+    const ESTADO_LABEL = { theory_passed:'Sin instructor', instructor_assigned:'Asignado', contacted:'Contactado', contact_confirmed:'Confirmado', practice_started:'En práctica', completed:'Completado' };
+    const estadoLbl = ESTADO_LABEL[p.state] || p.state;
+    const estadoCol = p.state === 'theory_passed' ? '#f59e0b' : p.state === 'instructor_assigned' ? '#94a3b8' : '#22c55e';
+
+    // Col 2: días hábiles desde theoryPassedDate
+    const desdeTeo = workingDaysSince(p.theoryPassedDate);
+
+    // Col 3: fecha de asignación formateada "DD mmm YYYY"
+    const assignSrc = p.assignedDate || p.theoryPassedDate; // fallback: theoryPassedDate si assignedDate no existe
+    let assignFmt = '—';
+    if (assignSrc) {
+      const ad = new Date(assignSrc + 'T00:00:00');
+      if (!isNaN(ad)) assignFmt = ad.toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric' });
+    }
+
+    // Col 4: días sin contactar desde asignación (solo estados pre-contacto)
+    const pendingContact = ['theory_passed','instructor_assigned'].includes(p.state);
+    let sinContactarVal = '—';
+    let sinContactarCol = '#94a3b8';
+    if (pendingContact && assignSrc) {
+      const sc = workingDaysSince(assignSrc);
+      sinContactarCol = sc >= CONFIG.WAIT_DAYS_CRITICAL ? '#ef4444' : sc >= CONFIG.WAIT_DAYS_WARNING ? '#f59e0b' : '#22c55e';
+      sinContactarVal = sc + 'd';
+    }
+
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.07)">
+      <td style="padding:.55rem .7rem;max-width:160px">
+        <div style="font-size:.79rem;font-weight:600;color:#f8fafc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</div>
+        <div style="display:flex;gap:.35rem;align-items:center;margin-top:2px;flex-wrap:wrap">
+          <span style="font-size:.65rem;color:#94a3b8">${p.license}</span>
+          <span style="font-size:.62rem;color:${estadoCol};background:${estadoCol}22;padding:1px 5px;border-radius:4px">${estadoLbl}</span>
+        </div>
+      </td>
+      <td style="padding:.55rem .7rem;text-align:center;font-size:.78rem;color:#94a3b8;white-space:nowrap">${desdeTeo}d</td>
+      <td style="padding:.55rem .7rem;text-align:center;font-size:.75rem;color:#94a3b8;white-space:nowrap">${assignFmt}</td>
+      <td style="padding:.55rem .7rem;text-align:center;font-size:.78rem;font-weight:700;color:${sinContactarCol};white-space:nowrap">${sinContactarVal}</td>
+    </tr>`;
+  }
+
+  // Pre-render instructor proc tables (s2-inst)
   window._gInstProcs = {};
-  gInstList.forEach(m => { window._gInstProcs[m.id] = m.procs.map(p => gProcRow(p)).join(''); });
+  gInstList.forEach(m => {
+    const rows = m.procs.map(p => gInstProcRow(p)).join('');
+    window._gInstProcs[m.id] = `
+      <div style="overflow-x:auto;flex:1">
+        <table style="width:100%;border-collapse:collapse;font-size:.78rem">
+          <thead>
+            <tr style="background:var(--gs1);position:sticky;top:0;z-index:5">
+              <th style="padding:.45rem .7rem;text-align:left;font-size:.65rem;font-weight:600;color:var(--gt3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Alumno</th>
+              <th style="padding:.45rem .7rem;text-align:center;font-size:.65rem;font-weight:600;color:var(--gt3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Desde teoría</th>
+              <th style="padding:.45rem .7rem;text-align:center;font-size:.65rem;font-weight:600;color:var(--gt3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Asignado</th>
+              <th style="padding:.45rem .7rem;text-align:center;font-size:.65rem;font-weight:600;color:var(--gt3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Sin contactar</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="4" style="padding:1.5rem;text-align:center;color:var(--gt3)">Sin procesos activos</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div style="padding:.55rem .85rem;border-top:1px solid var(--gbr);background:var(--gs1);font-size:.65rem;color:var(--gt3);display:flex;flex-wrap:wrap;gap:.6rem;align-items:center">
+        <span style="color:#ef4444">● Crítico ≥${CONFIG.WAIT_DAYS_CRITICAL}d</span>
+        <span style="color:#f59e0b">● En riesgo ≥${CONFIG.WAIT_DAYS_WARNING}d</span>
+        <span style="color:#22c55e">● Al día</span>
+        <span style="margin-left:auto;font-style:italic">Días sin contactar = desde fecha de asignación hasta hoy</span>
+      </div>`;
+  });
 
   // Nav functions (must be global for onclick attrs)
   window._gPrevScreen = 's0';
