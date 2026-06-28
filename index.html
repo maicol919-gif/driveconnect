@@ -4264,8 +4264,8 @@ async function renderGerenciaPortal() {
 
   // ── Alertas ──────────────────────────────────────────────────────────────────
   const criticos = procesos.filter(p =>
-    p.state === 'instructor_assigned' &&
-    workingDaysSince(p.theoryPassedDate) > 20
+    ['theory_passed','instructor_assigned'].includes(p.state) &&
+    daysWaitingProceso(p, students.find(s => s.docNumber === p.docNumber)) >= CONFIG.WAIT_DAYS_CRITICAL
   );
   const urgenteSinInst = procesos.filter(p =>
     p.state === 'theory_passed' &&
@@ -4289,9 +4289,10 @@ async function renderGerenciaPortal() {
     if (!id) return;
     if (!instMap[id]) instMap[id] = { id, name: instName(id), total: 0, criticos: 0, dias: [] };
     instMap[id].total++;
-    const dias = workingDaysSince(p.theoryPassedDate);
-    if (p.state === 'instructor_assigned' && dias > 20) instMap[id].criticos++;
-    if (p.state !== 'theory_passed') instMap[id].dias.push(dias);
+    const st = students.find(s => s.docNumber === p.docNumber);
+    const dias = daysWaitingProceso(p, st);
+    if (['theory_passed','instructor_assigned'].includes(p.state) && dias >= CONFIG.WAIT_DAYS_CRITICAL) instMap[id].criticos++;
+    if (['theory_passed','instructor_assigned'].includes(p.state)) instMap[id].dias.push(dias);
   });
 
   const instStats = Object.values(instMap).map(i => ({
