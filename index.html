@@ -12155,16 +12155,7 @@ async function loadActivityLog() {
       container.innerHTML = entries.slice(-12).reverse().map(_renderLogEntry).join('');
     } catch { container.innerHTML = '<div style="font-size:.72rem;color:var(--text-muted);text-align:center;padding:.5rem 0">Sin actividad registrada aún</div>'; }
   };
-  try {
-    const res = await apiCall({ action: 'getLogs', who: '' });
-    if (res && res.success && res.logs && res.logs.length) {
-      renderLogs(res.logs);
-    } else {
-      try { renderLogs(JSON.parse(localStorage.getItem(DC_LOG_KEY) || '[]')); } catch { renderLogs([]); }
-    }
-  } catch {
-    try { renderLogs(JSON.parse(localStorage.getItem(DC_LOG_KEY) || '[]')); } catch { renderLogs([]); }
-  }
+  try { renderLogs(JSON.parse(localStorage.getItem(DC_LOG_KEY) || '[]')); } catch { renderLogs([]); }
 }
 
 async function openLogModal() {
@@ -12220,8 +12211,8 @@ async function openLogModal() {
 
   let _allEntries = [];
   try {
-    const res = await apiCall({ action: 'getLogs', who: '' });
-    const parsed = (res?.logs || []).map(s => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean).reverse();
+    const raw = JSON.parse(localStorage.getItem(DC_LOG_KEY) || '[]');
+    const parsed = raw.map(s => { try { return JSON.parse(s); } catch { return null; } }).filter(Boolean).reverse();
     _allEntries = _filterLogsByCoordRole(parsed, coordRole, myName);
   } catch {}
   document.getElementById('lm-count').textContent = _allEntries.length + ' registros';
